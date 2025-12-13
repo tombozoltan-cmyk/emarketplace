@@ -23,7 +23,7 @@ export function FinalCtaSection() {
         <p className="max-w-2xl text-sm text-slate-200 md:text-base">
           {text}
         </p>
-        <QuoteButton className="mt-2 rounded-full bg-primary px-8 py-3 text-sm font-semibold text-secondary shadow-lg shadow-primary/40 hover:scale-[1.03] hover:bg-[#f8cf64] hover:shadow-xl transition">
+        <QuoteButton className="mt-2 rounded-full bg-primary px-8 py-3 text-sm font-semibold text-secondary shadow-lg shadow-primary/40 hover:scale-[1.03] hover:bg-primary hover:shadow-xl transition">
           {buttonLabel}
         </QuoteButton>
       </div>

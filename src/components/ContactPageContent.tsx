@@ -124,7 +124,7 @@ export function ContactPageContent() {
           <h1 className="mb-4 text-3xl font-bold text-[color:var(--primary)] md:mb-6 md:text-4xl lg:text-5xl xl:text-6xl">
             {text.heroTitle}
           </h1>
-          <p className="text-base text-[color:var(--secondary-foreground)] opacity-80 md:text-lg lg:text-xl">
+          <p className="text-base text-secondary-foreground opacity-80 md:text-lg lg:text-xl">
             {text.heroSubtitle}
           </p>
         </div>
@@ -136,14 +136,14 @@ export function ContactPageContent() {
           {/* Email */}
           <div className="flex flex-col items-center rounded-2xl bg-[color:var(--primary)] p-6 text-center shadow-lg transition-shadow hover:shadow-xl md:p-8">
             <div className="mb-3 md:mb-4">
-              <Mail className="h-7 w-7 text-[color:var(--secondary)] md:h-8 md:w-8" />
+              <Mail className="h-7 w-7 text-[color:var(--primary-foreground)] md:h-8 md:w-8" />
             </div>
-            <h3 className="mb-2 text-lg font-semibold text-[color:var(--secondary)] md:mb-3 md:text-xl">
+            <h3 className="mb-2 text-lg font-semibold text-[color:var(--primary-foreground)] md:mb-3 md:text-xl">
               {text.email}
             </h3>
             <a
               href="mailto:emarketplacekft@gmail.com"
-              className="break-all text-sm text-[color:var(--secondary)]/80 transition-colors hover:text-[color:var(--secondary)]"
+              className="break-all text-sm text-[color:var(--primary-foreground)]/80 transition-colors hover:text-[color:var(--primary-foreground)]"
             >
               emarketplacekft@gmail.com
             </a>
@@ -152,16 +152,16 @@ export function ContactPageContent() {
           {/* Cím */}
           <div className="flex flex-col items-center rounded-2xl bg-[color:var(--primary)] p-6 text-center shadow-lg transition-shadow hover:shadow-xl md:p-8">
             <div className="mb-3 md:mb-4">
-              <MapPin className="h-7 w-7 text-[color:var(--secondary)] md:h-8 md:w-8" />
+              <MapPin className="h-7 w-7 text-[color:var(--primary-foreground)] md:h-8 md:w-8" />
             </div>
-            <h3 className="mb-2 text-lg font-semibold text-[color:var(--secondary)] md:mb-3 md:text-xl">
+            <h3 className="mb-2 text-lg font-semibold text-[color:var(--primary-foreground)] md:mb-3 md:text-xl">
               {text.address}
             </h3>
             <a
               href="https://www.google.com/maps/dir/?api=1&destination=Eco-Office+Budapest+Izabella+utca+68/B+1064"
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-block text-sm text-[color:var(--secondary)]/80 transition-colors hover:text-[color:var(--secondary)]"
+              className="inline-block text-sm text-[color:var(--primary-foreground)]/80 transition-colors hover:text-[color:var(--primary-foreground)]"
             >
               1064 Budapest
               <br />
@@ -172,14 +172,14 @@ export function ContactPageContent() {
           {/* Telefon */}
           <div className="flex flex-col items-center rounded-2xl bg-[color:var(--primary)] p-6 text-center shadow-lg transition-shadow hover:shadow-xl md:p-8">
             <div className="mb-3 md:mb-4">
-              <Phone className="h-7 w-7 text-[color:var(--secondary)] md:h-8 md:w-8" />
+              <Phone className="h-7 w-7 text-[color:var(--primary-foreground)] md:h-8 md:w-8" />
             </div>
-            <h3 className="mb-2 text-lg font-semibold text-[color:var(--secondary)] md:mb-3 md:text-xl">
+            <h3 className="mb-2 text-lg font-semibold text-[color:var(--primary-foreground)] md:mb-3 md:text-xl">
               {text.phone}
             </h3>
             <a
               href="tel:+36501046116"
-              className="text-sm text-[color:var(--secondary)]/80 transition-colors hover:text-[color:var(--secondary)]"
+              className="text-sm text-[color:var(--primary-foreground)]/80 transition-colors hover:text-[color:var(--primary-foreground)]"
             >
               +36 50 104 61 16
             </a>
@@ -191,10 +191,10 @@ export function ContactPageContent() {
       <section id="contact-form" className="bg-[color:var(--background)] py-12 md:py-16">
         <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
           <div className="mb-8 text-center md:mb-12">
-            <h2 className="mb-3 text-2xl font-bold text-[color:var(--secondary)] md:mb-4 md:text-3xl lg:text-4xl">
+            <h2 className="mb-3 text-2xl font-bold text-foreground md:mb-4 md:text-3xl lg:text-4xl">
               {text.formTitle}
             </h2>
-            <p className="mx-auto max-w-2xl text-base text-[color:var(--secondary)]/70 md:text-lg">
+            <p className="mx-auto max-w-2xl text-base text-muted-foreground md:text-lg">
               {text.formSubtitle}
             </p>
           </div>
@@ -286,7 +286,7 @@ export function ContactPageContent() {
 
               <Button
                 type="submit"
-                className="w-full rounded-full bg-[color:var(--primary)] py-6 text-lg font-semibold text-white hover:bg-[color:var(--primary)]/90"
+                className="w-full rounded-full bg-[color:var(--primary)] py-6 text-lg font-semibold text-[color:var(--primary-foreground)] hover:bg-[color:var(--primary)]/90"
               >
                 {text.submit}
               </Button>
@@ -294,13 +294,13 @@ export function ContactPageContent() {
 
             {/* Jobb: céginfo + térkép */}
             <div className="space-y-8">
-              <div className="space-y-3 rounded-xl bg-[color:var(--secondary)]/5 p-4 text-sm text-[color:var(--secondary)] md:space-y-4 md:p-6">
+              <div className="space-y-3 rounded-xl bg-card p-4 text-sm text-card-foreground ring-1 ring-[color:var(--border)]/60 md:space-y-4 md:p-6">
                 <div className="flex items-start space-x-3">
                   <Building2 className="mt-1 h-5 w-5 flex-shrink-0 text-[color:var(--primary)]" />
                   <div>
-                    <p className="text-sm font-semibold text-[color:var(--secondary)]">Cégnév</p>
-                    <p className="text-sm font-semibold text-[color:var(--secondary)]">{text.companyName}</p>
-                    <p className="text-sm text-[color:var(--secondary)]/70">
+                    <p className="text-sm font-semibold text-foreground">Cégnév</p>
+                    <p className="text-sm font-semibold text-foreground">{text.companyName}</p>
+                    <p className="text-sm text-muted-foreground">
                       E-Marketplace Szolgáltató Korlátolt Felelősségű Társaság
                     </p>
                   </div>
@@ -308,22 +308,22 @@ export function ContactPageContent() {
                 <div className="flex items-start space-x-3">
                   <FileText className="mt-1 h-5 w-5 flex-shrink-0 text-[color:var(--primary)]" />
                   <div>
-                    <p className="text-sm font-semibold text-[color:var(--secondary)]">{text.companyReg}</p>
-                    <p className="text-sm text-[color:var(--secondary)]/70">01-09-296567</p>
+                    <p className="text-sm font-semibold text-foreground">{text.companyReg}</p>
+                    <p className="text-sm text-muted-foreground">01-09-296567</p>
                   </div>
                 </div>
                 <div className="flex items-start space-x-3">
                   <FileText className="mt-1 h-5 w-5 flex-shrink-0 text-[color:var(--primary)]" />
                   <div>
-                    <p className="text-sm font-semibold text-[color:var(--secondary)]">{text.taxNo}</p>
-                    <p className="text-sm text-[color:var(--secondary)]/70">25924916-2-42</p>
+                    <p className="text-sm font-semibold text-foreground">{text.taxNo}</p>
+                    <p className="text-sm text-muted-foreground">25924916-2-42</p>
                   </div>
                 </div>
                 <div className="flex items-start space-x-3">
                   <User className="mt-1 h-5 w-5 flex-shrink-0 text-[color:var(--primary)]" />
                   <div>
-                    <p className="text-sm font-semibold text-[color:var(--secondary)]">{text.representedBy}</p>
-                    <p className="text-sm text-[color:var(--secondary)]/70">Kádár Zoltán</p>
+                    <p className="text-sm font-semibold text-foreground">{text.representedBy}</p>
+                    <p className="text-sm text-muted-foreground">Kádár Zoltán</p>
                   </div>
                 </div>
               </div>
@@ -351,7 +351,7 @@ export function ContactPageContent() {
           <h2 className="mb-4 text-2xl font-bold text-[color:var(--primary)] md:mb-6 md:text-3xl lg:text-4xl">
             {text.finalTitle}
           </h2>
-          <p className="mb-6 text-base text-[color:var(--secondary-foreground)] opacity-80 md:mb-8 md:text-lg">
+          <p className="mb-6 text-base text-secondary-foreground opacity-80 md:mb-8 md:text-lg">
             {text.finalText}
           </p>
           <QuoteButton className="w-full rounded-full bg-[color:var(--card)] px-6 py-5 text-base font-semibold text-[color:var(--card-foreground)] hover:bg-[color:var(--card)]/90 sm:w-auto md:px-8 md:py-6 md:text-lg">

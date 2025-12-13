@@ -126,13 +126,13 @@ export function FaqSection() {
   };
 
   return (
-    <section id="gyik" className="w-full bg-[color:var(--background)] py-20 text-slate-900">
+    <section id="gyik" className="w-full bg-background py-20 text-foreground">
       <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
         <div className="mb-16 text-center">
-          <h2 className="text-3xl font-bold text-[color:var(--secondary)] md:text-4xl">
+          <h2 className="text-3xl font-bold text-foreground md:text-4xl">
             {heading}
           </h2>
-          <p className="mt-4 max-w-2xl mx-auto text-xl text-slate-500">
+          <p className="mt-4 max-w-2xl mx-auto text-xl text-muted-foreground">
             {subheading}
           </p>
         </div>
@@ -166,7 +166,7 @@ export function FaqSection() {
                 </button>
 
                 <div
-                  className={`overflow-hidden px-6 pb-5 pt-2 text-pretty text-base text-slate-500 transition-all duration-300 ease-in-out ${
+                  className={`overflow-hidden px-6 pb-5 pt-2 text-pretty text-base text-muted-foreground transition-all duration-300 ease-in-out ${
                     isOpen ? "max-h-96 opacity-100" : "max-h-0 opacity-0"
                   }`}
                 >

@@ -119,7 +119,7 @@ export function CookieBanner() {
 
           {/* Banner */}
           <div className="fixed bottom-4 left-4 right-4 z-50 md:bottom-8 md:right-8 md:left-auto md:max-w-md">
-            <div className="overflow-hidden rounded-2xl bg-white shadow-2xl ring-2 ring-secondary">
+            <div className="overflow-hidden rounded-2xl bg-card text-card-foreground shadow-2xl ring-2 ring-secondary">
               {/* Header */}
               <div className="flex items-start justify-between gap-3 bg-gradient-to-r from-secondary to-secondary/80 p-6 text-white">
                 <div className="flex items-start gap-3">
@@ -145,7 +145,7 @@ export function CookieBanner() {
 
               {/* Body */}
               {mode === "simple" ? (
-                <div className="space-y-4 bg-white p-6 text-xs text-gray-700">
+                <div className="space-y-4 bg-card p-6 text-xs text-foreground">
                   <p className="leading-relaxed">
                     Az oldal működéséhez szükséges sütiket mindig használjuk. Opcionális
                     funkcionális, statisztikai és marketing sütikhez az Ön hozzájárulása
@@ -159,7 +159,7 @@ export function CookieBanner() {
                     </div>
                     <div>
                       <p className="text-sm font-medium">GDPR megfelelőség</p>
-                      <p className="text-[11px] text-gray-600">
+                      <p className="text-[11px] text-muted-foreground">
                         Sütiket csak az Ön engedélyével használunk statisztikai és
                         marketing célokra, az európai adatvédelmi szabályozásnak megfelelően.
                       </p>
@@ -186,13 +186,13 @@ export function CookieBanner() {
                     <button
                       type="button"
                       onClick={() => handleSave("necessary-only")}
-                      className="w-full rounded-full px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-900"
+                      className="w-full rounded-full px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground"
                     >
                       Csak szükségesek
                     </button>
                   </div>
 
-                  <p className="text-[11px] text-gray-500">
+                  <p className="text-[11px] text-muted-foreground">
                     További információért olvassa el az
                     <span className="px-1 text-[color:var(--primary)] underline-offset-2 hover:underline">
                       Adatkezelési tájékoztatót
@@ -201,7 +201,7 @@ export function CookieBanner() {
                   </p>
                 </div>
               ) : (
-                <div className="bg-white p-6 text-xs text-gray-700">
+                <div className="bg-card p-6 text-xs text-foreground">
                   <div className="mb-3 flex items-center justify-between">
                     <p className="text-sm font-medium">Részletes süti beállítások</p>
                     <button
@@ -220,7 +220,7 @@ export function CookieBanner() {
                       onToggle={(e) =>
                         setExpandedCategory(e.currentTarget.open ? "necessary" : null)
                       }
-                      className="group rounded-lg border border-gray-200 bg-gray-50 p-3"
+                      className="group rounded-lg border border-[color:var(--border)] bg-[color:var(--muted)]/40 p-3"
                     >
                       <summary className="flex cursor-pointer list-none items-center justify-between gap-3">
                         <div className="flex items-center gap-3">
@@ -229,13 +229,13 @@ export function CookieBanner() {
                           </div>
                           <div>
                             <p className="text-sm font-medium">Szükséges sütik</p>
-                            <p className="text-[11px] text-gray-600">Mindig aktív</p>
+                            <p className="text-[11px] text-muted-foreground">Mindig aktív</p>
                           </div>
                         </div>
-                        <ChevronDown className="h-4 w-4 text-gray-500 group-open:hidden" />
-                        <ChevronUp className="hidden h-4 w-4 text-gray-500 group-open:block" />
+                        <ChevronDown className="h-4 w-4 text-muted-foreground group-open:hidden" />
+                        <ChevronUp className="hidden h-4 w-4 text-muted-foreground group-open:block" />
                       </summary>
-                      <p className="mt-2 text-[11px] leading-relaxed text-gray-700">
+                      <p className="mt-2 text-[11px] leading-relaxed text-muted-foreground">
                         A weboldal működéséhez, biztonsági funkciókhoz és a bejelentkezési
                         folyamatokhoz elengedhetetlen sütik. Ezek letiltása technikailag
                         nem lehetséges.
@@ -248,7 +248,7 @@ export function CookieBanner() {
                       onToggle={(e) =>
                         setExpandedCategory(e.currentTarget.open ? "functional" : null)
                       }
-                      className="group rounded-lg border border-gray-200 bg-gray-50 p-3"
+                      className="group rounded-lg border border-[color:var(--border)] bg-[color:var(--muted)]/40 p-3"
                     >
                       <summary className="flex cursor-pointer list-none items-center justify-between gap-3">
                         <div className="flex items-center gap-3">
@@ -257,7 +257,7 @@ export function CookieBanner() {
                           </div>
                           <div>
                             <p className="text-sm font-medium">Funkcionális sütik</p>
-                            <p className="text-[11px] text-gray-600">Nyelv, preferenciák</p>
+                            <p className="text-[11px] text-muted-foreground">Nyelv, preferenciák</p>
                           </div>
                         </div>
                         <label className="relative inline-flex h-6 w-11 cursor-pointer items-center">
@@ -269,11 +269,11 @@ export function CookieBanner() {
                             }
                             className="peer sr-only"
                           />
-                          <span className="toggle block h-6 w-11 rounded-full bg-gray-300 transition peer-checked:bg-[color:var(--primary)]" />
-                          <span className="pointer-events-none absolute left-1 h-5 w-5 rounded-full bg-white shadow transition-transform duration-200 peer-checked:translate-x-5" />
+                          <span className="toggle block h-6 w-11 rounded-full bg-[color:var(--border)] transition peer-checked:bg-[color:var(--primary)]" />
+                          <span className="pointer-events-none absolute left-1 h-5 w-5 rounded-full bg-card shadow transition-transform duration-200 peer-checked:translate-x-5" />
                         </label>
                       </summary>
-                      <p className="mt-2 text-[11px] leading-relaxed text-gray-700">
+                      <p className="mt-2 text-[11px] leading-relaxed text-muted-foreground">
                         Ezek a sütik segítenek megjegyezni az Ön beállításait (pl. nyelv,
                         űrlapadatok), hogy kényelmesebben használhassa az oldalt.
                       </p>
@@ -285,7 +285,7 @@ export function CookieBanner() {
                       onToggle={(e) =>
                         setExpandedCategory(e.currentTarget.open ? "analytics" : null)
                       }
-                      className="group rounded-lg border border-gray-200 bg-gray-50 p-3"
+                      className="group rounded-lg border border-[color:var(--border)] bg-[color:var(--muted)]/40 p-3"
                     >
                       <summary className="flex cursor-pointer list-none items-center justify-between gap-3">
                         <div className="flex items-center gap-3">
@@ -294,7 +294,7 @@ export function CookieBanner() {
                           </div>
                           <div>
                             <p className="text-sm font-medium">Statisztikai sütik</p>
-                            <p className="text-[11px] text-gray-600">Látogatottság mérése</p>
+                            <p className="text-[11px] text-muted-foreground">Látogatottság mérése</p>
                           </div>
                         </div>
                         <label className="relative inline-flex h-6 w-11 cursor-pointer items-center">
@@ -306,11 +306,11 @@ export function CookieBanner() {
                             }
                             className="peer sr-only"
                           />
-                          <span className="toggle block h-6 w-11 rounded-full bg-gray-300 transition peer-checked:bg-[color:var(--primary)]" />
-                          <span className="pointer-events-none absolute left-1 h-5 w-5 rounded-full bg-white shadow transition-transform duration-200 peer-checked:translate-x-5" />
+                          <span className="toggle block h-6 w-11 rounded-full bg-[color:var(--border)] transition peer-checked:bg-[color:var(--primary)]" />
+                          <span className="pointer-events-none absolute left-1 h-5 w-5 rounded-full bg-card shadow transition-transform duration-200 peer-checked:translate-x-5" />
                         </label>
                       </summary>
-                      <p className="mt-2 text-[11px] leading-relaxed text-gray-700">
+                      <p className="mt-2 text-[11px] leading-relaxed text-muted-foreground">
                         Névtelen statisztikai adatokat gyűjtünk arról, hogyan használják az
                         oldalt, hogy fejleszthessük szolgáltatásainkat.
                       </p>
@@ -322,7 +322,7 @@ export function CookieBanner() {
                       onToggle={(e) =>
                         setExpandedCategory(e.currentTarget.open ? "marketing" : null)
                       }
-                      className="group rounded-lg border border-gray-200 bg-gray-50 p-3"
+                      className="group rounded-lg border border-[color:var(--border)] bg-[color:var(--muted)]/40 p-3"
                     >
                       <summary className="flex cursor-pointer list-none items-center justify-between gap-3">
                         <div className="flex items-center gap-3">
@@ -331,7 +331,7 @@ export function CookieBanner() {
                           </div>
                           <div>
                             <p className="text-sm font-medium">Marketing sütik</p>
-                            <p className="text-[11px] text-gray-600">Célzott hirdetések</p>
+                            <p className="text-[11px] text-muted-foreground">Célzott hirdetések</p>
                           </div>
                         </div>
                         <label className="relative inline-flex h-6 w-11 cursor-pointer items-center">
@@ -343,11 +343,11 @@ export function CookieBanner() {
                             }
                             className="peer sr-only"
                           />
-                          <span className="toggle block h-6 w-11 rounded-full bg-gray-300 transition peer-checked:bg-[color:var(--primary)]" />
-                          <span className="pointer-events-none absolute left-1 h-5 w-5 rounded-full bg-white shadow transition-transform duration-200 peer-checked:translate-x-5" />
+                          <span className="toggle block h-6 w-11 rounded-full bg-[color:var(--border)] transition peer-checked:bg-[color:var(--primary)]" />
+                          <span className="pointer-events-none absolute left-1 h-5 w-5 rounded-full bg-card shadow transition-transform duration-200 peer-checked:translate-x-5" />
                         </label>
                       </summary>
-                      <p className="mt-2 text-[11px] leading-relaxed text-gray-700">
+                      <p className="mt-2 text-[11px] leading-relaxed text-muted-foreground">
                         Ezek a sütik segítenek személyre szabott hirdetéseket és ajánlatokat
                         megjeleníteni az Ön érdeklődése alapján.
                       </p>

@@ -2,7 +2,7 @@ import * as React from "react";
 
 export function Card({ className = "", ...props }: React.HTMLAttributes<HTMLDivElement>) {
   const base =
-    "rounded-2xl border border-[color:var(--border)] bg-[color:var(--card)] text-[color:var(--foreground)] shadow-sm";
+    "rounded-2xl border border-[color:var(--border)] bg-[color:var(--card)] text-[color:var(--card-foreground)] shadow-sm";
   const classes = className ? `${base} ${className}` : base;
   return <div className={classes} {...props} />;
 }

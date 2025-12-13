@@ -97,13 +97,13 @@ export function ServicesSection() {
         },
       ];
   return (
-    <section className="w-full bg-[color:var(--muted)] py-16 text-slate-900">
+    <section className="w-full bg-muted py-16 text-foreground">
       <div className="mx-auto flex max-w-6xl flex-col gap-10 px-4 lg:px-0">
         <div className="text-center">
           <h2 className="text-3xl font-semibold text-[color:var(--primary)] md:text-4xl">
             {sectionTitle}
           </h2>
-          <p className="mt-3 text-sm font-medium text-slate-500 md:text-base">
+          <p className="mt-3 text-sm font-medium text-muted-foreground md:text-base">
             {sectionSubtitle}
           </p>
         </div>
@@ -115,15 +115,15 @@ export function ServicesSection() {
               <Link
                 key={service.title}
                 href={service.href}
-                className="group flex h-full min-h-[260px] flex-col items-center justify-start gap-4 rounded-[28px] bg-[color:var(--card)] px-8 py-9 text-sm shadow-[0_20px_45px_rgba(15,23,42,0.08)] ring-2 ring-[color:var(--border)] transition-all duration-200 hover:-translate-y-2 hover:shadow-[0_30px_70px_rgba(15,23,42,0.2)] hover:ring-[color:var(--primary)]"
+                className="group flex h-full min-h-[260px] flex-col items-center justify-start gap-4 rounded-[28px] bg-card px-8 py-9 text-sm text-card-foreground shadow-[0_20px_45px_rgba(15,23,42,0.08)] ring-2 ring-[color:var(--border)] transition-all duration-200 hover:-translate-y-2 hover:shadow-[0_30px_70px_rgba(15,23,42,0.2)] hover:ring-[color:var(--primary)]"
               >
                 <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-[#fdf3dd] text-[color:var(--primary)] shadow-[0_10px_22px_rgba(248,220,158,0.7)] transition-transform duration-200 group-hover:-translate-y-1 group-hover:rotate-3">
                   <Icon className="h-7 w-7" strokeWidth={1.8} />
                 </div>
-                <h3 className="text-center text-sm font-semibold tracking-tight text-slate-900">
+                <h3 className="text-center text-sm font-semibold tracking-tight text-foreground">
                   {service.title}
                 </h3>
-                <p className="text-center text-[13px] leading-relaxed text-slate-600">
+                <p className="text-center text-[13px] leading-relaxed text-muted-foreground">
                   {service.description}
                 </p>
               </Link>

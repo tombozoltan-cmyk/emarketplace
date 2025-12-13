@@ -200,14 +200,14 @@ export function Footer() {
               <Link
                 href="https://facebook.com"
                 target="_blank"
-                className="flex h-9 w-9 items-center justify-center rounded-full bg-[color:var(--primary)]/10 text-slate-100 transition hover:bg-[color:var(--primary)] hover:text-slate-900 md:h-10 md:w-10"
+                className="flex h-9 w-9 items-center justify-center rounded-full bg-[color:var(--primary)]/10 text-foreground transition hover:bg-[color:var(--primary)] hover:text-[color:var(--primary-foreground)] md:h-10 md:w-10"
               >
                 <Facebook className="h-4 w-4 md:h-5 md:w-5" />
               </Link>
               <Link
                 href="https://linkedin.com"
                 target="_blank"
-                className="flex h-9 w-9 items-center justify-center rounded-full bg-[color:var(--primary)]/10 text-slate-100 transition hover:bg-[color:var(--primary)] hover:text-slate-900 md:h-10 md:w-10"
+                className="flex h-9 w-9 items-center justify-center rounded-full bg-[color:var(--primary)]/10 text-foreground transition hover:bg-[color:var(--primary)] hover:text-[color:var(--primary-foreground)] md:h-10 md:w-10"
               >
                 <Linkedin className="h-4 w-4 md:h-5 md:w-5" />
               </Link>

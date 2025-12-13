@@ -91,7 +91,7 @@ export default function SzekhelyszolgaltatasPage() {
             <Link href="/arak" className="w-full sm:w-auto">
               <Button
                 variant="outline"
-                className="w-full rounded-full border-2 border-[color:var(--secondary)] bg-transparent px-5 py-4 text-sm text-[color:var(--secondary)] hover:bg-[color:var(--secondary)] hover:text-[color:var(--background)] md:px-6 md:py-5 md:text-base lg:px-8 lg:py-6 lg:text-lg"
+                className="w-full rounded-full border-2 border-[color:var(--secondary)] bg-transparent px-5 py-4 text-sm text-foreground hover:bg-[color:var(--secondary)] hover:text-[color:var(--secondary-foreground)] md:px-6 md:py-5 md:text-base lg:px-8 lg:py-6 lg:text-lg"
               >
                 Árak Megtekintése →
               </Button>
@@ -193,7 +193,7 @@ export default function SzekhelyszolgaltatasPage() {
               <CardContent className="p-3 md:p-4 lg:p-6">
                 <div className="mb-2 flex items-start gap-2 md:mb-3">
                   <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-[color:var(--secondary)] md:h-5 md:w-5" />
-                  <h3 className="min-w-0 flex-1 break-words text-sm font-semibold text-[color:var(--secondary)] md:text-base lg:text-lg">
+                  <h3 className="min-w-0 flex-1 break-words text-sm font-semibold text-foreground md:text-base lg:text-lg">
                     Mit tartalmaz a szolgáltatás?
                   </h3>
                 </div>
@@ -229,7 +229,7 @@ export default function SzekhelyszolgaltatasPage() {
 
           {/* Fontos információs doboz */}
           <div className="mt-6 mb-6 rounded-r-lg border-l-4 border-l-[color:var(--primary)] bg-[color:var(--primary)]/5 p-3 text-sm text-[color:var(--muted-foreground)] md:mt-8 md:mb-8 md:p-4 lg:mb-12 lg:p-6 md:text-base">
-            <span className="font-semibold text-[color:var(--secondary)]">Fontos:</span>{" "}
+            <span className="font-semibold text-foreground">Fontos:</span>{" "}
             Magyarországon minden cégnek kötelező hivatalos székhellyel rendelkeznie, amelyet a cégjegyzékbe be kell jegyezni. A székhelyszolgáltatás ezt a törvényi kötelezettséget teszi költséghatékonnyá és rugalmassá.
           </div>
 
@@ -241,7 +241,7 @@ export default function SzekhelyszolgaltatasPage() {
             <p className="mb-4 text-sm text-[color:var(--muted-foreground)] md:mb-6 md:text-base">
               Foglaljon időpontot ingyenes konzultációra, és szakértőink segítenek a megfelelő csomag kiválasztásában!
             </p>
-            <QuoteButton className="w-full rounded-full bg-[color:var(--secondary)] px-4 py-2 text-sm text-[color:var(--background)] hover:bg-[color:var(--secondary)]/90 md:w-auto md:px-8 md:py-3 md:text-base">
+            <QuoteButton className="w-full rounded-full bg-[color:var(--secondary)] px-4 py-2 text-sm text-[color:var(--secondary-foreground)] hover:bg-[color:var(--secondary)]/90 md:w-auto md:px-8 md:py-3 md:text-base">
               Ajánlatot kérek
             </QuoteButton>
           </div>
@@ -459,7 +459,7 @@ export default function SzekhelyszolgaltatasPage() {
             <p className="mb-4 text-sm text-[color:var(--muted-foreground)] md:mb-6 md:text-base">
               Megbízási szerződést kötünk, amelyben vállaljuk az iratok átvételét és 15 napon belüli továbbítását az Ön részére. Ezt a megbízást az ügyvéd ellenjegyzi és benyújtja a Cégbíróságra.
             </p>
-            <Button className="w-full rounded-full bg-[color:var(--primary)] px-4 py-2 text-sm text-[color:var(--background)] hover:bg-[color:var(--primary)]/90 md:w-auto md:px-6 md:py-3 md:text-base">
+            <Button className="w-full rounded-full bg-[color:var(--primary)] px-4 py-2 text-sm text-[color:var(--primary-foreground)] hover:bg-[color:var(--primary)]/90 md:w-auto md:px-6 md:py-3 md:text-base">
               Kézbesítési megbízottat kérek
             </Button>
           </div>
@@ -663,7 +663,7 @@ export default function SzekhelyszolgaltatasPage() {
               Vegye fel velünk a kapcsolatot, és összekötjük olyan tapasztalt ügyvédi irodával, akik a székhelyszolgáltatással összehangoltan dolgoznak.
             </p>
             <Link href="/kapcsolat#ugyved" className="inline-block">
-              <Button className="rounded-full bg-[color:var(--secondary)] px-4 py-2 text-sm text-[color:var(--background)] hover:bg-[color:var(--secondary)]/90 md:px-6 md:py-4 md:text-base lg:px-8 lg:py-6 lg:text-lg">
+              <Button className="rounded-full bg-[color:var(--secondary)] px-4 py-2 text-sm text-[color:var(--secondary-foreground)] hover:bg-[color:var(--secondary)]/90 md:px-6 md:py-4 md:text-base lg:px-8 lg:py-6 lg:text-lg">
                 Kapcsolatfelvétel jogi partnerrel
               </Button>
             </Link>
@@ -748,7 +748,7 @@ export default function SzekhelyszolgaltatasPage() {
               Szívesen ajánlunk olyan könyvelőpartnert, aki ismeri a székhelyszolgáltatással kapcsolatos sajátosságokat és a külföldi ügyfelek igényeit is.
             </p>
             <Link href="/kapcsolat#konyveles" className="inline-block">
-              <Button className="rounded-full bg-[color:var(--primary)] px-4 py-2 text-sm text-[color:var(--background)] hover:bg-[color:var(--primary)]/90 md:px-6 md:py-4 md:text-base lg:px-8 lg:py-6 lg:text-lg">
+              <Button className="rounded-full bg-[color:var(--primary)] px-4 py-2 text-sm text-[color:var(--primary-foreground)] hover:bg-[color:var(--primary)]/90 md:px-6 md:py-4 md:text-base lg:px-8 lg:py-6 lg:text-lg">
                 Könyvelő ajánlatot kérek
               </Button>
             </Link>

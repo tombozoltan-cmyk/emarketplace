@@ -65,7 +65,7 @@ export default function BlogPageEn() {
               </div>
               <CardContent className="flex flex-1 flex-col p-4 md:p-6">
                 <Link href={`/en/blog/${post.slug}`} className="mb-2 md:mb-3">
-                  <h3 className="text-lg font-bold text-[color:var(--secondary)] text-balance transition-colors group-hover:text-[color:var(--primary)] md:text-xl">
+                  <h3 className="text-lg font-bold text-foreground text-balance transition-colors group-hover:text-[color:var(--primary)] md:text-xl">
                     {post.title}
                   </h3>
                 </Link>
@@ -77,9 +77,12 @@ export default function BlogPageEn() {
                     <span>{post.date}</span>
                     <span>{post.readingTime} min read</span>
                   </div>
-                  <Button className="w-full rounded-full bg-[color:var(--secondary)] text-[color:var(--background)] transition-colors hover:bg-[color:var(--primary)] md:text-base">
-                    <Link href={`/en/blog/${post.slug}`}>Read more</Link>
-                  </Button>
+                  <Link
+                    href={`/en/blog/${post.slug}`}
+                    className="inline-flex w-full items-center justify-center rounded-full bg-[color:var(--secondary)] px-4 py-2 text-base font-medium text-[color:var(--secondary-foreground)] transition-colors hover:bg-[color:var(--primary)] hover:text-[color:var(--primary-foreground)]"
+                  >
+                    Read more
+                  </Link>
                 </div>
               </CardContent>
             </Card>

@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { QuoteButton } from "@/components/QuoteButton";
@@ -23,6 +24,7 @@ export function Hero() {
 
   const primaryCta = isEnglish ? "Request an offer" : "Ajánlatot kérek";
   const secondaryCta = isEnglish ? "View pricing" : "Árak megtekintése";
+  const pricingHref = isEnglish ? "/en/pricing" : "/arak";
 
   const statClients = isEnglish ? "Satisfied clients" : "Elégedett ügyfél";
   const statUptime = isEnglish ? "Uptime" : "Rendelkezésre állás";
@@ -50,16 +52,16 @@ export function Hero() {
 
           <div className="flex flex-wrap items-center gap-4 pt-2">
             <QuoteButton
-              className="rounded-full bg-primary px-7 py-3 text-sm font-semibold text-secondary shadow-lg shadow-primary/30 hover:scale-[1.02] hover:bg-[#f8cf64] hover:shadow-xl transition"
+              className="rounded-full bg-primary px-7 py-3 text-sm font-semibold text-secondary shadow-lg shadow-primary/30 hover:scale-[1.02] hover:bg-primary hover:shadow-xl transition"
             >
               {primaryCta}
             </QuoteButton>
-            <button
-              type="button"
-              className="rounded-full border border-primary/70 bg-transparent px-7 py-3 text-sm font-semibold text-primary hover:bg-primary/10 transition"
+            <Link
+              href={pricingHref}
+              className="inline-flex items-center justify-center rounded-full border border-primary/70 bg-transparent px-7 py-3 text-sm font-semibold text-primary hover:bg-primary/10 transition"
             >
               {secondaryCta}
-            </button>
+            </Link>
           </div>
 
           {/* Statisztika dobozok */}
@@ -89,7 +91,7 @@ export function Hero() {
           <div className="absolute -left-6 bottom-10 h-16 w-16 rounded-full bg-primary/15" />
 
           <div className="relative overflow-hidden rounded-3xl bg-secondary/60 p-1 shadow-2xl shadow-black/40">
-            <div className="h-full rounded-3xl bg-gradient-to-br from-slate-100 via-slate-50 to-slate-200 p-6 md:p-8">
+            <div className="h-full rounded-3xl bg-card p-6 text-card-foreground md:p-8">
               <div className="mb-4 h-5 w-28 rounded-full bg-slate-200" />
               <div className="relative mb-5 h-64 overflow-hidden rounded-2xl">
                 <Image
@@ -102,16 +104,16 @@ export function Hero() {
                 />
               </div>
 
-              <div className="mt-4 flex items-center justify-between text-xs text-slate-600">
+              <div className="mt-4 flex items-center justify-between text-xs text-muted-foreground">
                 <div>
-                  <div className="text-[11px] font-medium uppercase tracking-wide text-slate-500">
+                  <div className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
                     Budapest
                   </div>
-                  <div className="text-sm font-semibold text-secondary">
+                  <div className="text-sm font-semibold text-foreground">
                     Prémium székhely lokáció
                   </div>
                 </div>
-                <div className="flex items-center gap-2 rounded-full bg-white px-3 py-1 text-[11px] font-medium text-secondary shadow-sm">
+                <div className="flex items-center gap-2 rounded-full bg-background px-3 py-1 text-[11px] font-medium text-foreground shadow-sm">
                   <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-primary/20 text-[11px]">✓
                   </span>
                   Ellenőrzött cím

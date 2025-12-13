@@ -5,23 +5,29 @@
 	/* Light mode */
 	--background: #fdfdf9; /* nagyon világos fehér */
 	--foreground: #4a4d6e; /* sötét kékes szürke */
-	--primary: #f5c34b; /* sárga CTA */
+	--primary: #e5ab31; /* sárga CTA */
+	--primary-foreground: #4a4d6e; /* sötét kék szöveg a sárga fölött */
 	--secondary: #4a4d6e; /* sötét kék */
+	--secondary-foreground: #fdfdf9; /* világos szöveg a sötét kék fölött */
 	--muted: #f4f3ee; /* halvány szürke */
+	--muted-foreground: #6b7280; /* közepes szürke szöveg */
 	--card: #ffffff; /* tiszta fehér kártya */
+	--card-foreground: #4a4d6e; /* kártya szöveg */
 	--border: #d4d7e5; /* világos szürke keret */
 }
 
-@media (prefers-color-scheme: dark) {
-	:root {
-		--background: #1c2031; /* sötét kék-szürke */
-		--foreground: #f6f7fb; /* nagyon világos szöveg */
-		--primary: #f5c34b;
-		--secondary: #2a2e44;
-		--muted: #2f344a;
-		--card: #252a3f;
-		--border: #3a4160;
-	}
+.dark {
+	--background: #1c2031; /* sötét kék-szürke */
+	--foreground: #f6f7fb; /* nagyon világos szöveg */
+	--primary: #e5ab31;
+	--primary-foreground: #1c2031;
+	--secondary: #2a2e44;
+	--secondary-foreground: #f6f7fb;
+	--muted: #2f344a;
+	--muted-foreground: #cbd5e1;
+	--card: #252a3f;
+	--card-foreground: #f6f7fb;
+	--border: #3a4160;
 }
 
 @theme inline {
@@ -29,9 +35,13 @@
 	--color-background: var(--background);
 	--color-foreground: var(--foreground);
 	--color-primary: var(--primary);
+	--color-primary-foreground: var(--primary-foreground);
 	--color-secondary: var(--secondary);
+	--color-secondary-foreground: var(--secondary-foreground);
 	--color-muted: var(--muted);
+	--color-muted-foreground: var(--muted-foreground);
 	--color-card: var(--card);
+	--color-card-foreground: var(--card-foreground);
 	--color-border: var(--border);
 
 	/* Betűcsaládok */

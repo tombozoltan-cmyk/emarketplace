@@ -4,6 +4,7 @@ import React, { FormEvent, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Check, CheckCircle2, Loader2, X } from "lucide-react";
 import { usePathname } from "next/navigation";
+import { addDoc, collection, serverTimestamp } from "firebase/firestore";
 
 import { useModal } from "@/components/ModalContext";
 import { Button } from "@/components/ui/button";
@@ -11,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select } from "@/components/ui/select";
+import { firestoreDb } from "@/lib/firebase";
 
 type CompanyType = "existing" | "new";
 
@@ -101,6 +103,7 @@ export function OrderModal() {
   const [selectedCountry, setSelectedCountry] = useState<string>(countries[0]?.value ?? "hu");
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   const startTimeRef = useRef<number>(0);
 
@@ -141,9 +144,10 @@ export function OrderModal() {
 
   if (!isOpen) return null;
 
-  const handleSubmit = (e: FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     if (isLoading) return;
+    setSubmitError(null);
 
     // Honeypot
     if (hpRef.current && hpRef.current.value.trim() !== "") {
@@ -215,7 +219,39 @@ export function OrderModal() {
         window.localStorage.setItem("v0_leads", JSON.stringify([lead, ...existingLeads]));
       }
 
+      await addDoc(collection(firestoreDb, "inquiries"), {
+        createdAt: serverTimestamp(),
+        language: isEnglish ? "en" : "hu",
+        sourcePath: pathname ?? null,
+        status: "new",
+        type: isEnglish ? "Quote request" : "Ajánlatkérés",
+        selectedPackage,
+        companyType,
+        companyName: companyNameRef.current?.value ?? "",
+        taxNumber: taxNumberRef.current?.value ?? "",
+        name: nameRef.current?.value ?? "",
+        email: emailRef.current?.value ?? "",
+        phone: `${selectedPhoneCountry} ${phoneRef.current?.value ?? ""}`.trim(),
+        country: selectedCountry,
+        address: addressRef.current?.value ?? "",
+        message: messageRef.current?.value ?? "",
+        contact: sameContact
+          ? null
+          : {
+              name: contactNameRef.current?.value ?? "",
+              email: contactEmailRef.current?.value ?? "",
+              phone: contactPhoneRef.current?.value ?? "",
+              address: contactAddressRef.current?.value ?? "",
+            },
+      });
+
       setIsSubmitted(true);
+    } catch {
+      setSubmitError(
+        isEnglish
+          ? "Something went wrong. Please try again."
+          : "Hiba történt a küldés során. Kérjük próbálja újra.",
+      );
     } finally {
       setIsLoading(false);
     }
@@ -596,6 +632,12 @@ export function OrderModal() {
                   )}
                 </Button>
               </div>
+
+              {submitError ? (
+                <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800 dark:border-red-900/40 dark:bg-red-950/40 dark:text-red-200">
+                  {submitError}
+                </div>
+              ) : null}
             </form>
           )}
         </div>

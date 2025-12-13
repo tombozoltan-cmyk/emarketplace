@@ -107,7 +107,7 @@ export function Header() {
             <LanguageSelector />
           </div>
           <QuoteButton
-            className="hidden rounded-full bg-[color:var(--primary)] px-4 py-2 text-sm font-semibold text-[color:var(--secondary)] shadow-lg shadow-[color:var(--primary)]/40 hover:scale-[1.03] hover:bg-[#f8cf64] hover:shadow-xl transition lg:inline-flex"
+            className="hidden rounded-full bg-[color:var(--primary)] px-4 py-2 text-sm font-semibold text-[color:var(--secondary)] shadow-lg shadow-[color:var(--primary)]/40 hover:scale-[1.03] hover:bg-[color:var(--primary)] hover:shadow-xl transition lg:inline-flex"
           >
             {quoteCtaLabel}
           </QuoteButton>
@@ -154,7 +154,7 @@ export function Header() {
               </div>
 
               <QuoteButton
-                className="mt-4 w-full rounded-full bg-[color:var(--primary)] px-4 py-2 text-sm font-semibold text-[color:var(--secondary)] shadow-lg shadow-[color:var(--primary)]/40 hover:scale-[1.03] hover:bg-[#f8cf64] hover:shadow-xl transition"
+                className="mt-4 w-full rounded-full bg-[color:var(--primary)] px-4 py-2 text-sm font-semibold text-[color:var(--secondary)] shadow-lg shadow-[color:var(--primary)]/40 hover:scale-[1.03] hover:bg-[color:var(--primary)] hover:shadow-xl transition"
               >
                 {quoteCtaLabel}
               </QuoteButton>

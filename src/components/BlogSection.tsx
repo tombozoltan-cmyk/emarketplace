@@ -133,15 +133,15 @@ export function BlogSection() {
         </div>
 
         <div className="grid gap-6 md:grid-cols-2 md:gap-8 lg:grid-cols-3">
-          {first && <BlogCard key={first.slug} post={first} />}
+          {first && <BlogCard key={first.slug} post={first} basePath={blogBasePath} />}
           {second && (
             <div className="hidden md:block">
-              <BlogCard key={second.slug} post={second} />
+              <BlogCard key={second.slug} post={second} basePath={blogBasePath} />
             </div>
           )}
           {third && (
             <div className="hidden lg:block">
-              <BlogCard key={third.slug} post={third} />
+              <BlogCard key={third.slug} post={third} basePath={blogBasePath} />
             </div>
           )}
         </div>
@@ -151,7 +151,7 @@ export function BlogSection() {
             <Button
               size="lg"
               variant="outline"
-              className="rounded-full border-2 border-[color:var(--primary)] bg-transparent px-8 py-3 text-sm text-[color:var(--primary)] transition-colors hover:bg-[color:var(--primary)] hover:text-white md:text-base"
+              className="rounded-full border-2 border-[color:var(--primary)] bg-transparent px-8 py-3 text-sm text-[color:var(--primary)] transition-colors hover:bg-[color:var(--primary)] hover:text-[color:var(--primary-foreground)] md:text-base"
             >
               {allPostsLabel}
             </Button>
@@ -164,9 +164,10 @@ export function BlogSection() {
 
 type BlogCardProps = {
   post: BlogPost;
+  basePath: string;
 };
 
-function BlogCard({ post }: BlogCardProps) {
+function BlogCard({ post, basePath }: BlogCardProps) {
   return (
     <Card className="group flex h-full flex-col overflow-hidden rounded-2xl bg-[color:var(--card)] shadow-none transition-shadow duration-300 hover:shadow-xl">
       <div className="relative h-40 overflow-hidden md:h-48">
@@ -187,7 +188,7 @@ function BlogCard({ post }: BlogCardProps) {
           {post.excerpt}
         </p>
         <Link
-          href={"/blog/" + post.slug}
+          href={`${basePath}/${post.slug}`}
           className="inline-flex items-center text-sm font-medium text-[color:var(--primary)] hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--primary)] focus-visible:ring-offset-2 focus-visible:ring-offset-[color:var(--background)] md:text-base"
         >
           Tovább →

@@ -108,13 +108,13 @@ export function TestimonialsSection() {
     : "Csak valódi ügyfeleink értékeléseit és visszajelzéseit jelenítjük meg.";
 
   return (
-    <section className="w-full bg-[color:var(--background)] py-16 text-slate-900 md:py-20">
+    <section className="w-full bg-background py-16 text-foreground md:py-20">
       <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
         <div className="mb-8 text-center md:mb-10">
-          <h2 className="text-2xl font-semibold text-[color:var(--secondary)] md:text-3xl">
+          <h2 className="text-2xl font-semibold text-foreground md:text-3xl">
             {heading}
           </h2>
-          <p className="mt-2 text-sm text-slate-500 md:text-base">
+          <p className="mt-2 text-sm text-muted-foreground md:text-base">
             {subtitle}
           </p>
         </div>
@@ -124,18 +124,18 @@ export function TestimonialsSection() {
             {items.map((item, index) => (
               <figure
                 key={`${item.name}-${index}`}
-                className="flex min-w-[260px] max-w-xs flex-1 flex-col justify-between rounded-2xl bg-[color:var(--card)] p-6 text-sm shadow-[0_8px_18px_rgba(15,23,42,0.08)] ring-1 ring-[color:var(--border)]/60 md:min-w-[320px] lg:min-w-[360px]"
+                className="flex min-w-[260px] max-w-xs flex-1 flex-col justify-between rounded-2xl bg-card p-6 text-sm text-card-foreground shadow-[0_8px_18px_rgba(15,23,42,0.08)] ring-1 ring-[color:var(--border)]/60 md:min-w-[320px] lg:min-w-[360px]"
               >
                 <div className="mb-3 flex items-center justify-between gap-3">
                   <Stars />
                 </div>
-                <blockquote className="text-sm leading-relaxed text-slate-700 md:text-base">
+                <blockquote className="text-sm leading-relaxed text-foreground/90 md:text-base">
                   “{item.quote}”
                 </blockquote>
-                <figcaption className="mt-4 text-xs font-medium text-slate-900 md:text-sm">
+                <figcaption className="mt-4 text-xs font-medium text-foreground md:text-sm">
                   <div>{item.name}</div>
                   {item.company && (
-                    <div className="text-slate-500">{item.company}</div>
+                    <div className="text-muted-foreground">{item.company}</div>
                   )}
                 </figcaption>
               </figure>
@@ -143,7 +143,7 @@ export function TestimonialsSection() {
           </div>
         </div>
 
-        <p className="mt-6 text-center text-xs text-slate-500 md:text-sm">
+        <p className="mt-6 text-center text-xs text-muted-foreground md:text-sm">
           {footerNote}
         </p>
       </div>

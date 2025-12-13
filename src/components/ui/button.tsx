@@ -19,7 +19,7 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
     const variantClass =
       variant === "outline"
         ? " border border-[color:var(--border)] bg-transparent hover:bg-[color:var(--muted)] hover:text-[color:var(--foreground)]"
-        : " bg-[color:var(--primary)] text-slate-900 hover:bg-[color:var(--primary)]/90";
+        : " bg-[color:var(--primary)] text-[color:var(--primary-foreground)] hover:bg-[color:var(--primary)]/90";
 
     const sizeClass =
       size === "sm"

@@ -87,7 +87,7 @@ export function WhyUsSection() {
             return (
               <article
                 key={item.title}
-                className="flex h-full flex-col gap-3 rounded-2xl bg-[color:var(--card)] p-6 text-sm text-slate-900 shadow-[0_18px_40px_rgba(0,0,0,0.65)] ring-1 ring-black/10"
+                className="flex h-full flex-col gap-3 rounded-2xl bg-card p-6 text-sm text-card-foreground shadow-[0_18px_40px_rgba(0,0,0,0.65)] ring-1 ring-black/10"
               >
                 <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#fdf3dd] text-[color:var(--primary)]">
                   <Icon className="h-5 w-5" strokeWidth={1.9} />
@@ -95,7 +95,7 @@ export function WhyUsSection() {
                 <h3 className="text-sm font-semibold tracking-tight text-secondary">
                   {item.title}
                 </h3>
-                <p className="text-sm leading-relaxed text-slate-700">
+                <p className="text-sm leading-relaxed text-muted-foreground">
                   {item.description}
                 </p>
               </article>

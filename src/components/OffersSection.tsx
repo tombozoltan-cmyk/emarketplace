@@ -93,13 +93,13 @@ export function OffersSection() {
 
   const offers = isEnglish ? offersEn : offersHu;
   return (
-    <section className="w-full bg-[color:var(--background)] py-16 text-slate-900">
+    <section className="w-full bg-background py-16 text-foreground">
       <div className="mx-auto flex max-w-6xl flex-col gap-10 px-4 lg:px-0">
         <div className="text-center">
-          <h2 className="text-2xl font-semibold text-[color:var(--secondary)] md:text-3xl">
+          <h2 className="text-2xl font-semibold text-foreground md:text-3xl">
             {heading}
           </h2>
-          <p className="mt-3 text-sm font-medium text-slate-500 md:text-base">
+          <p className="mt-3 text-sm font-medium text-muted-foreground md:text-base">
             {subtitle}
           </p>
         </div>
@@ -110,15 +110,15 @@ export function OffersSection() {
             return (
               <article
                 key={offer.title}
-                className="group flex h-full flex-col gap-3 rounded-2xl bg-[color:var(--card)] p-6 text-sm shadow-[0_10px_24px_rgba(15,23,42,0.10)] ring-1 ring-[color:var(--border)]/70 transition-all duration-200 hover:-translate-y-2 hover:shadow-[0_20px_40px_rgba(15,23,42,0.16)] hover:ring-[color:var(--primary)]"
+                className="group flex h-full flex-col gap-3 rounded-2xl bg-card p-6 text-sm text-card-foreground shadow-[0_10px_24px_rgba(15,23,42,0.10)] ring-1 ring-[color:var(--border)]/70 transition-all duration-200 hover:-translate-y-2 hover:shadow-[0_20px_40px_rgba(15,23,42,0.16)] hover:ring-[color:var(--primary)]"
               >
                 <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#fdf3dd] text-[color:var(--primary)] transition-transform duration-200 group-hover:-translate-y-1 group-hover:rotate-3">
                   <Icon className="h-5 w-5" strokeWidth={1.9} />
                 </div>
-                <h3 className="text-sm font-semibold tracking-tight text-slate-900">
+                <h3 className="text-sm font-semibold tracking-tight text-foreground">
                   {offer.title}
                 </h3>
-                <p className="text-sm leading-relaxed text-slate-600">
+                <p className="text-sm leading-relaxed text-muted-foreground">
                   {offer.description}
                 </p>
               </article>
