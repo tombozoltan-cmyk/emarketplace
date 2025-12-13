@@ -10,12 +10,12 @@ import {
   updateDoc,
   type Timestamp,
 } from "firebase/firestore";
-import { AdminGate } from "@/components/admin/AdminGate";
-import { AdminShell } from "@/components/admin/AdminShell";
-import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import { Select } from "@/components/ui/select";
-import { firestoreDb } from "@/lib/firebase";
+import { AdminGate } from "../../../../components/admin/AdminGate";
+import { AdminShell } from "../../../../components/admin/AdminShell";
+import { Button } from "../../../../components/ui/button";
+import { Card } from "../../../../components/ui/card";
+import { Select } from "../../../../components/ui/select";
+import { firestoreDb } from "../../../../lib/firebase";
 
 type InquiryStatus = "new" | "in_progress" | "closed";
 

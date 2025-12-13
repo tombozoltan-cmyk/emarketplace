@@ -2,9 +2,9 @@
 
 import React from "react";
 import Link from "next/link";
-import { AdminGate } from "@/components/admin/AdminGate";
-import { AdminShell } from "@/components/admin/AdminShell";
-import { Card } from "@/components/ui/card";
+import { AdminGate } from "../../../components/admin/AdminGate";
+import { AdminShell } from "../../../components/admin/AdminShell";
+import { Card } from "../../../components/ui/card";
 
 export default function AdminDashboardPage() {
   const githubRepoUrl = process.env.NEXT_PUBLIC_GITHUB_REPO_URL;

@@ -1,9 +1,9 @@
 "use client";
 
 import React from "react";
-import { AdminGate } from "@/components/admin/AdminGate";
-import { AdminShell } from "@/components/admin/AdminShell";
-import { Card } from "@/components/ui/card";
+import { AdminGate } from "../../../../components/admin/AdminGate";
+import { AdminShell } from "../../../../components/admin/AdminShell";
+import { Card } from "../../../../components/ui/card";
 
 export default function AdminUsersPage() {
   return (

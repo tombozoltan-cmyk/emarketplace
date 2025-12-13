@@ -2,14 +2,14 @@
 
 import React from "react";
 import { doc, onSnapshot, setDoc, type DocumentData } from "firebase/firestore";
-import { AdminGate } from "@/components/admin/AdminGate";
-import { AdminShell } from "@/components/admin/AdminShell";
-import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { firestoreDb } from "@/lib/firebase";
+import { AdminGate } from "../../../../components/admin/AdminGate";
+import { AdminShell } from "../../../../components/admin/AdminShell";
+import { Button } from "../../../../components/ui/button";
+import { Card } from "../../../../components/ui/card";
+import { Input } from "../../../../components/ui/input";
+import { Label } from "../../../../components/ui/label";
+import { Textarea } from "../../../../components/ui/textarea";
+import { firestoreDb } from "../../../../lib/firebase";
 
 type MarketingSettings = {
   enabled: {

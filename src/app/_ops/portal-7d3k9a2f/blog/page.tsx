@@ -17,15 +17,15 @@ import {
   uploadBytes,
   type UploadResult,
 } from "firebase/storage";
-import { AdminGate } from "@/components/admin/AdminGate";
-import { AdminShell } from "@/components/admin/AdminShell";
-import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Select } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
-import { firestoreDb, firebaseStorage } from "@/lib/firebase";
+import { AdminGate } from "../../../../components/admin/AdminGate";
+import { AdminShell } from "../../../../components/admin/AdminShell";
+import { Button } from "../../../../components/ui/button";
+import { Card } from "../../../../components/ui/card";
+import { Input } from "../../../../components/ui/input";
+import { Label } from "../../../../components/ui/label";
+import { Select } from "../../../../components/ui/select";
+import { Textarea } from "../../../../components/ui/textarea";
+import { firestoreDb, firebaseStorage } from "../../../../lib/firebase";
 
 type BlogLanguage = "hu" | "en";
 
