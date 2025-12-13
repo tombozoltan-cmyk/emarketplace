@@ -31,9 +31,9 @@ jobs:
         env:
           FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
         run: |
-          echo "$FIREBASE_SERVICE_ACCOUNT_JSON" > $HOME/firebase-service-account.json
+          printf '%s' "$FIREBASE_SERVICE_ACCOUNT_JSON" > "${{ runner.temp }}/firebase-service-account.json"
 
       - name: Deploy to Firebase Hosting
         env:
-          GOOGLE_APPLICATION_CREDENTIALS: $HOME/firebase-service-account.json
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/firebase-service-account.json
         run: firebase deploy --only hosting --project emarketplace-8aab1
