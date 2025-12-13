@@ -21,8 +21,10 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Build (Next.js static export)
-        run: npm run build
+      - name: Build + Export (Next.js static export)
+        run: |
+          npm run build
+          npx next export
 
       - name: Install Firebase CLI
         run: npm i -g firebase-tools
