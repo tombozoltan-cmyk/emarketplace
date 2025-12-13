@@ -1,0 +1,98 @@
+@import "tailwindcss";
+
+/* Alap design rendszer változók a specifikáció szerint */
+:root {
+	/* Light mode */
+	--background: #fdfdf9; /* nagyon világos fehér */
+	--foreground: #4a4d6e; /* sötét kékes szürke */
+	--primary: #f5c34b; /* sárga CTA */
+	--secondary: #4a4d6e; /* sötét kék */
+	--muted: #f4f3ee; /* halvány szürke */
+	--card: #ffffff; /* tiszta fehér kártya */
+	--border: #d4d7e5; /* világos szürke keret */
+}
+
+@media (prefers-color-scheme: dark) {
+	:root {
+		--background: #1c2031; /* sötét kék-szürke */
+		--foreground: #f6f7fb; /* nagyon világos szöveg */
+		--primary: #f5c34b;
+		--secondary: #2a2e44;
+		--muted: #2f344a;
+		--card: #252a3f;
+		--border: #3a4160;
+	}
+}
+
+@theme inline {
+	/* Tailwind színtokenek */
+	--color-background: var(--background);
+	--color-foreground: var(--foreground);
+	--color-primary: var(--primary);
+	--color-secondary: var(--secondary);
+	--color-muted: var(--muted);
+	--color-card: var(--card);
+	--color-border: var(--border);
+
+	/* Betűcsaládok */
+	--font-sans: var(--font-geist-sans);
+	--font-mono: var(--font-geist-mono);
+}
+
+body {
+	background: var(--color-background);
+	color: var(--color-foreground);
+	font-family: var(--font-geist-sans), system-ui, -apple-system, BlinkMacSystemFont,
+		"Segoe UI", sans-serif;
+}
+
+@keyframes clients-marquee-left {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+@keyframes clients-marquee-right {
+  0% {
+    transform: translateX(-50%);
+  }
+  100% {
+    transform: translateX(0);
+  }
+}
+
+.animate-scroll-left {
+	animation: clients-marquee-left 90s linear infinite;
+	will-change: transform;
+}
+
+.animate-scroll-right {
+	animation: clients-marquee-right 90s linear infinite;
+	will-change: transform;
+}
+
+.animate-scroll-left:hover,
+.animate-scroll-right:hover {
+	animation-play-state: paused;
+}
+
+@keyframes testimonials-scroll-left {
+	0% {
+		transform: translateX(0);
+	}
+	100% {
+		transform: translateX(-50%);
+	}
+}
+
+.animate-testimonials-scroll {
+	animation: testimonials-scroll-left 60s linear infinite;
+	will-change: transform;
+}
+
+.animate-testimonials-scroll:hover {
+	animation-play-state: paused;
+}
