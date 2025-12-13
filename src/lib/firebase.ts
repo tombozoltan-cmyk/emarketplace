@@ -27,22 +27,27 @@ const requiredKeys: Array<keyof typeof firebaseConfig> = [
 
 const missingKeys = requiredKeys.filter((key) => !firebaseConfig[key]);
 
-if (missingKeys.length > 0) {
-  throw new Error(
+const isFirebaseConfigured = missingKeys.length === 0;
+
+if (!isFirebaseConfigured && typeof window !== "undefined") {
+  console.warn(
     `Missing Firebase env vars: ${missingKeys
       .map((k) => `NEXT_PUBLIC_FIREBASE_${k.toUpperCase()}`)
-      .join(", ")}. Please create .env.local in the project root.`,
+      .join(", ")}. Firebase features will not work.`,
   );
 }
 
-export const firebaseApp: FirebaseApp =
-  getApps().length > 0 ? getApps()[0]! : initializeApp(firebaseConfig);
+export const firebaseApp: FirebaseApp | null = isFirebaseConfigured
+  ? getApps().length > 0
+    ? getApps()[0]!
+    : initializeApp(firebaseConfig)
+  : null;
 
-export const firebaseAuth: Auth = getAuth(firebaseApp);
+export const firebaseAuth: Auth | null = firebaseApp ? getAuth(firebaseApp) : null;
 
-export const firestoreDb: Firestore = getFirestore(firebaseApp);
+export const firestoreDb: Firestore | null = firebaseApp ? getFirestore(firebaseApp) : null;
 
-export const firebaseStorage: FirebaseStorage = getStorage(firebaseApp);
+export const firebaseStorage: FirebaseStorage | null = firebaseApp ? getStorage(firebaseApp) : null;
 
 let analyticsPromise: Promise<Analytics | null> | null = null;
 
@@ -54,7 +59,7 @@ export const getFirebaseAnalytics = (): Promise<Analytics | null> => {
   if (!analyticsPromise) {
     analyticsPromise = isSupported()
       .then((supported: boolean) =>
-        supported ? getAnalytics(firebaseApp) : null,
+        supported && firebaseApp ? getAnalytics(firebaseApp) : null,
       )
       .catch(() => null);
   }
