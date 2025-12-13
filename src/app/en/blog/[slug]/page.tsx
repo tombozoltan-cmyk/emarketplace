@@ -9,12 +9,20 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { blogPostsEn, type BlogPostEn } from "@/lib/blog-data-en";
 
+export const dynamicParams = false;
+
+export function generateStaticParams() {
+  return blogPostsEn.map((post: BlogPostEn) => ({
+    slug: post.slug,
+  }));
+}
+
 export async function generateMetadata({
   params,
 }: {
-  params: Promise<{ slug: string }>;
+  params: { slug: string };
 }): Promise<Metadata> {
-  const { slug } = await params;
+  const { slug } = params;
   const post = blogPostsEn.find((p: BlogPostEn) => p.slug === slug);
 
   if (!post) {
@@ -50,9 +58,9 @@ export async function generateMetadata({
 export default async function BlogPostPageEn({
   params,
 }: {
-  params: Promise<{ slug: string }>;
+  params: { slug: string };
 }) {
-  const { slug } = await params;
+  const { slug } = params;
   let post = blogPostsEn.find((p: BlogPostEn) => p.slug === slug);
 
   if (!post) {
