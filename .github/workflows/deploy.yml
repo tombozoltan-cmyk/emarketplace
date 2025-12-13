@@ -26,7 +26,15 @@ jobs:
 
       - name: Verify export output directory
         run: |
-          test -d out
+          echo "PWD: $(pwd)"
+          echo "Root listing:"
+          ls -la
+          echo "Out listing (if exists):"
+          ls -la out || true
+          if [ ! -d out ]; then
+            echo "ERROR: 'out' directory was not generated. Firebase Hosting expects it (firebase.json hosting.public=out)."
+            exit 1
+          fi
 
       - name: Install Firebase CLI
         run: npm i -g firebase-tools
