@@ -166,7 +166,7 @@ export default function AdminMarketingPage() {
 
   return (
     <AdminGate>
-      <AdminShell basePath="/_ops/portal-7d3k9a2f" title="Marketing beállítások">
+      <AdminShell basePath="/ops/portal-7d3k9a2f" title="Marketing beállítások">
         <div className="flex flex-col gap-4">
           <Card className="p-5">
             <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">

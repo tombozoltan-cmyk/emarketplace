@@ -11,7 +11,7 @@ export default function AdminDashboardPage() {
 
   return (
     <AdminGate>
-      <AdminShell basePath="/_ops/portal-7d3k9a2f">
+      <AdminShell basePath="/ops/portal-7d3k9a2f">
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
           <Card className="p-5">
             <div className="text-xs font-medium text-muted-foreground">Új kérések</div>

@@ -256,9 +256,22 @@ export default function AdminBlogPage() {
     [draft.language, draft.slug, draft.title],
   );
 
+  if (error) {
+    return (
+      <AdminGate>
+        <AdminShell basePath="/ops/portal-7d3k9a2f" title="Blog szerkesztő">
+          <Card className="p-5">
+            <div className="text-lg font-semibold">Hiba</div>
+            <div className="mt-2 text-sm text-muted-foreground">{error}</div>
+          </Card>
+        </AdminShell>
+      </AdminGate>
+    );
+  }
+
   return (
     <AdminGate>
-      <AdminShell basePath="/_ops/portal-7d3k9a2f" title="Blog szerkesztő">
+      <AdminShell basePath="/ops/portal-7d3k9a2f" title="Blog szerkesztő">
         <div className="flex flex-col gap-4 lg:flex-row">
           <Card className="w-full p-4 lg:w-[420px]">
             <div className="flex items-start justify-between gap-3">

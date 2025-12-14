@@ -10,8 +10,8 @@ import {
   Megaphone,
   Users,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { useAdminAuth } from "@/components/admin/AdminAuthProvider";
+import { Button } from "../ui/button";
+import { useAdminAuth } from "./AdminAuthProvider";
 
 type NavItem = {
   href: string;
