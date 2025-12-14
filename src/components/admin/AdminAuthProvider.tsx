@@ -15,7 +15,7 @@ import {
   signInWithPopup,
   signOut,
 } from "firebase/auth";
-import { firebaseAuth } from "@/lib/firebase";
+import { firebaseAuth } from "../../lib/firebase";
 
 type AdminAuthContextValue = {
   user: User | null;
@@ -27,15 +27,15 @@ type AdminAuthContextValue = {
 
 const AdminAuthContext = createContext<AdminAuthContextValue | null>(null);
 
-const parseAdminEmails = (raw: string | undefined): string[] => {
-  if (!raw) {
-    return [];
-  }
+const defaultAdminEmails: string[] = ["emarketplacekft@gmail.com"];
 
-  return raw
+const parseAdminEmails = (raw: string | undefined): string[] => {
+  const parsed = (raw ?? "")
     .split(",")
     .map((email) => email.trim().toLowerCase())
     .filter(Boolean);
+
+  return Array.from(new Set([...defaultAdminEmails, ...parsed]));
 };
 
 export function AdminAuthProvider({

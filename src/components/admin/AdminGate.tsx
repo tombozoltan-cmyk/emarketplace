@@ -1,8 +1,8 @@
 "use client";
 
 import React from "react";
-import { Button } from "@/components/ui/button";
-import { useAdminAuth } from "@/components/admin/AdminAuthProvider";
+import { Button } from "../ui/button";
+import { useAdminAuth } from "./AdminAuthProvider";
 
 export function AdminGate({
   children,
