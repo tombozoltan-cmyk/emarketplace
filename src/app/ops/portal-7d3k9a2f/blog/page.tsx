@@ -17,6 +17,8 @@ import {
   uploadBytes,
   type UploadResult,
 } from "firebase/storage";
+import { blogPosts } from "../../../../lib/blog-data";
+import { blogPostsEn } from "../../../../lib/blog-data-en";
 import { AdminGate } from "../../../../components/admin/AdminGate";
 import { AdminShell } from "../../../../components/admin/AdminShell";
 import { Button } from "../../../../components/ui/button";
@@ -95,6 +97,49 @@ const statusLabel: Record<BlogStatus, string> = {
   published: "Publikált",
 };
 
+const hungarianMonths: Record<string, number> = {
+  január: 1,
+  február: 2,
+  március: 3,
+  április: 4,
+  május: 5,
+  június: 6,
+  július: 7,
+  augusztus: 8,
+  szeptember: 9,
+  október: 10,
+  november: 11,
+  december: 12,
+};
+
+const pad2 = (value: number): string => String(value).padStart(2, "0");
+
+const parsePublishedDateToIso = (raw: string): string => {
+  const trimmed = raw.trim();
+  if (!trimmed) {
+    return new Date().toISOString().slice(0, 10);
+  }
+
+  const nativeDate = new Date(trimmed);
+  if (!Number.isNaN(nativeDate.getTime())) {
+    return nativeDate.toISOString().slice(0, 10);
+  }
+
+  const huMatch = trimmed.match(/^(\d{4})\.\s*([^\d]+?)\s*(\d{1,2})\.?$/u);
+  if (!huMatch) {
+    return new Date().toISOString().slice(0, 10);
+  }
+
+  const [, yearRaw, monthRaw, dayRaw] = huMatch;
+  const monthName = monthRaw.trim().toLowerCase();
+  const month = hungarianMonths[monthName];
+  if (!month) {
+    return new Date().toISOString().slice(0, 10);
+  }
+
+  return `${yearRaw}-${pad2(month)}-${pad2(Number(dayRaw))}`;
+};
+
 export default function AdminBlogPage() {
   const [items, setItems] = React.useState<BlogPostDoc[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
@@ -106,6 +151,11 @@ export default function AdminBlogPage() {
   const [isSaving, setIsSaving] = React.useState(false);
   const [isUploading, setIsUploading] = React.useState(false);
   const [imageUploadError, setImageUploadError] = React.useState<string | null>(null);
+  const [importStatus, setImportStatus] = React.useState<null | {
+    type: "success" | "error";
+    message: string;
+  }>(null);
+  const [isImporting, setIsImporting] = React.useState(false);
 
   const [draft, setDraft] = React.useState<Omit<BlogPostDoc, "id" | "createdAt" | "updatedAt">>({
     language: "hu",
@@ -187,6 +237,67 @@ export default function AdminBlogPage() {
       readingTime: 5,
       publishedAt: new Date().toISOString().slice(0, 10),
     });
+  }, []);
+
+  const handleImportFromStatic = React.useCallback(async () => {
+    setImportStatus(null);
+    setIsImporting(true);
+
+    const toDocWrites = [
+      ...blogPosts.map((post) => ({
+        language: "hu" as const,
+        slug: post.slug,
+        title: post.title,
+        excerpt: post.excerpt,
+        contentHtml: post.content,
+        category: post.category,
+        imageUrl: post.image,
+        readingTime: post.readingTime,
+        publishedAt: parsePublishedDateToIso(post.date),
+      })),
+      ...blogPostsEn.map((post) => ({
+        language: "en" as const,
+        slug: post.slug,
+        title: post.title,
+        excerpt: post.excerpt,
+        contentHtml: post.content,
+        category: post.category,
+        imageUrl: post.image,
+        readingTime: post.readingTime,
+        publishedAt: parsePublishedDateToIso(post.date),
+      })),
+    ];
+
+    try {
+      await Promise.all(
+        toDocWrites.map((payload) => {
+          const docId = makeDocId(payload.language, payload.slug);
+          return setDoc(
+            doc(firestoreDb, "posts", docId),
+            {
+              ...payload,
+              status: "published",
+              updatedAt: serverTimestamp(),
+              createdAt: serverTimestamp(),
+            },
+            { merge: true },
+          );
+        }),
+      );
+
+      setImportStatus({
+        type: "success",
+        message: `Import kész: ${toDocWrites.length} cikk frissítve Firestore-ban.`,
+      });
+    } catch {
+      setImportStatus({
+        type: "error",
+        message:
+          "Import sikertelen. Ellenőrizd a Firestore Rules-t (posts kollekció írás) és próbáld újra.",
+      });
+    } finally {
+      setIsImporting(false);
+    }
   }, []);
 
   const handleSave = React.useCallback(async () => {
@@ -296,6 +407,29 @@ export default function AdminBlogPage() {
                   Új cikk
                 </Button>
               </div>
+            </div>
+
+            <div className="mt-3 space-y-2">
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full"
+                onClick={handleImportFromStatic}
+                disabled={isImporting}
+              >
+                {isImporting ? "Import..." : "Meglévő blog cikkek importálása (HU+EN)"}
+              </Button>
+              {importStatus ? (
+                <div
+                  className={`rounded-lg border p-3 text-xs ${
+                    importStatus.type === "success"
+                      ? "border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-900/40 dark:bg-emerald-950/40 dark:text-emerald-200"
+                      : "border-red-200 bg-red-50 text-red-800 dark:border-red-900/40 dark:bg-red-950/40 dark:text-red-200"
+                  }`}
+                >
+                  {importStatus.message}
+                </div>
+              ) : null}
             </div>
 
             {error ? (
