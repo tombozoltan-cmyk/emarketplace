@@ -1,11 +1,7 @@
 import type { Metadata } from "next";
-import Link from "next/link";
-
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
-import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { blogPostsEn, type BlogPostEn } from "@/lib/blog-data-en";
+import { BlogGrid } from "@/components/BlogGrid";
 
 export const metadata: Metadata = {
   title: "Blog & Knowledge Base | E-Marketplace",
@@ -44,50 +40,7 @@ export default function BlogPageEn() {
       </section>
 
       <section className="bg-[color:var(--secondary)]/5 py-12 md:py-16 lg:py-20">
-        <div className="mx-auto grid max-w-6xl grid-cols-1 gap-6 px-4 sm:px-6 md:grid-cols-2 md:gap-8 lg:grid-cols-3 lg:px-8">
-          {blogPostsEn.map((post: BlogPostEn) => (
-            <Card
-              key={post.slug}
-              className="group flex h-full flex-col overflow-hidden border-2 border-[color:var(--border)] bg-[color:var(--card)] shadow-sm transition-all duration-300 hover:border-[color:var(--primary)] hover:shadow-2xl"
-            >
-              <div className="relative h-48 overflow-hidden bg-[color:var(--secondary)]/10 md:h-56 lg:h-64">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={post.image || "/placeholder.svg"}
-                  alt={post.title}
-                  className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110"
-                />
-                {post.category && (
-                  <div className="absolute left-3 top-3 rounded-sm bg-[color:var(--secondary)] px-3 py-1.5 text-xs font-bold uppercase tracking-wide text-[color:var(--background)] md:left-4 md:top-4 md:px-4 md:py-2">
-                    {post.category}
-                  </div>
-                )}
-              </div>
-              <CardContent className="flex flex-1 flex-col p-4 md:p-6">
-                <Link href={`/en/blog/${post.slug}`} className="mb-2 md:mb-3">
-                  <h3 className="text-lg font-bold text-foreground text-balance transition-colors group-hover:text-[color:var(--primary)] md:text-xl">
-                    {post.title}
-                  </h3>
-                </Link>
-                <p className="mb-4 text-sm text-[color:var(--muted-foreground)] text-pretty line-clamp-3 md:mb-6 md:text-base">
-                  {post.excerpt}
-                </p>
-                <div className="mt-auto border-t border-[color:var(--border)] pt-3 md:pt-4">
-                  <div className="mb-3 flex items-center justify-between text-xs text-[color:var(--muted-foreground)] md:text-sm">
-                    <span>{post.date}</span>
-                    <span>{post.readingTime} min read</span>
-                  </div>
-                  <Link
-                    href={`/en/blog/${post.slug}`}
-                    className="inline-flex w-full items-center justify-center rounded-full bg-[color:var(--secondary)] px-4 py-2 text-base font-medium text-[color:var(--secondary-foreground)] transition-colors hover:bg-[color:var(--primary)] hover:text-[color:var(--primary-foreground)]"
-                  >
-                    Read more
-                  </Link>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+        <BlogGrid language="en" />
       </section>
 
       <Footer />

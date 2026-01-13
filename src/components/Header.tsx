@@ -44,10 +44,14 @@ export function Header() {
   const isEnglish = pathname.startsWith("/en");
   const navItems = isEnglish ? NAV_ITEMS_EN : NAV_ITEMS_HU;
 
+  const homeHref = isEnglish ? "/en" : "/";
+
   const quoteCtaLabel = isEnglish ? "Request a quote" : "Ajánlatot kérek";
 
   const baseBg = onHome && !scrolled ? "bg-secondary" : "bg-[color:var(--card)]/95";
   const textColor = onHome && !scrolled ? "text-slate-50" : "text-[color:var(--foreground)]";
+  const sloganColor =
+    onHome && !scrolled ? "text-[color:var(--secondary-foreground)]" : "text-muted-foreground";
 
   return (
     <header
@@ -58,7 +62,7 @@ export function Header() {
       <div className="mx-auto flex h-20 max-w-6xl items-center justify-between px-4 lg:h-24 lg:px-0">
         {/* Logo + slogan */}
         <div className="flex items-center gap-3">
-          <div className="flex items-center gap-3">
+          <Link href={homeHref} className="flex items-center gap-3">
             <div className="relative h-12 w-auto md:h-14 lg:h-16">
               <Image
                 src="https://firebasestorage.googleapis.com/v0/b/emarketplace-8aab1.firebasestorage.app/o/image%2FPlexi-tabla-86x53-E-marketplace_logo-2.png?alt=media&token=b1684b4b-932d-4f6d-ba90-d860aa24a98e"
@@ -69,8 +73,10 @@ export function Header() {
               />
             </div>
             <div className="h-8 w-px bg-[color:var(--primary)]/80 md:h-10" />
-          </div>
-          <p className="hidden max-w-[120px] hyphens-auto text-xs font-bold text-[color:var(--primary)] sm:block sm:max-w-[160px] md:max-w-none md:text-sm">
+          </Link>
+          <p
+            className={`max-w-[120px] hyphens-auto text-[11px] font-bold leading-tight ${sloganColor} sm:max-w-[160px] md:max-w-none md:text-sm`}
+          >
             Prémium székhelyszolgáltatás
           </p>
         </div>

@@ -7,8 +7,12 @@ import {
   FileText,
   LayoutDashboard,
   LogOut,
+  BadgeDollarSign,
   Megaphone,
+  Mail,
   Users,
+  FileSignature,
+  FolderOpen,
 } from "lucide-react";
 import { Button } from "../ui/button";
 import { useAdminAuth } from "./AdminAuthProvider";
@@ -31,7 +35,11 @@ export function AdminShell({
     () => [
       { href: `${basePath}`, label: "Dashboard", icon: LayoutDashboard },
       { href: `${basePath}/inquiries`, label: "Beérkezett kérések", icon: FileText },
+      { href: `${basePath}/contracts`, label: "Szerződések", icon: FileSignature },
+      { href: `${basePath}/contract-templates`, label: "Szerződés sablonok", icon: FolderOpen },
+      { href: `${basePath}/pricing`, label: "Árak", icon: BadgeDollarSign },
       { href: `${basePath}/marketing`, label: "Marketing beállítások", icon: Megaphone },
+      { href: `${basePath}/email`, label: "Email beállítások", icon: Mail },
       { href: `${basePath}/blog`, label: "Blog szerkesztő", icon: FileText },
       { href: `${basePath}/users`, label: "Felhasználók", icon: Users },
     ],

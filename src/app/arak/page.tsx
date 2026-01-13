@@ -1,16 +1,13 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import {
-  AlertCircle,
   Building2,
-  Check,
-  FileCheck,
   Globe,
   Users,
 } from "lucide-react";
 
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
+import { PricingCardsGrid } from "@/components/PricingCardsGrid";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { QuoteButton } from "@/components/QuoteButton";
@@ -73,148 +70,7 @@ export default function PricingPage() {
             </p>
           </div>
 
-          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 md:gap-8 lg:grid-cols-4">
-            {/* Magyar vállalkozóknak */}
-            <Card className="flex h-full flex-col border-2 border-[color:var(--primary)] bg-[color:var(--card)] shadow-sm transition-shadow hover:shadow-md">
-              <CardContent className="flex flex-1 flex-col p-6">
-                <div className="mb-4">
-                  <h3 className="text-lg font-semibold text-[color:var(--foreground)]">
-                    Magyar vállalkozóknak
-                  </h3>
-                  <p className="text-sm text-[color:var(--muted-foreground)]">
-                    Hazai Kft-k és Bt-k számára
-                  </p>
-                </div>
-                <div className="mb-6">
-                  <div className="mb-2 text-4xl font-bold text-[color:var(--primary)]">8 000 Ft</div>
-                  <p className="text-sm text-[color:var(--muted-foreground)]">+ ÁFA / hó</p>
-                </div>
-                <ul className="mb-6 space-y-3 text-sm text-[color:var(--foreground)]">
-                  {["Hivatalos székhely cím", "Postakezelés & szkennelés", "Email értesítés 0-24"].map(
-                    (item) => (
-                      <li key={item} className="flex items-center space-x-3">
-                        <Check className="h-5 w-5 flex-shrink-0 text-[color:var(--primary)]" />
-                        <span>{item}</span>
-                      </li>
-                    ),
-                  )}
-                </ul>
-                <div className="mb-6 rounded-md bg-[color:var(--muted)]/50 p-3 text-center text-xs text-[color:var(--muted-foreground)]">
-                  1 évre előre: 96.000 Ft + ÁFA
-                </div>
-                <QuoteButton packageId="szekhely-hu" className="mt-auto w-full rounded-full font-semibold">
-                  Árajánlat
-                </QuoteButton>
-              </CardContent>
-            </Card>
-
-            {/* Külföldi vállalkozóknak */}
-            <Card className="flex h-full flex-col border-2 border-[color:var(--primary)] bg-[color:var(--card)] shadow-sm transition-shadow hover:shadow-md">
-              <CardContent className="flex flex-1 flex-col p-6">
-                <div className="mb-4">
-                  <h3 className="text-lg font-semibold text-[color:var(--foreground)]">
-                    Külföldi vállalkozóknak
-                  </h3>
-                  <p className="text-sm text-[color:var(--muted-foreground)]">
-                    Nemzetközi ügyfeleknek
-                  </p>
-                </div>
-                <div className="mb-6">
-                  <div className="mb-2 text-4xl font-bold text-[color:var(--primary)]">10 000 Ft</div>
-                  <p className="text-sm text-[color:var(--muted-foreground)]">+ ÁFA / hó</p>
-                </div>
-                <ul className="mb-6 space-y-3 text-sm text-[color:var(--foreground)]">
-                  {["Hivatalos székhely cím", "Postakezelés & szkennelés", "Angol nyelvű szerződés"].map(
-                    (item) => (
-                      <li key={item} className="flex items-center space-x-3">
-                        <Check className="h-5 w-5 flex-shrink-0 text-[color:var(--primary)]" />
-                        <span>{item}</span>
-                      </li>
-                    ),
-                  )}
-                </ul>
-                <div className="mb-6 rounded-md bg-[color:var(--muted)]/50 p-3 text-center text-xs text-[color:var(--muted-foreground)]">
-                  1 évre előre: 120.000 Ft + ÁFA
-                </div>
-                <QuoteButton packageId="szekhely-kulfoldi" className="mt-auto w-full rounded-full font-semibold">
-                  Árajánlat
-                </QuoteButton>
-              </CardContent>
-            </Card>
-
-            {/* Kézbesítési megbízott */}
-            <Card className="flex h-full flex-col border-2 border-[color:var(--border)] bg-[color:var(--card)] shadow-sm transition-shadow hover:shadow-md">
-              <CardContent className="flex flex-1 flex-col p-6">
-                <div className="mb-4">
-                  <h3 className="text-lg font-semibold text-[color:var(--foreground)]">
-                    Kézbesítési megbízott
-                  </h3>
-                  <p className="text-sm text-[color:var(--muted-foreground)]">
-                    Minden cégnek kötelező
-                  </p>
-                </div>
-                <div className="mb-6">
-                  <div className="mb-2 text-4xl font-bold text-[color:var(--primary)]">5 000 Ft</div>
-                  <p className="text-sm text-[color:var(--muted-foreground)]">+ ÁFA / hó</p>
-                </div>
-                <ul className="mb-6 space-y-3 text-sm text-[color:var(--foreground)]">
-                  {["Átveszi a hatósági iratokat", "Hivatalos képviselet", "Törvényi megfelelés"].map(
-                    (item) => (
-                      <li key={item} className="flex items-center space-x-3">
-                        <Check className="h-5 w-5 flex-shrink-0 text-[color:var(--primary)]" />
-                        <span>{item}</span>
-                      </li>
-                    ),
-                  )}
-                </ul>
-                <div className="mb-6 rounded-md bg-[color:var(--muted)]/50 p-3 text-center text-xs text-[color:var(--muted-foreground)]">
-                  1 évre előre: 60.000 Ft + ÁFA
-                </div>
-                <QuoteButton packageId="kezbesitesi" className="mt-auto w-full rounded-full font-semibold">
-                  Árajánlat
-                </QuoteButton>
-              </CardContent>
-            </Card>
-
-            {/* Virtuális iroda PRÉMIUM */}
-            <Card className="relative flex h-full flex-col overflow-hidden border-2 border-[color:var(--primary)] bg-[color:var(--card)] shadow-lg transition-shadow hover:shadow-xl">
-              <span className="absolute right-4 top-4 rounded-full bg-[color:var(--primary)] px-3 py-1 text-xs font-bold text-[color:var(--background)]">
-                PRÉMIUM
-              </span>
-              <CardContent className="flex flex-1 flex-col p-6">
-                <div className="mb-4">
-                  <h3 className="text-lg font-semibold text-[color:var(--foreground)]">
-                    Virtuális iroda
-                  </h3>
-                  <p className="text-sm text-[color:var(--muted-foreground)]">
-                    12 hónapos szerződés
-                  </p>
-                </div>
-                <div className="mb-6">
-                  <div className="mb-2 text-4xl font-bold text-[color:var(--primary)]">30 000 Ft</div>
-                  <p className="text-sm text-[color:var(--muted-foreground)]">+ ÁFA / hó</p>
-                </div>
-                <ul className="mb-6 space-y-3 text-sm text-[color:var(--foreground)]">
-                  {[
-                    "Banki ügyintézéshez alkalmas",
-                    "Hosszú távú szerződés",
-                    "Külföldi vállalkozóknak is ideális",
-                  ].map((item) => (
-                    <li key={item} className="flex items-center space-x-3">
-                      <Check className="h-5 w-5 flex-shrink-0 text-[color:var(--primary)]" />
-                      <span>{item}</span>
-                    </li>
-                  ))}
-                </ul>
-                <div className="mb-6 rounded-md bg-[color:var(--primary)]/10 p-3 text-center text-xs font-medium text-[color:var(--foreground)]">
-                  1 évre előre: 360.000 Ft + ÁFA
-                </div>
-                <QuoteButton packageId="szerzodeses-irodaberles" className="mt-auto w-full rounded-full bg-[color:var(--primary)] text-[color:var(--background)] hover:bg-[color:var(--primary)]/90">
-                  Árajánlat
-                </QuoteButton>
-              </CardContent>
-            </Card>
-          </div>
+          <PricingCardsGrid group="basic" language="hu" />
         </div>
       </section>
 
@@ -230,91 +86,7 @@ export default function PricingPage() {
             </p>
           </div>
 
-          <div className="grid grid-cols-1 gap-6 md:grid-cols-2 md:gap-8">
-            {/* Teljes csomag magyar vállalkozóknak */}
-            <Card className="flex h-full flex-col border-2 border-[color:var(--primary)]/50 bg-[color:var(--card)] shadow-sm transition-shadow hover:shadow-md">
-              <CardContent className="flex flex-1 flex-col p-6">
-                <div className="mb-2 flex items-center justify-between">
-                  <h3 className="text-lg font-semibold text-[color:var(--foreground)]">
-                    Teljes csomag magyar vállalkozóknak
-                  </h3>
-                  <span className="rounded bg-[color:var(--primary)]/10 px-2 py-1 text-xs font-bold text-[color:var(--primary)]">
-                    -15%
-                  </span>
-                </div>
-                <p className="mb-4 text-sm text-[color:var(--muted-foreground)]">
-                  Székhely + Kézbesítési megbízott
-                </p>
-                <div className="mb-4">
-                  <div className="text-sm text-[color:var(--muted-foreground)] line-through">13 000 Ft</div>
-                  <div className="text-4xl font-bold text-[color:var(--primary)]">11 000 Ft</div>
-                  <p className="text-sm text-[color:var(--muted-foreground)]">+ ÁFA / hó</p>
-                </div>
-                <ul className="mb-6 space-y-3 text-sm text-[color:var(--foreground)]">
-                  <li className="flex items-center space-x-3">
-                    <Check className="h-5 w-5 flex-shrink-0 text-[color:var(--primary)]" />
-                    <span>Székhely (8 000 Ft)</span>
-                  </li>
-                  <li className="flex items-center space-x-3">
-                    <Check className="h-5 w-5 flex-shrink-0 text-[color:var(--primary)]" />
-                    <span>Kézbesítési megbízott (5 000 Ft)</span>
-                  </li>
-                  <li className="flex items-center space-x-3">
-                    <Check className="h-5 w-5 flex-shrink-0 text-[color:var(--primary)]" />
-                    <span>Minden szolgáltatás egyben, egyszerűsített adminisztrációval</span>
-                  </li>
-                </ul>
-                <div className="mb-6 rounded-md bg-[color:var(--muted)]/50 p-3 text-center text-xs text-[color:var(--muted-foreground)]">
-                  1 évre előre: 132.000 Ft + ÁFA
-                </div>
-                <QuoteButton packageId="szekhely-kezbesitesi-hu" className="mt-auto w-full rounded-full font-semibold">
-                  Árajánlat
-                </QuoteButton>
-              </CardContent>
-            </Card>
-
-            {/* Teljes csomag külföldi vállalkozóknak */}
-            <Card className="flex h-full flex-col border-2 border-[color:var(--primary)] bg-[color:var(--card)] shadow-sm transition-shadow hover:shadow-md">
-              <CardContent className="flex flex-1 flex-col p-6">
-                <div className="mb-2 flex items-center justify-between">
-                  <h3 className="text-lg font-semibold text-[color:var(--foreground)]">
-                    Teljes csomag külföldi vállalkozóknak
-                  </h3>
-                  <span className="rounded bg-[color:var(--primary)]/10 px-2 py-1 text-xs font-bold text-[color:var(--primary)]">
-                    -13%
-                  </span>
-                </div>
-                <p className="mb-4 text-sm text-[color:var(--muted-foreground)]">
-                  Székhely + Kézbesítési megbízott
-                </p>
-                <div className="mb-4">
-                  <div className="text-sm text-[color:var(--muted-foreground)] line-through">15 000 Ft</div>
-                  <div className="text-4xl font-bold text-[color:var(--primary)]">13 000 Ft</div>
-                  <p className="text-sm text-[color:var(--muted-foreground)]">+ ÁFA / hó</p>
-                </div>
-                <ul className="mb-6 space-y-3 text-sm text-[color:var(--foreground)]">
-                  <li className="flex items-center space-x-3">
-                    <Check className="h-5 w-5 flex-shrink-0 text-[color:var(--primary)]" />
-                    <span>Székhely (10 000 Ft)</span>
-                  </li>
-                  <li className="flex items-center space-x-3">
-                    <Check className="h-5 w-5 flex-shrink-0 text-[color:var(--primary)]" />
-                    <span>Kézbesítési megbízott (5 000 Ft)</span>
-                  </li>
-                  <li className="flex items-center space-x-3">
-                    <Check className="h-5 w-5 flex-shrink-0 text-[color:var(--primary)]" />
-                    <span>Angol nyelvű szerződés és dokumentáció</span>
-                  </li>
-                </ul>
-                <div className="mb-6 rounded-md bg-[color:var(--muted)]/50 p-3 text-center text-xs text-[color:var(--muted-foreground)]">
-                  1 évre előre: 156.000 Ft + ÁFA
-                </div>
-                <QuoteButton packageId="szekhely-kezbesitesi-kulfoldi" className="mt-auto w-full rounded-full font-semibold">
-                  Árajánlat
-                </QuoteButton>
-              </CardContent>
-            </Card>
-          </div>
+          <PricingCardsGrid group="bundles" language="hu" />
         </div>
       </section>
 
@@ -330,103 +102,7 @@ export default function PricingPage() {
             </p>
           </div>
 
-          <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
-            {/* Iroda csomag magyar vállalkozóknak */}
-            <Card className="flex h-full flex-col border-2 border-[color:var(--border)] bg-[color:var(--card)] shadow-sm transition-shadow hover:shadow-md">
-              <CardContent className="flex flex-1 flex-col p-6">
-                <div className="mb-4">
-                  <h3 className="text-lg font-semibold text-[color:var(--foreground)]">
-                    Teljeskörű megoldás magyar vállalkozóknak
-                  </h3>
-                  <p className="text-sm text-[color:var(--muted-foreground)]">
-                    Székhely + Irodahasználat
-                  </p>
-                </div>
-                <div className="mb-4">
-                  <div className="mb-2 text-4xl font-bold text-[color:var(--primary)]">18 000 Ft</div>
-                  <p className="text-sm text-[color:var(--muted-foreground)]">+ ÁFA / hó</p>
-                </div>
-                <ul className="mb-6 space-y-3 text-sm text-[color:var(--foreground)]">
-                  <li className="flex items-start space-x-3">
-                    <Check className="mt-0.5 h-5 w-5 flex-shrink-0 text-[color:var(--primary)]" />
-                    <span>Székhelyszolgáltatás (8 000 Ft/hó).</span>
-                  </li>
-                  <li className="flex items-start space-x-3">
-                    <Check className="mt-0.5 h-5 w-5 flex-shrink-0 text-[color:var(--primary)]" />
-                    <span>Havi 4 alkalmas irodahasználat.</span>
-                  </li>
-                  <li className="flex items-start space-x-3">
-                    <Check className="mt-0.5 h-5 w-5 flex-shrink-0 text-[color:var(--primary)]" />
-                    <span>Kedvezményes iroda díj: 10 000 Ft/hó.</span>
-                  </li>
-                  <li className="flex items-start space-x-3">
-                    <Check className="mt-0.5 h-5 w-5 flex-shrink-0 text-[color:var(--primary)]" />
-                    <span>Postakezelés és továbbítás.</span>
-                  </li>
-                  <li className="flex items-start space-x-3">
-                    <Check className="mt-0.5 h-5 w-5 flex-shrink-0 text-[color:var(--primary)]" />
-                    <span>Email értesítés a beérkező postáról.</span>
-                  </li>
-                  <li className="flex items-start space-x-3">
-                    <Check className="mt-0.5 h-5 w-5 flex-shrink-0 text-[color:var(--primary)]" />
-                    <span>Tárgyaló bérlési lehetőség kedvezményes áron.</span>
-                  </li>
-                </ul>
-                <div className="mb-6 rounded-md bg-[color:var(--muted)]/50 p-3 text-center text-xs text-[color:var(--muted-foreground)]">
-                  Fél vagy 1 évre előre fizetendő.
-                </div>
-                <QuoteButton packageId="iroda-hu" className="mt-auto w-full rounded-full font-semibold">
-                  Árajánlat
-                </QuoteButton>
-              </CardContent>
-            </Card>
-
-            {/* Iroda csomag külföldi vállalkozóknak */}
-            <Card className="flex h-full flex-col border-2 border-[color:var(--border)] bg-[color:var(--card)] shadow-sm transition-shadow hover:shadow-md">
-              <CardContent className="flex flex-1 flex-col p-6">
-                <div className="mb-4">
-                  <h3 className="text-lg font-semibold text-[color:var(--foreground)]">
-                    Komplex csomag külföldi vállalkozóknak
-                  </h3>
-                  <p className="text-sm text-[color:var(--muted-foreground)]">
-                    Székhely + Iroda hosszú távra
-                  </p>
-                </div>
-                <div className="mb-4">
-                  <div className="mb-2 text-4xl font-bold text-[color:var(--primary)]">20 000 Ft</div>
-                  <p className="text-sm text-[color:var(--muted-foreground)]">+ ÁFA / hó</p>
-                </div>
-                <ul className="mb-6 space-y-3 text-sm text-[color:var(--foreground)]">
-                  <li className="flex items-start space-x-3">
-                    <Check className="mt-0.5 h-5 w-5 flex-shrink-0 text-[color:var(--primary)]" />
-                    <span>Havi 4 alkalommal irodahasználat.</span>
-                  </li>
-                  <li className="flex items-start space-x-3">
-                    <Check className="mt-0.5 h-5 w-5 flex-shrink-0 text-[color:var(--primary)]" />
-                    <span>Angol vagy magyar nyelvű szerződés.</span>
-                  </li>
-                  <li className="flex items-start space-x-3">
-                    <Check className="mt-0.5 h-5 w-5 flex-shrink-0 text-[color:var(--primary)]" />
-                    <span>Eco-Office coworking használata.</span>
-                  </li>
-                  <li className="flex items-start space-x-3">
-                    <Check className="mt-0.5 h-5 w-5 flex-shrink-0 text-[color:var(--primary)]" />
-                    <span>Cégbejegyzéshez szükséges dokumentumok kiállítása.</span>
-                  </li>
-                  <li className="flex items-start space-x-3">
-                    <Check className="mt-0.5 h-5 w-5 flex-shrink-0 text-[color:var(--primary)]" />
-                    <span>Dedikált ügyintéző a külföldi ügyfeleknek.</span>
-                  </li>
-                </ul>
-                <div className="mb-6 rounded-md bg-[color:var(--muted)]/50 p-3 text-center text-xs text-[color:var(--muted-foreground)]">
-                  1 évre előre fizetendő.
-                </div>
-                <QuoteButton packageId="iroda-kulfoldi" className="mt-auto w-full rounded-full font-semibold">
-                  Árajánlat
-                </QuoteButton>
-              </CardContent>
-            </Card>
-          </div>
+          <PricingCardsGrid group="officeBundles" language="hu" />
         </div>
       </section>
 
@@ -442,103 +118,10 @@ export default function PricingPage() {
             </p>
           </div>
 
-          <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
-            {/* Teljes csomag magyar vállalkozóknak */}
-            <Card className="flex h-full flex-col border-2 border-[color:var(--primary)] bg-[color:var(--card)] shadow-md transition-shadow hover:shadow-lg">
-              <CardContent className="flex flex-1 flex-col p-6">
-                <div className="mb-2 flex items-center justify-between">
-                  <h3 className="text-lg font-semibold text-[color:var(--foreground)]">
-                    Teljes csomag magyar vállalkozóknak
-                  </h3>
-                  <span className="rounded bg-[color:var(--primary)]/10 px-2 py-1 text-xs font-bold text-[color:var(--primary)]">
-                    -
-                     
-                    8%
-                  </span>
-                </div>
-                <p className="mb-4 text-sm text-[color:var(--muted-foreground)]">
-                  Székhely + Iroda + Kézbesítési megbízott
-                </p>
-                <div className="mb-4">
-                  <div className="text-sm text-[color:var(--muted-foreground)] line-through">26 000 Ft</div>
-                  <div className="text-4xl font-bold text-[color:var(--primary)]">24 000 Ft</div>
-                  <p className="text-sm text-[color:var(--muted-foreground)]">+ ÁFA / hó</p>
-                </div>
-                <ul className="mb-6 space-y-3 text-sm text-[color:var(--foreground)]">
-                  <li className="flex items-start space-x-3">
-                    <Check className="mt-0.5 h-5 w-5 flex-shrink-0 text-[color:var(--primary)]" />
-                    <span>Székhelyszolgáltatás (8 000 Ft).</span>
-                  </li>
-                  <li className="flex items-start space-x-3">
-                    <Check className="mt-0.5 h-5 w-5 flex-shrink-0 text-[color:var(--primary)]" />
-                    <span>Irodahasználat (10 000 Ft).</span>
-                  </li>
-                  <li className="flex items-start space-x-3">
-                    <Check className="mt-0.5 h-5 w-5 flex-shrink-0 text-[color:var(--primary)]" />
-                    <span>Kézbesítési megbízott (5 000 Ft).</span>
-                  </li>
-                  <li className="flex items-start space-x-3">
-                    <Check className="mt-0.5 h-5 w-5 flex-shrink-0 text-[color:var(--primary)]" />
-                    <span>Teljes körű adminisztráció és postakezelés.</span>
-                  </li>
-                </ul>
-                <div className="mb-6 rounded-md bg-[color:var(--muted)]/50 p-3 text-center text-xs text-[color:var(--muted-foreground)]">
-                  1 évre előre: 288.000 Ft + ÁFA
-                </div>
-                <QuoteButton packageId="iroda-kezbesitesi-hu" className="mt-auto w-full rounded-full font-semibold">
-                  Árajánlat
-                </QuoteButton>
-              </CardContent>
-            </Card>
-
-            {/* Teljes csomag külföldi vállalkozóknak */}
-            <Card className="flex h-full flex-col border-2 border-[color:var(--primary)] bg-[color:var(--card)] shadow-md transition-shadow hover:shadow-lg">
-              <CardContent className="flex flex-1 flex-col p-6">
-                <div className="mb-2 flex items-center justify-between">
-                  <h3 className="text-lg font-semibold text-[color:var(--foreground)]">
-                    Teljes csomag külföldi vállalkozóknak
-                  </h3>
-                  <span className="rounded bg-[color:var(--primary)]/10 px-2 py-1 text-xs font-bold text-[color:var(--primary)]">
-                    -10%
-                  </span>
-                </div>
-                <p className="mb-4 text-sm text-[color:var(--muted-foreground)]">
-                  Székhely + Iroda + Kézbesítési megbízott
-                </p>
-                <div className="mb-4">
-                  <div className="text-sm text-[color:var(--muted-foreground)] line-through">30 000 Ft</div>
-                  <div className="text-4xl font-bold text-[color:var(--primary)]">27 000 Ft</div>
-                  <p className="text-sm text-[color:var(--muted-foreground)]">+ ÁFA / hó</p>
-                </div>
-                <ul className="mb-6 space-y-3 text-sm text-[color:var(--foreground)]">
-                  <li className="flex items-start space-x-3">
-                    <Check className="mt-0.5 h-5 w-5 flex-shrink-0 text-[color:var(--primary)]" />
-                    <span>Székhelyszolgáltatás (10 000 Ft).</span>
-                  </li>
-                  <li className="flex items-start space-x-3">
-                    <Check className="mt-0.5 h-5 w-5 flex-shrink-0 text-[color:var(--primary)]" />
-                    <span>Irodahasználat (10 000 Ft).</span>
-                  </li>
-                  <li className="flex items-start space-x-3">
-                    <Check className="mt-0.5 h-5 w-5 flex-shrink-0 text-[color:var(--primary)]" />
-                    <span>Kézbesítési megbízott (5 000 Ft).</span>
-                  </li>
-                  <li className="flex items-start space-x-3">
-                    <Check className="mt-0.5 h-5 w-5 flex-shrink-0 text-[color:var(--primary)]" />
-                    <span>Angol nyelvű szerződés és dokumentáció.</span>
-                  </li>
-                </ul>
-                <div className="mb-6 rounded-md bg-[color:var(--muted)]/50 p-3 text-center text-xs text-[color:var(--muted-foreground)]">
-                  1 évre előre: 324.000 Ft + ÁFA
-                </div>
-                <QuoteButton packageId="iroda-kezbesitesi-kulfoldi" className="mt-auto w-full rounded-full font-semibold">
-                  Árajánlat
-                </QuoteButton>
-              </CardContent>
-            </Card>
-          </div>
+          <PricingCardsGrid group="fullEntrepreneur" language="hu" />
         </div>
       </section>
+
       {/* ÖSSZEHASONLÍTÁS SZEKCIÓ */}
       <section className="bg-[color:var(--background)] py-16">
         <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">

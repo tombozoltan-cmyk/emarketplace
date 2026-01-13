@@ -104,13 +104,13 @@ export function OffersSection() {
           </p>
         </div>
 
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid grid-cols-2 gap-4 sm:gap-6 md:grid-cols-2 lg:grid-cols-3">
           {offers.map((offer) => {
             const Icon = offer.icon;
             return (
               <article
                 key={offer.title}
-                className="group flex h-full flex-col gap-3 rounded-2xl bg-card p-6 text-sm text-card-foreground shadow-[0_10px_24px_rgba(15,23,42,0.10)] ring-1 ring-[color:var(--border)]/70 transition-all duration-200 hover:-translate-y-2 hover:shadow-[0_20px_40px_rgba(15,23,42,0.16)] hover:ring-[color:var(--primary)]"
+                className="group flex h-full flex-col gap-3 rounded-2xl bg-card p-4 text-sm text-card-foreground shadow-[0_10px_24px_rgba(15,23,42,0.10)] ring-1 ring-[color:var(--border)]/70 transition-all duration-200 hover:-translate-y-2 hover:shadow-[0_20px_40px_rgba(15,23,42,0.16)] hover:ring-[color:var(--primary)] sm:p-6"
               >
                 <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#fdf3dd] text-[color:var(--primary)] transition-transform duration-200 group-hover:-translate-y-1 group-hover:rotate-3">
                   <Icon className="h-5 w-5" strokeWidth={1.9} />
@@ -118,7 +118,7 @@ export function OffersSection() {
                 <h3 className="text-sm font-semibold tracking-tight text-foreground">
                   {offer.title}
                 </h3>
-                <p className="text-sm leading-relaxed text-muted-foreground">
+                <p className="text-[12px] leading-relaxed text-muted-foreground sm:text-sm">
                   {offer.description}
                 </p>
               </article>

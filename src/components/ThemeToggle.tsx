@@ -7,19 +7,24 @@ const STORAGE_KEY = "theme";
 
 type Theme = "light" | "dark";
 
-function getInitialTheme(): Theme {
-  if (typeof window === "undefined") return "light";
-  const stored = window.localStorage.getItem(STORAGE_KEY) as Theme | null;
-  if (stored === "light" || stored === "dark") return stored;
-  const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-  return prefersDark ? "dark" : "light";
-}
-
 export function ThemeToggle() {
-  const [theme, setTheme] = useState<Theme>(() => getInitialTheme());
+  const [mounted, setMounted] = useState(false);
+  const [theme, setTheme] = useState<Theme>("light");
+
+  // Only run on client after mount
+  useEffect(() => {
+    const stored = window.localStorage.getItem(STORAGE_KEY) as Theme | null;
+    if (stored === "light" || stored === "dark") {
+      setTheme(stored);
+    } else {
+      const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+      setTheme(prefersDark ? "dark" : "light");
+    }
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
-    if (typeof document === "undefined") return;
+    if (!mounted) return;
     const root = document.documentElement;
     if (theme === "dark") {
       root.classList.add("dark");
@@ -27,13 +32,13 @@ export function ThemeToggle() {
       root.classList.remove("dark");
     }
     window.localStorage.setItem(STORAGE_KEY, theme);
-  }, [theme]);
+  }, [theme, mounted]);
 
   const isDark = theme === "dark";
-
   const toggle = () => setTheme(isDark ? "light" : "dark");
 
-  const Icon = isDark ? Sun : Moon;
+  // Always render Moon on server and before mount to avoid hydration mismatch
+  const Icon = mounted ? (isDark ? Sun : Moon) : Moon;
 
   return (
     <button

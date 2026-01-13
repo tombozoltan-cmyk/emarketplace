@@ -85,17 +85,15 @@ export default function SzekhelyszolgaltatasPage() {
 
           {/* CTA gombok */}
           <div className="mt-2 flex flex-col items-center justify-center gap-2 sm:flex-row md:mt-4 md:gap-3 lg:gap-4">
-            <QuoteButton className="w-full rounded-full px-5 py-4 text-sm md:w-auto md:px-6 md:py-5 md:text-base lg:px-8 lg:py-6 lg:text-lg">
-              Ajánlatot kérek
-            </QuoteButton>
-            <Link href="/arak" className="w-full sm:w-auto">
-              <Button
-                variant="outline"
-                className="w-full rounded-full border-2 border-[color:var(--secondary)] bg-transparent px-5 py-4 text-sm text-foreground hover:bg-[color:var(--secondary)] hover:text-[color:var(--secondary-foreground)] md:px-6 md:py-5 md:text-base lg:px-8 lg:py-6 lg:text-lg"
-              >
-                Árak Megtekintése →
+            <Link href="/szerzodes" className="w-full sm:w-auto">
+              <Button className="w-full rounded-full bg-[color:var(--primary)] px-5 py-4 text-sm text-[color:var(--primary-foreground)] hover:bg-[color:var(--primary)]/90 md:w-auto md:px-6 md:py-5 md:text-base lg:px-8 lg:py-6 lg:text-lg">
+                Szerződéskötés indítása
+                <ArrowRight className="ml-2 h-4 w-4 md:h-5 md:w-5" />
               </Button>
             </Link>
+            <QuoteButton className="w-full rounded-full px-5 py-4 text-sm md:w-auto md:px-6 md:py-5 md:text-base lg:px-8 lg:py-6 lg:text-lg" variant="outline">
+              Ajánlatot kérek
+            </QuoteButton>
           </div>
 
           {/* Navigációs gombok */}

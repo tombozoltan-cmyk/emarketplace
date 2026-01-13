@@ -2,7 +2,7 @@
 
 import * as React from "react";
 
-type Variant = "default" | "outline";
+type Variant = "default" | "outline" | "destructive" | "ghost";
 type Size = "default" | "sm" | "lg" | "icon";
 
 export interface ButtonProps
@@ -16,10 +16,13 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
     const base =
       "inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--primary)] focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50";
 
-    const variantClass =
-      variant === "outline"
-        ? " border border-[color:var(--border)] bg-transparent hover:bg-[color:var(--muted)] hover:text-[color:var(--foreground)]"
-        : " bg-[color:var(--primary)] text-[color:var(--primary-foreground)] hover:bg-[color:var(--primary)]/90";
+    const variantClasses: Record<Variant, string> = {
+      default: " bg-[color:var(--primary)] text-[color:var(--primary-foreground)] hover:bg-[color:var(--primary)]/90",
+      outline: " border border-[color:var(--border)] bg-transparent hover:bg-[color:var(--muted)] hover:text-[color:var(--foreground)]",
+      destructive: " bg-red-500 text-white hover:bg-red-600",
+      ghost: " hover:bg-[color:var(--muted)] hover:text-[color:var(--foreground)]",
+    };
+    const variantClass = variantClasses[variant];
 
     const sizeClass =
       size === "sm"

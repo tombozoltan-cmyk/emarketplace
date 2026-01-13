@@ -71,7 +71,7 @@ export function Footer() {
                 </div>
                 <div className="h-8 w-px bg-[color:var(--primary)]/30 md:h-10" />
               </div>
-              <p className="hidden text-xs text-[color:var(--primary)] md:block md:text-sm">
+              <p className="text-[11px] font-semibold leading-tight text-[color:var(--primary)] sm:text-xs md:text-sm">
                 {slogan}
               </p>
             </div>

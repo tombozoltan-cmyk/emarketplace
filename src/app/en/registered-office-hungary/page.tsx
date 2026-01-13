@@ -91,17 +91,15 @@ export default function RegisteredOfficeHungaryPage() {
           </p>
 
           <div className="mt-2 flex flex-col items-center justify-center gap-2 sm:flex-row md:mt-4 md:gap-3 lg:gap-4">
-            <QuoteButton className="w-full rounded-full px-5 py-4 text-sm md:w-auto md:px-6 md:py-5 md:text-base lg:px-8 lg:py-6 lg:text-lg">
-              Request a quote
-            </QuoteButton>
-            <Link href="/en/pricing" className="w-full sm:w-auto">
-              <Button
-                variant="outline"
-                className="w-full rounded-full border-2 border-[color:var(--secondary)] bg-transparent px-5 py-4 text-sm text-[color:var(--secondary)] hover:bg-[color:var(--secondary)] hover:text-[color:var(--background)] md:px-6 md:py-5 md:text-base lg:px-8 lg:py-6 lg:text-lg"
-              >
-                View pricing →
+            <Link href="/en/contract" className="w-full sm:w-auto">
+              <Button className="w-full rounded-full bg-[color:var(--primary)] px-5 py-4 text-sm text-[color:var(--primary-foreground)] hover:bg-[color:var(--primary)]/90 md:w-auto md:px-6 md:py-5 md:text-base lg:px-8 lg:py-6 lg:text-lg">
+                Start contract process
+                <ArrowRight className="ml-2 h-4 w-4 md:h-5 md:w-5" />
               </Button>
             </Link>
+            <QuoteButton className="w-full rounded-full px-5 py-4 text-sm md:w-auto md:px-6 md:py-5 md:text-base lg:px-8 lg:py-6 lg:text-lg" variant="outline">
+              Request a quote
+            </QuoteButton>
           </div>
 
           <div className="mt-8 grid grid-cols-2 gap-2 md:mt-10 md:gap-3 lg:gap-4">
@@ -168,7 +166,7 @@ export default function RegisteredOfficeHungaryPage() {
               <CardContent className="p-3 md:p-4 lg:p-6">
                 <div className="mb-2 flex items-start gap-2 md:mb-3">
                   <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-[color:var(--secondary)] md:h-5 md:w-5" />
-                  <h3 className="min-w-0 flex-1 break-words text-sm font-semibold text-[color:var(--secondary)] md:text-base lg:text-lg">
+                  <h3 className="min-w-0 flex-1 break-words text-sm font-semibold text-[color:var(--foreground)] md:text-base lg:text-lg">
                     What does the service include?
                   </h3>
                 </div>

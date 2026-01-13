@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useState, useCallback, useMemo } from "react";
 import {
   collection,
   doc,
@@ -9,31 +9,42 @@ import {
   query,
   serverTimestamp,
   setDoc,
+  deleteDoc,
   type Timestamp,
 } from "firebase/firestore";
+import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
 import {
-  getDownloadURL,
-  ref,
-  uploadBytes,
-  type UploadResult,
-} from "firebase/storage";
-import { blogPosts } from "../../../../lib/blog-data";
-import { blogPostsEn } from "../../../../lib/blog-data-en";
-import { AdminGate } from "../../../../components/admin/AdminGate";
-import { AdminShell } from "../../../../components/admin/AdminShell";
-import { Button } from "../../../../components/ui/button";
-import { Card } from "../../../../components/ui/card";
-import { Input } from "../../../../components/ui/input";
-import { Label } from "../../../../components/ui/label";
-import { Select } from "../../../../components/ui/select";
-import { Textarea } from "../../../../components/ui/textarea";
-import { firestoreDb, firebaseStorage } from "../../../../lib/firebase";
+  Search,
+  Loader2,
+  Plus,
+  Trash2,
+  Save,
+  Image as ImageIcon,
+  Calendar,
+  Globe,
+  Eye,
+  EyeOff,
+} from "lucide-react";
+import { firestoreDb, firebaseStorage } from "@/lib/firebase";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  AdminLayout,
+  AdminCard,
+  AdminCardHeader,
+  AdminCardTitle,
+  AdminCardContent,
+  StatusBadge,
+  AdminModal,
+  AdminModalSection,
+  RichTextEditor,
+} from "@/components/admin";
 
 type BlogLanguage = "hu" | "en";
-
 type BlogStatus = "draft" | "published";
 
-type BlogPostDoc = {
+type BlogPost = {
   id: string;
   language: BlogLanguage;
   status: BlogStatus;
@@ -45,42 +56,13 @@ type BlogPostDoc = {
   imageUrl: string;
   readingTime: number;
   publishedAt: string;
-  createdAt: Timestamp | null;
-  updatedAt: Timestamp | null;
+  createdAt?: Timestamp;
+  updatedAt?: Timestamp;
 };
 
-const makeDocId = (language: BlogLanguage, slug: string): string =>
-  `${language}_${slug}`;
-
-const safeString = (v: unknown): string => (typeof v === "string" ? v : "");
-
-const safeNumber = (v: unknown): number => {
-  if (typeof v === "number" && Number.isFinite(v)) {
-    return v;
-  }
-  const parsed = Number(v);
-  return Number.isFinite(parsed) ? parsed : 0;
-};
-
-const normalizePost = (id: string, raw: Record<string, unknown>): BlogPostDoc => {
-  const language = (raw.language === "en" ? "en" : "hu") as BlogLanguage;
-  const status = (raw.status === "published" ? "published" : "draft") as BlogStatus;
-
-  return {
-    id,
-    language,
-    status,
-    title: safeString(raw.title).trim(),
-    slug: safeString(raw.slug).trim(),
-    excerpt: safeString(raw.excerpt),
-    contentHtml: safeString(raw.contentHtml),
-    category: safeString(raw.category).trim(),
-    imageUrl: safeString(raw.imageUrl).trim(),
-    readingTime: safeNumber(raw.readingTime) || 0,
-    publishedAt: safeString(raw.publishedAt).trim(),
-    createdAt: (raw.createdAt as Timestamp) ?? null,
-    updatedAt: (raw.updatedAt as Timestamp) ?? null,
-  };
+const STATUS_CONFIG: Record<BlogStatus, { label: string; variant: "default" | "success" }> = {
+  draft: { label: "Vázlat", variant: "default" },
+  published: { label: "Publikált", variant: "success" },
 };
 
 const slugify = (value: string): string =>
@@ -92,584 +74,427 @@ const slugify = (value: string): string =>
     .replace(/(^-|-$)+/g, "")
     .slice(0, 90);
 
-const statusLabel: Record<BlogStatus, string> = {
-  draft: "Vázlat",
-  published: "Publikált",
-};
-
-const hungarianMonths: Record<string, number> = {
-  január: 1,
-  február: 2,
-  március: 3,
-  április: 4,
-  május: 5,
-  június: 6,
-  július: 7,
-  augusztus: 8,
-  szeptember: 9,
-  október: 10,
-  november: 11,
-  december: 12,
-};
-
-const pad2 = (value: number): string => String(value).padStart(2, "0");
-
-const parsePublishedDateToIso = (raw: string): string => {
-  const trimmed = raw.trim();
-  if (!trimmed) {
-    return new Date().toISOString().slice(0, 10);
-  }
-
-  const nativeDate = new Date(trimmed);
-  if (!Number.isNaN(nativeDate.getTime())) {
-    return nativeDate.toISOString().slice(0, 10);
-  }
-
-  const huMatch = trimmed.match(/^(\d{4})\.\s*([^\d]+?)\s*(\d{1,2})\.?$/u);
-  if (!huMatch) {
-    return new Date().toISOString().slice(0, 10);
-  }
-
-  const [, yearRaw, monthRaw, dayRaw] = huMatch;
-  const monthName = monthRaw.trim().toLowerCase();
-  const month = hungarianMonths[monthName];
-  if (!month) {
-    return new Date().toISOString().slice(0, 10);
-  }
-
-  return `${yearRaw}-${pad2(month)}-${pad2(Number(dayRaw))}`;
-};
-
-export default function AdminBlogPage() {
-  const [items, setItems] = React.useState<BlogPostDoc[]>([]);
-  const [isLoading, setIsLoading] = React.useState(true);
-  const [error, setError] = React.useState<string | null>(null);
-
-  const [languageFilter, setLanguageFilter] = React.useState<"all" | BlogLanguage>("all");
-  const [selectedId, setSelectedId] = React.useState<string | null>(null);
-
-  const [isSaving, setIsSaving] = React.useState(false);
-  const [isUploading, setIsUploading] = React.useState(false);
-  const [imageUploadError, setImageUploadError] = React.useState<string | null>(null);
-  const [importStatus, setImportStatus] = React.useState<null | {
-    type: "success" | "error";
-    message: string;
-  }>(null);
-  const [isImporting, setIsImporting] = React.useState(false);
-
-  const [draft, setDraft] = React.useState<Omit<BlogPostDoc, "id" | "createdAt" | "updatedAt">>({
-    language: "hu",
-    status: "draft",
-    title: "",
-    slug: "",
-    excerpt: "",
-    contentHtml: "",
-    category: "",
-    imageUrl: "",
-    readingTime: 5,
-    publishedAt: new Date().toISOString().slice(0, 10),
+const formatDate = (ts?: Timestamp) => {
+  if (!ts) return "-";
+  return ts.toDate().toLocaleDateString("hu-HU", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
   });
+};
 
-  React.useEffect(() => {
+export default function BlogAdminPage() {
+  const [posts, setPosts] = useState<BlogPost[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [languageFilter, setLanguageFilter] = useState<"all" | BlogLanguage>("all");
+  const [selectedPost, setSelectedPost] = useState<BlogPost | null>(null);
+  const [isEditorOpen, setIsEditorOpen] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+
+  // Editor state
+  const [editLanguage, setEditLanguage] = useState<BlogLanguage>("hu");
+  const [editStatus, setEditStatus] = useState<BlogStatus>("draft");
+  const [editTitle, setEditTitle] = useState("");
+  const [editSlug, setEditSlug] = useState("");
+  const [editExcerpt, setEditExcerpt] = useState("");
+  const [editContent, setEditContent] = useState("");
+  const [editCategory, setEditCategory] = useState("");
+  const [editImageUrl, setEditImageUrl] = useState("");
+  const [editReadingTime, setEditReadingTime] = useState(5);
+  const [editPublishedAt, setEditPublishedAt] = useState("");
+
+  // Fetch posts
+  useEffect(() => {
     const q = query(collection(firestoreDb, "posts"), orderBy("updatedAt", "desc"));
-
-    const unsubscribe = onSnapshot(
-      q,
-      (snapshot) => {
-        const nextItems = snapshot.docs.map((d) =>
-          normalizePost(d.id, d.data() as Record<string, unknown>),
-        );
-        setItems(nextItems);
-        setIsLoading(false);
-      },
-      () => {
-        setError("Nem sikerült betölteni a blog cikkeket.");
-        setIsLoading(false);
-      },
-    );
-
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const items = snapshot.docs.map((d) => ({
+        id: d.id,
+        ...d.data(),
+      })) as BlogPost[];
+      setPosts(items);
+      setIsLoading(false);
+    });
     return () => unsubscribe();
   }, []);
 
-  const filteredItems = React.useMemo(() => {
-    if (languageFilter === "all") {
-      return items;
+  // Filter posts
+  const filteredPosts = useMemo(() => {
+    return posts.filter((post) => {
+      const matchesSearch =
+        !searchQuery ||
+        post.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        post.slug?.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchesLanguage = languageFilter === "all" || post.language === languageFilter;
+      return matchesSearch && matchesLanguage;
+    });
+  }, [posts, searchQuery, languageFilter]);
+
+  // Open editor
+  const openEditor = useCallback((post?: BlogPost) => {
+    if (post) {
+      setSelectedPost(post);
+      setEditLanguage(post.language);
+      setEditStatus(post.status);
+      setEditTitle(post.title);
+      setEditSlug(post.slug);
+      setEditExcerpt(post.excerpt);
+      setEditContent(post.contentHtml);
+      setEditCategory(post.category);
+      setEditImageUrl(post.imageUrl);
+      setEditReadingTime(post.readingTime || 5);
+      setEditPublishedAt(post.publishedAt || new Date().toISOString().slice(0, 10));
+    } else {
+      setSelectedPost(null);
+      setEditLanguage("hu");
+      setEditStatus("draft");
+      setEditTitle("");
+      setEditSlug("");
+      setEditExcerpt("");
+      setEditContent("");
+      setEditCategory("");
+      setEditImageUrl("");
+      setEditReadingTime(5);
+      setEditPublishedAt(new Date().toISOString().slice(0, 10));
     }
-    return items.filter((p) => p.language === languageFilter);
-  }, [items, languageFilter]);
+    setIsEditorOpen(true);
+  }, []);
 
-  const selectedPost = React.useMemo(() => {
-    if (!selectedId) {
-      return null;
-    }
-
-    return items.find((p) => p.id === selectedId) ?? null;
-  }, [items, selectedId]);
-
-  React.useEffect(() => {
-    if (selectedPost) {
-      setDraft({
-        language: selectedPost.language,
-        status: selectedPost.status,
-        title: selectedPost.title,
-        slug: selectedPost.slug,
-        excerpt: selectedPost.excerpt,
-        contentHtml: selectedPost.contentHtml,
-        category: selectedPost.category,
-        imageUrl: selectedPost.imageUrl,
-        readingTime: selectedPost.readingTime,
-        publishedAt: selectedPost.publishedAt || new Date().toISOString().slice(0, 10),
-      });
+  // Auto-generate slug from title
+  const handleTitleChange = useCallback((title: string) => {
+    setEditTitle(title);
+    if (!selectedPost) {
+      setEditSlug(slugify(title));
     }
   }, [selectedPost]);
 
-  const handleNew = React.useCallback(() => {
-    setSelectedId(null);
-    setDraft({
-      language: "hu",
-      status: "draft",
-      title: "",
-      slug: "",
-      excerpt: "",
-      contentHtml: "",
-      category: "",
-      imageUrl: "",
-      readingTime: 5,
-      publishedAt: new Date().toISOString().slice(0, 10),
-    });
-  }, []);
-
-  const handleImportFromStatic = React.useCallback(async () => {
-    setImportStatus(null);
-    setIsImporting(true);
-
-    const toDocWrites = [
-      ...blogPosts.map((post) => ({
-        language: "hu" as const,
-        slug: post.slug,
-        title: post.title,
-        excerpt: post.excerpt,
-        contentHtml: post.content,
-        category: post.category,
-        imageUrl: post.image,
-        readingTime: post.readingTime,
-        publishedAt: parsePublishedDateToIso(post.date),
-      })),
-      ...blogPostsEn.map((post) => ({
-        language: "en" as const,
-        slug: post.slug,
-        title: post.title,
-        excerpt: post.excerpt,
-        contentHtml: post.content,
-        category: post.category,
-        imageUrl: post.image,
-        readingTime: post.readingTime,
-        publishedAt: parsePublishedDateToIso(post.date),
-      })),
-    ];
-
-    try {
-      await Promise.all(
-        toDocWrites.map((payload) => {
-          const docId = makeDocId(payload.language, payload.slug);
-          return setDoc(
-            doc(firestoreDb, "posts", docId),
-            {
-              ...payload,
-              status: "published",
-              updatedAt: serverTimestamp(),
-              createdAt: serverTimestamp(),
-            },
-            { merge: true },
-          );
-        }),
-      );
-
-      setImportStatus({
-        type: "success",
-        message: `Import kész: ${toDocWrites.length} cikk frissítve Firestore-ban.`,
-      });
-    } catch {
-      setImportStatus({
-        type: "error",
-        message:
-          "Import sikertelen. Ellenőrizd a Firestore Rules-t (posts kollekció írás) és próbáld újra.",
-      });
-    } finally {
-      setIsImporting(false);
-    }
-  }, []);
-
-  const handleSave = React.useCallback(async () => {
-    setIsSaving(true);
-    setError(null);
-
-    const normalizedSlug = slugify(draft.slug || draft.title);
-    if (!draft.title.trim() || !normalizedSlug) {
-      setError("A cím és a slug kötelező.");
-      setIsSaving(false);
+  // Save post
+  const savePost = async () => {
+    const normalizedSlug = slugify(editSlug || editTitle);
+    if (!editTitle.trim() || !normalizedSlug) {
+      alert("A cím és a slug kötelező!");
       return;
     }
 
-    const docId = makeDocId(draft.language, normalizedSlug);
-
+    setIsSaving(true);
     try {
+      const docId = `${editLanguage}_${normalizedSlug}`;
       await setDoc(
         doc(firestoreDb, "posts", docId),
         {
-          language: draft.language,
-          status: draft.status,
-          title: draft.title.trim(),
+          language: editLanguage,
+          status: editStatus,
+          title: editTitle.trim(),
           slug: normalizedSlug,
-          excerpt: draft.excerpt,
-          contentHtml: draft.contentHtml,
-          category: draft.category,
-          imageUrl: draft.imageUrl,
-          readingTime: Number(draft.readingTime) || 0,
-          publishedAt: draft.publishedAt,
+          excerpt: editExcerpt,
+          contentHtml: editContent,
+          category: editCategory,
+          imageUrl: editImageUrl,
+          readingTime: Number(editReadingTime) || 5,
+          publishedAt: editPublishedAt,
           updatedAt: serverTimestamp(),
           ...(selectedPost ? {} : { createdAt: serverTimestamp() }),
         },
-        { merge: true },
+        { merge: true }
       );
-
-      setSelectedId(docId);
-    } catch {
-      setError("Mentés sikertelen. Ellenőrizd a Firestore jogosultságokat (Rules). ");
+      setIsEditorOpen(false);
+    } catch (error) {
+      console.error("Save error:", error);
+      alert("Mentés sikertelen!");
     } finally {
       setIsSaving(false);
     }
-  }, [draft, selectedPost]);
+  };
 
-  const handleUploadImage = React.useCallback(
-    async (file: File) => {
-      setIsUploading(true);
-      setImageUploadError(null);
+  // Delete post
+  const deletePost = async () => {
+    if (!selectedPost || !confirm("Biztosan törlöd ezt a cikket?")) return;
+    try {
+      await deleteDoc(doc(firestoreDb, "posts", selectedPost.id));
+      setIsEditorOpen(false);
+    } catch (error) {
+      console.error("Delete error:", error);
+    }
+  };
 
-      const normalizedSlug = slugify(draft.slug || draft.title || "blog-image");
-      const safeFileName = file.name.replace(/\s+/g, "-");
-      const path = `image/${draft.language}/${normalizedSlug}/${Date.now()}-${safeFileName}`;
-      const storageRef = ref(firebaseStorage, path);
+  // Upload image
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
 
-      try {
-        const result: UploadResult = await uploadBytes(storageRef, file, {
-          contentType: file.type || undefined,
-        });
-
-        const url = await getDownloadURL(result.ref);
-        setDraft((prev) => ({ ...prev, imageUrl: url }));
-      } catch {
-        setImageUploadError("Képfeltöltés sikertelen.");
-      } finally {
-        setIsUploading(false);
-      }
-    },
-    [draft.language, draft.slug, draft.title],
-  );
-
-  if (error) {
-    return (
-      <AdminGate>
-        <AdminShell basePath="/ops/portal-7d3k9a2f" title="Blog szerkesztő">
-          <Card className="p-5">
-            <div className="text-lg font-semibold">Hiba</div>
-            <div className="mt-2 text-sm text-muted-foreground">{error}</div>
-          </Card>
-        </AdminShell>
-      </AdminGate>
-    );
-  }
+    setIsUploading(true);
+    try {
+      const slug = slugify(editSlug || editTitle || "blog");
+      const safeFileName = file.name.replace(/[^a-zA-Z0-9.-]/g, "_");
+      const storagePath = `image/${editLanguage}/${slug}/${Date.now()}-${safeFileName}`;
+      const storageRef = ref(firebaseStorage, storagePath);
+      await uploadBytes(storageRef, file);
+      const downloadUrl = await getDownloadURL(storageRef);
+      setEditImageUrl(downloadUrl);
+    } catch (error) {
+      console.error("Upload error:", error);
+      alert("Kép feltöltés sikertelen!");
+    } finally {
+      setIsUploading(false);
+    }
+  };
 
   return (
-    <AdminGate>
-      <AdminShell basePath="/ops/portal-7d3k9a2f" title="Blog szerkesztő">
-        <div className="flex flex-col gap-4 lg:flex-row">
-          <Card className="w-full p-4 lg:w-[420px]">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <div className="text-sm font-semibold">Cikkek</div>
-                <div className="mt-1 text-xs text-muted-foreground">
-                  {isLoading ? "Betöltés..." : `${filteredItems.length} db`}
-                </div>
-              </div>
-
-              <div className="flex flex-col items-end gap-2">
-                <Select
-                  value={languageFilter}
-                  onChange={(e) => setLanguageFilter(e.target.value as "all" | BlogLanguage)}
-                  className="h-9 w-[170px]"
-                >
-                  <option value="all">Összes nyelv</option>
-                  <option value="hu">HU</option>
-                  <option value="en">EN</option>
-                </Select>
-                <Button type="button" size="sm" onClick={handleNew}>
-                  Új cikk
-                </Button>
-              </div>
-            </div>
-
-            <div className="mt-3 space-y-2">
-              <Button
-                type="button"
-                variant="outline"
-                className="w-full"
-                onClick={handleImportFromStatic}
-                disabled={isImporting}
-              >
-                {isImporting ? "Import..." : "Meglévő blog cikkek importálása (HU+EN)"}
-              </Button>
-              {importStatus ? (
-                <div
-                  className={`rounded-lg border p-3 text-xs ${
-                    importStatus.type === "success"
-                      ? "border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-900/40 dark:bg-emerald-950/40 dark:text-emerald-200"
-                      : "border-red-200 bg-red-50 text-red-800 dark:border-red-900/40 dark:bg-red-950/40 dark:text-red-200"
-                  }`}
-                >
-                  {importStatus.message}
-                </div>
-              ) : null}
-            </div>
-
-            {error ? (
-              <div className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800 dark:border-red-900/40 dark:bg-red-950/40 dark:text-red-200">
-                {error}
-              </div>
-            ) : null}
-
-            <div className="mt-4 flex max-h-[65vh] flex-col gap-2 overflow-auto">
-              {filteredItems.length === 0 && !isLoading ? (
-                <div className="rounded-xl border border-border bg-background p-4 text-sm text-muted-foreground">
-                  Nincs még cikk.
-                </div>
-              ) : null}
-
-              {filteredItems.map((post) => {
-                const isSelected = post.id === selectedId;
-                return (
-                  <button
-                    key={post.id}
-                    type="button"
-                    onClick={() => setSelectedId(post.id)}
-                    className={`w-full rounded-xl border px-3 py-3 text-left transition-colors ${
-                      isSelected
-                        ? "border-primary/40 bg-primary/10"
-                        : "border-border bg-background hover:bg-muted"
-                    }`}
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <div className="truncate text-sm font-semibold text-foreground">
-                          {post.title || "(Cím nélkül)"}
-                        </div>
-                        <div className="mt-0.5 truncate text-xs text-muted-foreground">
-                          {post.language.toUpperCase()} • /{post.language === "en" ? "en/blog" : "blog"}/{post.slug}
-                        </div>
-                      </div>
-                      <div className="flex-shrink-0 rounded-full bg-muted px-2 py-1 text-[11px] font-medium text-muted-foreground">
-                        {statusLabel[post.status]}
-                      </div>
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-          </Card>
-
-          <Card className="min-w-0 flex-1 p-5">
-            <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-              <div>
-                <div className="text-lg font-semibold">
-                  {selectedPost ? "Cikk szerkesztése" : "Új cikk"}
-                </div>
-                <div className="mt-1 text-sm text-muted-foreground">
-                  Firestore kollekció: <span className="font-mono">posts</span> • Storage: <span className="font-mono">gs://emarketplace-8aab1.firebasestorage.app/image</span>
-                </div>
-              </div>
-              <Button type="button" onClick={handleSave} disabled={isSaving || isUploading}>
-                {isSaving ? "Mentés..." : "Mentés"}
-              </Button>
-            </div>
-
-            {error ? (
-              <div className="mt-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800 dark:border-red-900/40 dark:bg-red-950/40 dark:text-red-200">
-                {error}
-              </div>
-            ) : null}
-
-            <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="language">Nyelv</Label>
-                <Select
-                  id="language"
-                  value={draft.language}
-                  onChange={(e) =>
-                    setDraft((prev) => ({ ...prev, language: e.target.value as BlogLanguage }))
-                  }
-                >
-                  <option value="hu">HU</option>
-                  <option value="en">EN</option>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="status">Státusz</Label>
-                <Select
-                  id="status"
-                  value={draft.status}
-                  onChange={(e) =>
-                    setDraft((prev) => ({ ...prev, status: e.target.value as BlogStatus }))
-                  }
-                >
-                  <option value="draft">Vázlat</option>
-                  <option value="published">Publikált</option>
-                </Select>
-              </div>
-
-              <div className="space-y-2 lg:col-span-2">
-                <Label htmlFor="title">Cím</Label>
-                <Input
-                  id="title"
-                  value={draft.title}
-                  onChange={(e) =>
-                    setDraft((prev) => ({ ...prev, title: e.target.value }))
-                  }
-                  placeholder="Cikk címe"
-                />
-              </div>
-
-              <div className="space-y-2 lg:col-span-2">
-                <Label htmlFor="slug">Slug</Label>
-                <div className="flex gap-2">
-                  <Input
-                    id="slug"
-                    value={draft.slug}
-                    onChange={(e) =>
-                      setDraft((prev) => ({ ...prev, slug: e.target.value }))
-                    }
-                    placeholder="pl. szekhelyszolgaltatas-elonyei"
-                  />
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() =>
-                      setDraft((prev) => ({
-                        ...prev,
-                        slug: slugify(prev.slug || prev.title),
-                      }))
-                    }
-                  >
-                    Generálás
-                  </Button>
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="category">Kategória</Label>
-                <Input
-                  id="category"
-                  value={draft.category}
-                  onChange={(e) =>
-                    setDraft((prev) => ({ ...prev, category: e.target.value }))
-                  }
-                  placeholder="pl. Cégalapítás"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="publishedAt">Dátum</Label>
-                <Input
-                  id="publishedAt"
-                  type="date"
-                  value={draft.publishedAt}
-                  onChange={(e) =>
-                    setDraft((prev) => ({ ...prev, publishedAt: e.target.value }))
-                  }
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="readingTime">Olvasási idő (perc)</Label>
-                <Input
-                  id="readingTime"
-                  type="number"
-                  value={String(draft.readingTime)}
-                  onChange={(e) =>
-                    setDraft((prev) => ({
-                      ...prev,
-                      readingTime: Number(e.target.value),
-                    }))
-                  }
-                  min={1}
-                />
-              </div>
-
-              <div className="space-y-2 lg:col-span-2">
-                <Label htmlFor="excerpt">Kivonat</Label>
-                <Textarea
-                  id="excerpt"
-                  rows={3}
-                  value={draft.excerpt}
-                  onChange={(e) =>
-                    setDraft((prev) => ({ ...prev, excerpt: e.target.value }))
-                  }
-                  placeholder="Rövid összefoglaló..."
-                />
-              </div>
-
-              <div className="space-y-2 lg:col-span-2">
-                <Label>Kiemelt kép</Label>
-                <div className="flex flex-col gap-2 md:flex-row md:items-center">
-                  <Input
-                    value={draft.imageUrl}
-                    onChange={(e) =>
-                      setDraft((prev) => ({ ...prev, imageUrl: e.target.value }))
-                    }
-                    placeholder="https://..."
-                  />
-                  <label className="inline-flex cursor-pointer items-center justify-center rounded-md border border-border bg-transparent px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted">
-                    {isUploading ? "Feltöltés..." : "Feltöltés"}
-                    <input
-                      type="file"
-                      accept="image/*"
-                      className="hidden"
-                      disabled={isUploading}
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file) {
-                          void handleUploadImage(file);
-                        }
-                      }}
-                    />
-                  </label>
-                </div>
-                {imageUploadError ? (
-                  <div className="text-xs text-red-600 dark:text-red-300">
-                    {imageUploadError}
-                  </div>
-                ) : null}
-              </div>
-            </div>
-
-            <div className="mt-6 space-y-2">
-              <Label htmlFor="contentHtml">Tartalom (HTML)</Label>
-              <Textarea
-                id="contentHtml"
-                rows={14}
-                value={draft.contentHtml}
-                onChange={(e) =>
-                  setDraft((prev) => ({ ...prev, contentHtml: e.target.value }))
-                }
-                placeholder="<h2>...</h2><p>...</p>"
-              />
-              <div className="text-xs text-muted-foreground">
-                Tipp: a publikus blog oldal jelenleg statikus adatokból épül. Ha azt szeretnéd, hogy az itt létrehozott cikkek azonnal megjelenjenek, a publikus /blog oldalakat át kell kötnünk Firestore-ra is.
-              </div>
-            </div>
-          </Card>
+    <AdminLayout title="Blog" description="Blog cikkek kezelése">
+      {/* Filters */}
+      <div className="flex flex-col sm:flex-row gap-3 mb-6">
+        <div className="relative flex-1 max-w-md">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[color:var(--muted-foreground)]" />
+          <Input
+            placeholder="Keresés cím, slug..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-9"
+          />
         </div>
-      </AdminShell>
-    </AdminGate>
+        <div className="flex gap-2">
+          <Button
+            variant={languageFilter === "all" ? "default" : "outline"}
+            size="sm"
+            onClick={() => setLanguageFilter("all")}
+          >
+            Mind
+          </Button>
+          <Button
+            variant={languageFilter === "hu" ? "default" : "outline"}
+            size="sm"
+            onClick={() => setLanguageFilter("hu")}
+          >
+            🇭🇺 Magyar
+          </Button>
+          <Button
+            variant={languageFilter === "en" ? "default" : "outline"}
+            size="sm"
+            onClick={() => setLanguageFilter("en")}
+          >
+            🇬🇧 English
+          </Button>
+        </div>
+        <Button onClick={() => openEditor()} className="gap-2">
+          <Plus className="w-4 h-4" />
+          Új cikk
+        </Button>
+      </div>
+
+      {/* Loading */}
+      {isLoading ? (
+        <div className="flex items-center justify-center py-20">
+          <Loader2 className="w-8 h-8 animate-spin text-[color:var(--primary)]" />
+        </div>
+      ) : filteredPosts.length === 0 ? (
+        <div className="text-center py-20 text-[color:var(--muted-foreground)]">
+          Nincs találat
+        </div>
+      ) : (
+        /* Posts grid */
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          {filteredPosts.map((post) => (
+            <AdminCard key={post.id} onClick={() => openEditor(post)} hoverable>
+              {post.imageUrl && (
+                <div className="h-32 -mx-4 -mt-4 mb-3 overflow-hidden rounded-t-xl">
+                  <img
+                    src={post.imageUrl}
+                    alt={post.title}
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+              )}
+              <AdminCardHeader>
+                <div className="flex-1 min-w-0">
+                  <AdminCardTitle>{post.title || "Névtelen"}</AdminCardTitle>
+                  <p className="text-xs text-[color:var(--muted-foreground)] mt-0.5 flex items-center gap-1">
+                    <Globe className="w-3 h-3" />
+                    {post.language === "hu" ? "Magyar" : "English"}
+                  </p>
+                </div>
+                <StatusBadge
+                  status={STATUS_CONFIG[post.status].label}
+                  variant={STATUS_CONFIG[post.status].variant}
+                />
+              </AdminCardHeader>
+              <AdminCardContent>
+                <div className="text-xs text-[color:var(--muted-foreground)] line-clamp-2">
+                  {post.excerpt || "Nincs kivonat"}
+                </div>
+                <div className="flex items-center gap-2 text-xs text-[color:var(--muted-foreground)] mt-2">
+                  <Calendar className="w-3 h-3" />
+                  {formatDate(post.updatedAt)}
+                </div>
+              </AdminCardContent>
+            </AdminCard>
+          ))}
+        </div>
+      )}
+
+      {/* Editor Modal */}
+      <AdminModal
+        isOpen={isEditorOpen}
+        onClose={() => setIsEditorOpen(false)}
+        title={selectedPost ? "Cikk szerkesztése" : "Új cikk"}
+        size="full"
+        footer={
+          <>
+            {selectedPost && (
+              <Button variant="destructive" size="sm" onClick={deletePost}>
+                <Trash2 className="w-4 h-4 mr-1" />
+                Törlés
+              </Button>
+            )}
+            <Button variant="outline" size="sm" onClick={() => setIsEditorOpen(false)}>
+              Mégse
+            </Button>
+            <Button size="sm" onClick={savePost} disabled={isSaving}>
+              {isSaving ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Save className="w-4 h-4 mr-1" />}
+              Mentés
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-6">
+          {/* Meta fields row 1 */}
+          <div className="grid gap-4 sm:grid-cols-4">
+            <div className="sm:col-span-2">
+              <Label>Cím</Label>
+              <Input
+                value={editTitle}
+                onChange={(e) => handleTitleChange(e.target.value)}
+                placeholder="Cikk címe"
+                className="mt-1"
+              />
+            </div>
+            <div>
+              <Label>Slug</Label>
+              <Input
+                value={editSlug}
+                onChange={(e) => setEditSlug(e.target.value)}
+                placeholder="cikk-url-slug"
+                className="mt-1"
+              />
+            </div>
+            <div>
+              <Label>Kategória</Label>
+              <Input
+                value={editCategory}
+                onChange={(e) => setEditCategory(e.target.value)}
+                placeholder="pl. Hírek"
+                className="mt-1"
+              />
+            </div>
+          </div>
+
+          {/* Meta fields row 2 */}
+          <div className="grid gap-4 sm:grid-cols-4">
+            <div>
+              <Label>Nyelv</Label>
+              <select
+                value={editLanguage}
+                onChange={(e) => setEditLanguage(e.target.value as BlogLanguage)}
+                className="mt-1 w-full h-10 px-3 rounded-md border border-[color:var(--border)] bg-[color:var(--background)] text-sm"
+              >
+                <option value="hu">🇭🇺 Magyar</option>
+                <option value="en">🇬🇧 English</option>
+              </select>
+            </div>
+            <div>
+              <Label>Státusz</Label>
+              <select
+                value={editStatus}
+                onChange={(e) => setEditStatus(e.target.value as BlogStatus)}
+                className="mt-1 w-full h-10 px-3 rounded-md border border-[color:var(--border)] bg-[color:var(--background)] text-sm"
+              >
+                <option value="draft">Vázlat</option>
+                <option value="published">Publikált</option>
+              </select>
+            </div>
+            <div>
+              <Label>Publikálás dátuma</Label>
+              <Input
+                type="date"
+                value={editPublishedAt}
+                onChange={(e) => setEditPublishedAt(e.target.value)}
+                className="mt-1"
+              />
+            </div>
+            <div>
+              <Label>Olvasási idő (perc)</Label>
+              <Input
+                type="number"
+                value={editReadingTime}
+                onChange={(e) => setEditReadingTime(Number(e.target.value))}
+                min={1}
+                className="mt-1"
+              />
+            </div>
+          </div>
+
+          {/* Excerpt */}
+          <div>
+            <Label>Kivonat</Label>
+            <textarea
+              value={editExcerpt}
+              onChange={(e) => setEditExcerpt(e.target.value)}
+              placeholder="Rövid leírás a cikkről..."
+              rows={2}
+              className="mt-1 w-full px-3 py-2 rounded-md border border-[color:var(--border)] bg-[color:var(--background)] text-sm resize-none"
+            />
+          </div>
+
+          {/* Image */}
+          <div>
+            <Label>Kiemelt kép</Label>
+            <div className="mt-1 flex gap-3 items-start">
+              {editImageUrl && (
+                <img
+                  src={editImageUrl}
+                  alt="Előnézet"
+                  className="w-32 h-20 object-cover rounded-lg border border-[color:var(--border)]"
+                />
+              )}
+              <div className="flex-1 space-y-2">
+                <Input
+                  value={editImageUrl}
+                  onChange={(e) => setEditImageUrl(e.target.value)}
+                  placeholder="Kép URL vagy töltsd fel..."
+                />
+                <label className="inline-flex items-center gap-2 px-3 py-2 text-sm border border-[color:var(--border)] rounded-md cursor-pointer hover:bg-[color:var(--muted)] transition-colors">
+                  {isUploading ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <ImageIcon className="w-4 h-4" />
+                  )}
+                  {isUploading ? "Feltöltés..." : "Kép feltöltése"}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleImageUpload}
+                    className="hidden"
+                    disabled={isUploading}
+                  />
+                </label>
+              </div>
+            </div>
+          </div>
+
+          {/* Content editor */}
+          <div>
+            <Label>Tartalom</Label>
+            <div className="mt-1">
+              <RichTextEditor
+                content={editContent}
+                onChange={setEditContent}
+                placeholder="Kezdd el írni a cikk tartalmát..."
+                minHeight="350px"
+              />
+            </div>
+          </div>
+        </div>
+      </AdminModal>
+    </AdminLayout>
   );
 }

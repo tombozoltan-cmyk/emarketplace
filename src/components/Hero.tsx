@@ -95,7 +95,7 @@ export function Hero() {
               <div className="mb-4 h-5 w-28 rounded-full bg-slate-200" />
               <div className="relative mb-5 h-64 overflow-hidden rounded-2xl">
                 <Image
-                  src="https://firebasestorage.googleapis.com/v0/b/emarketplace-8aab1.firebasestorage.app/o/image%2F04bcc714-0aab-488e-afc2-991be3fcd6bc.jpg?alt=media&token=6742891b-dcfd-4727-acd0-4abf5130a8b7"
+                  src="https://firebasestorage.googleapis.com/v0/b/emarketplace-8aab1.firebasestorage.app/o/image%2Fpeople.jpg?alt=media"
                   alt={isEnglish ? "E-Marketplace hero image" : "E-Marketplace hero kép"}
                   fill
                   className="object-cover"

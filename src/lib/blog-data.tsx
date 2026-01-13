@@ -15,7 +15,7 @@ export const blogPosts: BlogPost[] = [
     title: "PMT változások 2025-ben – mit jelent a székhelyszolgáltatóknak?",
     excerpt:
       "Ismerje meg az új pénzmosás elleni törvény legfontosabb változásait és azok gyakorlati következményeit a székhelyszolgáltatók számára.",
-    image: "/legal-documents-modern-office.jpg",
+    image: "/placeholder.svg",
     date: "2025. január 15.",
     category: "Jog & Szabályozás",
     readingTime: 8,
@@ -102,7 +102,7 @@ export const blogPosts: BlogPost[] = [
     title: "Külföldi cégek magyarországi székhelye – fontos új szabályok",
     excerpt:
       "Minden, amit tudnia kell, ha külföldi vállalkozásának magyarországi székhelyet szeretne. Gyakorlati útmutató lépésről lépésre.",
-    image: "/international-business-handshake-budapest.jpg",
+    image: "/placeholder.svg",
     date: "2025. január 10.",
     category: "Nemzetközi",
     readingTime: 7,
@@ -163,7 +163,7 @@ export const blogPosts: BlogPost[] = [
     title: "Miért jobb székhelyszolgáltatót használni, mint saját lakcímet?",
     excerpt:
       "Fedezze fel a professzionális székhelyszolgáltatás előnyeit és a lakcím-használat jogi kockázatait. Szakértői tanácsok vállalkozóknak.",
-    image: "/professional-business-office-building.jpg",
+    image: "/placeholder.svg",
     date: "2025. január 5.",
     category: "Tippek",
     readingTime: 6,
@@ -224,7 +224,7 @@ export const blogPosts: BlogPost[] = [
     title: "Hogyan zajlik a szerződéskötés gyorsan és egyszerűen?",
     excerpt:
       "Lépésről lépésre bemutatjuk a modern szerződéskötés folyamatát. Gyors, biztonságos és kényelmes megoldás vállalkozóknak.",
-    image: "/video-call-business-meeting-laptop.jpg",
+    image: "/placeholder.svg",
     date: "2024. december 28.",
     category: "Útmutatók",
     readingTime: 5,
@@ -300,12 +300,12 @@ export const blogPosts: BlogPost[] = [
     title: "Székhely + iroda csomag előnyei külföldi vállalkozóknak",
     excerpt:
       "Miért érdemes kombinálni a székhelyszolgáltatást irodahasználattal? Gyakorlati előnyök és esettanulmányok nemzetközi ügyfelektől.",
-    image: "/modern-coworking-space-budapest-office.jpg",
+    image: "/placeholder.svg",
     date: "2024. december 20.",
     category: "Szolgáltatások",
     readingTime: 6,
     content: `
-<h2>Mit jelent a székhely + iroda csomag?</h2>
+<h2>Miért jó kombinálni a székhelyet és az irodahasználatot?</h2>
 <p>A székhely + iroda csomag azoknak szól, akik a hivatalos cégcím mellé <strong>valódi irodahasználatot</strong> is szeretnének. Így a székhely, a postakezelés és az időszakos munkavégzés egy helyen valósul meg.</p>
 
 <h2>Kinek előnyös ez a megoldás?</h2>
@@ -339,12 +339,12 @@ export const blogPosts: BlogPost[] = [
     title: "Adózási változások 2025 - mit kell tudni vállalkozóknak?",
     excerpt:
       "Átfogó útmutató az új adózási szabályokról, határidőkről és a vállalkozásokat érintő legfontosabb változásokról.",
-    image: "/financial-charts-calculator-business.jpg",
+    image: "/placeholder.svg",
     date: "2024. december 15.",
     category: "Pénzügy",
     readingTime: 7,
     content: `
-<h2>Miért fontos figyelni az adózási változásokat?</h2>
+<h2>Miért fontosak az adózási változások?</h2>
 <p>Minden évben módosulnak az adószabályok, kedvezmények és határidők. 2025-ben is érdemes áttekinteni, hogyan érintik ezek a vállalkozásokat, különösen azokat, amelyek külföldi tulajdonossal vagy nemzetközi ügyfélkörrel rendelkeznek.</p>
 
 <h2>Főbb területek, amelyekre érdemes figyelni</h2>

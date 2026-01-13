@@ -21,6 +21,7 @@ type AdminAuthContextValue = {
   user: User | null;
   isLoading: boolean;
   isAdmin: boolean;
+  isAuthenticated: boolean;
   signIn: () => Promise<void>;
   signOut: () => Promise<void>;
 };
@@ -73,15 +74,18 @@ export function AdminAuthProvider({
     await signOut(firebaseAuth);
   }, []);
 
+  const isAuthenticated = isAdmin && !isLoading;
+
   const value = useMemo(
     () => ({
       user,
       isLoading,
       isAdmin,
+      isAuthenticated,
       signIn: handleSignIn,
       signOut: handleSignOut,
     }),
-    [handleSignIn, handleSignOut, isAdmin, isLoading, user],
+    [handleSignIn, handleSignOut, isAdmin, isAuthenticated, isLoading, user],
   );
 
   return (

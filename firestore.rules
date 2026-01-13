@@ -1,0 +1,54 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Blog posts - public read, authenticated write
+    match /posts/{postId} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+    
+    // Contracts - public create (wizard), authenticated read/update/delete (admin)
+    match /contracts/{contractId} {
+      allow create: if true;
+      allow read, update, delete: if request.auth != null;
+    }
+    
+    // Contract templates - authenticated only
+    match /contractTemplates/{templateId} {
+      allow read, write: if request.auth != null;
+    }
+    
+    // Document templates - temporarily public for testing
+    match /documentTemplates/{templateId} {
+      allow read, write: if true;
+    }
+    
+    // Pricing cards - public read for wizard
+    match /pricingCards/{cardId} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+    
+    // Inquiries - public create, authenticated read
+    match /inquiries/{inquiryId} {
+      allow create: if true;
+      allow read, update, delete: if request.auth != null;
+    }
+    
+    // Users - authenticated only
+    match /users/{userId} {
+      allow read, write: if request.auth != null;
+    }
+    
+    // Email settings - authenticated only (admin)
+    match /emailSettings/{docId} {
+      allow read, write: if request.auth != null;
+    }
+    
+    // Marketing settings - public read (for scripts), authenticated write
+    match /marketingSettings/{docId} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+  }
+}

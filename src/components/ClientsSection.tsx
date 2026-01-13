@@ -286,12 +286,12 @@ export function ClientsSection() {
           <h2 className="mb-3 text-2xl font-bold text-[color:var(--foreground)] md:mb-4 md:text-3xl lg:text-4xl">
             {heading}
           </h2>
-          <p className="mx-auto max-w-2xl text-base text-slate-500 md:text-xl">
+          <p className="mx-auto max-w-2xl text-base text-muted-foreground md:text-xl">
             {subtitle}
           </p>
         </div>
 
-        <div className="space-y-4 text-sm text-slate-500 md:space-y-6">
+        <div className="space-y-4 text-sm text-muted-foreground md:space-y-6">
           {rows.map((row, rowIndex) => {
             const animateClass =
               rowIndex === 1 ? "animate-scroll-left" : "animate-scroll-right";
@@ -304,7 +304,7 @@ export function ClientsSection() {
                     return (
                       <span
                         key={`${client}-${rowIndex}-${i}`}
-                        className="inline-block px-4 py-2 text-sm font-medium text-slate-500 transition-colors hover:text-[color:var(--primary)] md:px-6 md:text-base lg:text-lg"
+                        className="inline-block px-4 py-2 text-sm font-medium text-muted-foreground transition-colors hover:text-[color:var(--primary)] md:px-6 md:text-base lg:text-lg"
                         style={style}
                       >
                         {client}

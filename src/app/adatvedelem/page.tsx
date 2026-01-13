@@ -83,6 +83,13 @@ export default function AdatvedelemPage() {
             {/* 2. Az adatkezelés alapelvei */}
             <section id="alapelvek" className="scroll-mt-28">
               <h2 className="mb-3 text-xl font-bold md:text-2xl">2. Az adatkezelés alapelvei</h2>
+              <p className="text-sm text-muted-foreground">
+                Adatkezelési tájékoztatónk összhangban van az Európai Parlament és Tanács
+                (EU) 2016/679 rendeletével (GDPR).
+              </p>
+              <p className="text-sm text-muted-foreground">
+                Kérdés esetén írjon nekünk: &quot;emarketplacekft@gmail.com&quot;.
+              </p>
               <p className="mb-3 text-[color:var(--muted-foreground)]">
                 Az adatkezelő az Európai Parlament és a Tanács (EU) 2016/679 rendelete (GDPR), valamint a vonatkozó
                 magyar jogszabályok (különösen az Infotv.) előírásai szerint jár el. Az adatkezelés során az alábbi
@@ -285,7 +292,7 @@ export default function AdatvedelemPage() {
                   <p>Kérheti a pontatlan vagy hiányos adatok helyesbítését vagy kiegészítését.</p>
                 </div>
                 <div>
-                  <p className="font-semibold text-[color:var(--foreground)]">Törléshez való jog ("elfeledtetés joga")</p>
+                  <p className="font-semibold text-[color:var(--foreground)]">Törléshez való jog (&quot;elfeledtetés joga&quot;)</p>
                   <p>
                     Bizonyos esetekben kérheti személyes adatai törlését, például ha az adatkezelés jogalapja a
                     hozzájárulás, amelyet visszavon, vagy ha az adatokra már nincs szükség.

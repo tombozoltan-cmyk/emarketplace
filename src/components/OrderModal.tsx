@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Select } from "@/components/ui/select";
+import { NativeSelect } from "@/components/ui/select";
 import { firestoreDb } from "@/lib/firebase";
 
 type CompanyType = "existing" | "new";
@@ -94,6 +94,38 @@ export function OrderModal() {
     step1Title: isEnglish ? "Select a service" : "Szolgáltatás kiválasztása",
     packageLabel: isEnglish ? "Which package are you interested in?" : "Melyik csomag érdekli?",
     packagePlaceholder: isEnglish ? "Select a package..." : "Válasszon csomagot...",
+    step2Title: isEnglish ? "Company details" : "Cégadatok",
+    existingCompany: isEnglish ? "Existing company" : "Már működő cég",
+    newCompany: isEnglish ? "New company (forming)" : "Most alakuló cég",
+    companyNameLabel: isEnglish ? "Company name (or planned name)" : "Cég neve (vagy tervezett név)",
+    companyNamePlaceholder: isEnglish ? "e.g. Example Ltd." : "Pl. Minta Kft.",
+    taxNumberLabel: isEnglish ? "Tax number" : "Adószám",
+    step3Title: isEnglish ? "Contracting party details" : "Szerződő személy adatai",
+    fullNameLabel: isEnglish ? "Full name" : "Teljes név",
+    fullNamePlaceholder: isEnglish ? "John Smith" : "Kovács János",
+    emailLabel: isEnglish ? "Email address" : "E-mail cím",
+    emailPlaceholder: isEnglish ? "john@example.com" : "janos@pelda.hu",
+    phoneLabel: isEnglish ? "Phone number" : "Telefonszám",
+    countryLabel: isEnglish ? "Country" : "Ország",
+    addressLabel: isEnglish ? "Address (ZIP, City, Street, Number)" : "Cím (Irányítószám, Város, Utca, Házszám)",
+    addressPlaceholder: isEnglish ? "1064 Budapest, Izabella street 68/B" : "1064 Budapest, Izabella utca 68/B",
+    step4Title: isEnglish ? "Message or notes" : "Üzenet vagy megjegyzés",
+    messageLabel: isEnglish ? "Message (optional)" : "Üzenet (opcionális)",
+    messagePlaceholder: isEnglish ? "Questions, notes or special requests..." : "Kérdése, megjegyzése vagy egyedi igénye...",
+    sameContactLabel: isEnglish ? "Contact person is the same as the contracting party" : "A kapcsolattartó megegyezik a szerződővel",
+    contactNameLabel: isEnglish ? "Contact person name" : "Kapcsolattartó neve",
+    contactNamePlaceholder: isEnglish ? "Contact person name" : "Kapcsolattartó neve",
+    contactEmailLabel: isEnglish ? "Contact person email" : "Kapcsolattartó e-mail címe",
+    contactEmailPlaceholder: isEnglish ? "contact@example.com" : "kapcsolattarto@pelda.hu",
+    contactPhoneLabel: isEnglish ? "Contact person phone" : "Kapcsolattartó telefonszáma",
+    contactAddressLabel: isEnglish ? "Contact person address" : "Kapcsolattartó címe",
+    contactAddressPlaceholder: isEnglish ? "Address" : "Cím",
+    gdprText: isEnglish ? "I accept the" : "Elfogadom az",
+    gdprLink: isEnglish ? "Privacy Policy" : "Adatkezelési tájékoztatót",
+    termsText: isEnglish ? "I accept the" : "Elfogadom az",
+    termsLink: isEnglish ? "Terms and Conditions" : "Általános Szerződési Feltételeket",
+    submitButton: isEnglish ? "Send quote request" : "Árajánlat küldése",
+    submitting: isEnglish ? "Sending..." : "Küldés folyamatban...",
   };
 
   const [selectedPackage, setSelectedPackage] = useState<string>("");
@@ -142,7 +174,9 @@ export function OrderModal() {
     }
   }, [isOpen, modalData]);
 
-  if (!isOpen) return null;
+  if (!isOpen) {
+    return null;
+  }
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -221,6 +255,7 @@ export function OrderModal() {
 
       await addDoc(collection(firestoreDb, "inquiries"), {
         createdAt: serverTimestamp(),
+        site: "emarketplace",
         language: isEnglish ? "en" : "hu",
         sourcePath: pathname ?? null,
         status: "new",
@@ -274,7 +309,7 @@ export function OrderModal() {
         {/* Header */}
         <div className="flex items-center justify-between border-b bg-[color:var(--secondary)]/5 p-6">
           <div>
-            <h2 className="text-2xl font-bold text-[color:var(--secondary)]">{text.modalTitle}</h2>
+            <h2 className="text-2xl font-bold text-foreground">{text.modalTitle}</h2>
             {!isSubmitted && (
               <p className="mt-1 text-sm text-[color:var(--muted-foreground)]">
                 {text.modalSubtitle}
@@ -301,7 +336,7 @@ export function OrderModal() {
                 <CheckCircle2 className="h-10 w-10 text-green-600" />
               </div>
               <div className="space-y-2">
-                <h3 className="text-2xl font-bold text-[color:var(--secondary)]">{text.successTitle}</h3>
+                <h3 className="text-2xl font-bold text-foreground">{text.successTitle}</h3>
                 <p className="mx-auto max-w-md text-sm text-[color:var(--muted-foreground)]">
                   {text.successText}
                 </p>
@@ -327,7 +362,7 @@ export function OrderModal() {
 
               {/* 1. Szolgáltatás választó */}
               <div className="space-y-4 rounded-xl border border-[color:var(--secondary)]/10 bg-[color:var(--secondary)]/5 p-5">
-                <div className="flex items-center gap-2 text-lg font-semibold text-[color:var(--secondary)]">
+                <div className="flex items-center gap-2 text-lg font-semibold text-foreground">
                   <div className="flex h-6 w-6 items-center justify-center rounded-full bg-[color:var(--primary)] text-xs text-white">
                     1
                   </div>
@@ -335,7 +370,7 @@ export function OrderModal() {
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="package">{text.packageLabel}</Label>
-                  <Select
+                  <NativeSelect
                     id="package"
                     required
                     value={selectedPackage}
@@ -349,17 +384,17 @@ export function OrderModal() {
                         {opt.label}
                       </option>
                     ))}
-                  </Select>
+                  </NativeSelect>
                 </div>
               </div>
 
               {/* 2. Cégadatok */}
               <div className="space-y-4 rounded-xl border border-[color:var(--border)] bg-[color:var(--card)] p-5">
-                <div className="flex items-center gap-2 text-lg font-semibold text-[color:var(--secondary)]">
+                <div className="flex items-center gap-2 text-lg font-semibold text-foreground">
                   <div className="flex h-6 w-6 items-center justify-center rounded-full bg-[color:var(--primary)] text-xs text-white">
                     2
                   </div>
-                  <h3 className="text-lg font-semibold">Cégadatok</h3>
+                  <h3 className="text-lg font-semibold">{text.step2Title}</h3>
                 </div>
 
                 {/* Cégtípus */}
@@ -373,7 +408,7 @@ export function OrderModal() {
                       onChange={() => setCompanyType("existing")}
                       className="h-4 w-4"
                     />
-                    <span className="text-sm font-medium">Már működő cég</span>
+                    <span className="text-sm font-medium">{text.existingCompany}</span>
                   </label>
                   <label className="flex w-full cursor-pointer items-center space-x-2 rounded-lg border p-3 hover:bg-[color:var(--secondary)]/5">
                     <input
@@ -384,25 +419,25 @@ export function OrderModal() {
                       onChange={() => setCompanyType("new")}
                       className="h-4 w-4"
                     />
-                    <span className="text-sm font-medium">Most alakuló cég</span>
+                    <span className="text-sm font-medium">{text.newCompany}</span>
                   </label>
                 </div>
 
                 <div className="space-y-3">
                   <div>
-                    <Label htmlFor="companyName">Cég neve (vagy tervezett név)</Label>
+                    <Label htmlFor="companyName">{text.companyNameLabel}</Label>
                     <Input
                       id="companyName"
                       ref={companyNameRef}
                       required
-                      placeholder="Pl. Minta Kft."
+                      placeholder={text.companyNamePlaceholder}
                       className="mt-1"
                     />
                   </div>
 
                   {companyType === "existing" && (
                     <div className="animate-in fade-in slide-in-from-top-2 duration-300">
-                      <Label htmlFor="taxNumber">Adószám</Label>
+                      <Label htmlFor="taxNumber">{text.taxNumberLabel}</Label>
                       <Input
                         id="taxNumber"
                         ref={taxNumberRef}
@@ -417,61 +452,61 @@ export function OrderModal() {
 
               {/* 3. Szerződő személy adatai */}
               <div className="space-y-4 rounded-xl border border-[color:var(--border)] bg-[color:var(--card)] p-5">
-                <div className="flex items-center gap-2 text-lg font-semibold text-[color:var(--secondary)]">
+                <div className="flex items-center gap-2 text-lg font-semibold text-foreground">
                   <div className="flex h-6 w-6 items-center justify-center rounded-full bg-[color:var(--primary)] text-xs text-white">
                     3
                   </div>
-                  <h3 className="text-lg font-semibold">Szerződő személy adatai</h3>
+                  <h3 className="text-lg font-semibold">{text.step3Title}</h3>
                 </div>
 
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                   <div>
-                    <Label htmlFor="fullName">Teljes név</Label>
+                    <Label htmlFor="fullName">{text.fullNameLabel}</Label>
                     <Input
                       id="fullName"
                       ref={nameRef}
                       required
-                      placeholder="Kovács János"
+                      placeholder={text.fullNamePlaceholder}
                       className="mt-1"
                     />
                   </div>
                   <div>
-                    <Label htmlFor="email">E-mail cím</Label>
+                    <Label htmlFor="email">{text.emailLabel}</Label>
                     <Input
                       id="email"
                       type="email"
                       ref={emailRef}
                       required
-                      placeholder="janos@pelda.hu"
+                      placeholder={text.emailPlaceholder}
                       className="mt-1"
                     />
                   </div>
                   <div className="md:col-span-2">
-                    <Label>Telefonszám</Label>
-                    <div className="mt-1 flex gap-2">
-                      <Select
+                    <Label>{text.phoneLabel}</Label>
+                    <div className="mt-1 grid grid-cols-1 gap-2 sm:grid-cols-[4.75rem_minmax(0,1fr)]">
+                      <NativeSelect
                         value={selectedPhoneCountry}
                         onChange={(e) => setSelectedPhoneCountry(e.target.value)}
-                        className="w-[120px] flex-shrink-0"
+                        className="px-2 text-center"
                       >
                         {countries.map((c) => (
                           <option key={c.value} value={c.phone}>
-                            {c.phone} {c.label}
+                            {c.phone}
                           </option>
                         ))}
-                      </Select>
+                      </NativeSelect>
                       <Input
                         ref={phoneRef}
                         type="tel"
                         required
                         placeholder="30 123 4567"
-                        className="flex-1"
+                        className="min-w-0"
                       />
                     </div>
                   </div>
                   <div>
-                    <Label htmlFor="country">Ország</Label>
-                    <Select
+                    <Label htmlFor="country">{text.countryLabel}</Label>
+                    <NativeSelect
                       id="country"
                       value={selectedCountry}
                       onChange={(e) => setSelectedCountry(e.target.value)}
@@ -482,15 +517,15 @@ export function OrderModal() {
                           {c.label}
                         </option>
                       ))}
-                    </Select>
+                    </NativeSelect>
                   </div>
                   <div>
-                    <Label htmlFor="address">Cím (Irányítószám, Város, Utca, Házszám)</Label>
+                    <Label htmlFor="address">{text.addressLabel}</Label>
                     <Input
                       id="address"
                       ref={addressRef}
                       required
-                      placeholder="1064 Budapest, Izabella utca 68/B"
+                      placeholder={text.addressPlaceholder}
                       className="mt-1"
                     />
                   </div>
@@ -499,20 +534,20 @@ export function OrderModal() {
 
               {/* 4. Üzenet */}
               <div className="space-y-4 rounded-xl border border-[color:var(--border)] bg-[color:var(--card)] p-5">
-                <div className="flex items-center gap-2 text-lg font-semibold text-[color:var(--secondary)]">
+                <div className="flex items-center gap-2 text-lg font-semibold text-foreground">
                   <div className="flex h-6 w-6 items-center justify-center rounded-full bg-[color:var(--primary)] text-xs text-white">
                     4
                   </div>
-                  <h3 className="text-lg font-semibold">Üzenet vagy megjegyzés</h3>
+                  <h3 className="text-lg font-semibold">{text.step4Title}</h3>
                 </div>
                 <div>
-                  <Label htmlFor="message">Üzenet (opcionális)</Label>
+                  <Label htmlFor="message">{text.messageLabel}</Label>
                   <Textarea
                     id="message"
                     ref={messageRef}
                     rows={5}
                     className="mt-1 resize-none"
-                    placeholder="Kérdése, megjegyzése vagy egyedi igénye..."
+                    placeholder={text.messagePlaceholder}
                   />
                 </div>
               </div>
@@ -528,35 +563,35 @@ export function OrderModal() {
                     className="h-4 w-4"
                   />
                   <Label htmlFor="sameContact" className="cursor-pointer text-sm font-medium">
-                    A kapcsolattartó megegyezik a szerződővel
+                    {text.sameContactLabel}
                   </Label>
                 </div>
 
                 {!sameContact && (
                   <div className="grid grid-cols-1 gap-4 pt-4 md:grid-cols-2">
                     <div>
-                      <Label htmlFor="contactName">Kapcsolattartó neve</Label>
+                      <Label htmlFor="contactName">{text.contactNameLabel}</Label>
                       <Input
                         id="contactName"
                         ref={contactNameRef}
                         required
-                        placeholder="Kapcsolattartó neve"
+                        placeholder={text.contactNamePlaceholder}
                         className="mt-1"
                       />
                     </div>
                     <div>
-                      <Label htmlFor="contactEmail">Kapcsolattartó e-mail címe</Label>
+                      <Label htmlFor="contactEmail">{text.contactEmailLabel}</Label>
                       <Input
                         id="contactEmail"
                         type="email"
                         ref={contactEmailRef}
                         required
-                        placeholder="kapcsolattarto@pelda.hu"
+                        placeholder={text.contactEmailPlaceholder}
                         className="mt-1"
                       />
                     </div>
                     <div>
-                      <Label htmlFor="contactPhone">Kapcsolattartó telefonszáma</Label>
+                      <Label htmlFor="contactPhone">{text.contactPhoneLabel}</Label>
                       <Input
                         id="contactPhone"
                         ref={contactPhoneRef}
@@ -566,12 +601,12 @@ export function OrderModal() {
                       />
                     </div>
                     <div>
-                      <Label htmlFor="contactAddress">Kapcsolattartó címe</Label>
+                      <Label htmlFor="contactAddress">{text.contactAddressLabel}</Label>
                       <Input
                         id="contactAddress"
                         ref={contactAddressRef}
                         required
-                        placeholder="Cím"
+                        placeholder={text.contactAddressPlaceholder}
                         className="mt-1"
                       />
                     </div>
@@ -584,15 +619,15 @@ export function OrderModal() {
                 <div className="flex items-start space-x-2">
                   <input id="gdpr" type="checkbox" ref={gdprRef} required className="mt-1 h-4 w-4" />
                   <label htmlFor="gdpr" className="leading-snug">
-                    Elfogadom az{" "}
+                    {text.gdprText}{" "}
                     <Link
-                      href="/adatvedelem"
+                      href={isEnglish ? "/en/privacy" : "/adatvedelem"}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="text-[color:var(--primary)] underline hover:text-[color:var(--primary)]/80"
                       onClick={(e) => e.stopPropagation()}
                     >
-                      Adatkezelési tájékoztatót
+                      {text.gdprLink}
                     </Link>
                     .
                   </label>
@@ -600,15 +635,15 @@ export function OrderModal() {
                 <div className="flex items-start space-x-2">
                   <input id="aszf" type="checkbox" ref={aszfRef} required className="mt-1 h-4 w-4" />
                   <label htmlFor="aszf" className="leading-snug">
-                    Elfogadom az{" "}
+                    {text.termsText}{" "}
                     <Link
-                      href="/aszf"
+                      href={isEnglish ? "/en/terms" : "/aszf"}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="text-[color:var(--primary)] underline hover:text-[color:var(--primary)]/80"
                       onClick={(e) => e.stopPropagation()}
                     >
-                      Általános Szerződési Feltételeket
+                      {text.termsLink}
                     </Link>
                     .
                   </label>
@@ -625,10 +660,10 @@ export function OrderModal() {
                   {isLoading ? (
                     <span className="inline-flex items-center gap-2">
                       <Loader2 className="h-4 w-4 animate-spin" />
-                      Küldés folyamatban...
+                      {text.submitting}
                     </span>
                   ) : (
-                    <span>Árajánlat küldése</span>
+                    <span>{text.submitButton}</span>
                   )}
                 </Button>
               </div>

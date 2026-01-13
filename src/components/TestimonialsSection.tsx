@@ -119,7 +119,31 @@ export function TestimonialsSection() {
           </p>
         </div>
 
-        <div className="relative w-full overflow-hidden">
+        <div className="md:hidden">
+          <div className="flex w-full snap-x snap-mandatory gap-4 overflow-x-auto pb-2">
+            {baseTestimonials.map((item) => (
+              <figure
+                key={item.name}
+                className="flex min-w-[85%] snap-start flex-col justify-between rounded-2xl bg-card p-6 text-sm text-card-foreground shadow-[0_8px_18px_rgba(15,23,42,0.08)] ring-1 ring-[color:var(--border)]/60"
+              >
+                <div className="mb-3 flex items-center justify-between gap-3">
+                  <Stars />
+                </div>
+                <blockquote className="text-sm leading-relaxed text-foreground/90">
+                  “{item.quote}”
+                </blockquote>
+                <figcaption className="mt-4 text-xs font-medium text-foreground">
+                  <div>{item.name}</div>
+                  {item.company && (
+                    <div className="text-muted-foreground">{item.company}</div>
+                  )}
+                </figcaption>
+              </figure>
+            ))}
+          </div>
+        </div>
+
+        <div className="relative hidden w-full overflow-hidden md:block">
           <div className="flex gap-4 md:gap-6 animate-testimonials-scroll">
             {items.map((item, index) => (
               <figure

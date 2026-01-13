@@ -92,7 +92,7 @@ export function WhyUsSection() {
                 <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#fdf3dd] text-[color:var(--primary)]">
                   <Icon className="h-5 w-5" strokeWidth={1.9} />
                 </div>
-                <h3 className="text-sm font-semibold tracking-tight text-secondary">
+                <h3 className="text-sm font-semibold tracking-tight text-foreground">
                   {item.title}
                 </h3>
                 <p className="text-sm leading-relaxed text-muted-foreground">

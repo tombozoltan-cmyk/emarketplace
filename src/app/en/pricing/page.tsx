@@ -1,12 +1,11 @@
 import type { Metadata } from "next";
-import Link from "next/link";
-import { AlertCircle, Building2, Check, FileCheck, Globe, Users } from "lucide-react";
+import { Building2, Globe, Users } from "lucide-react";
 
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
-import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { PricingCardsGrid } from "@/components/PricingCardsGrid";
 import { QuoteButton } from "@/components/QuoteButton";
+import { Card, CardContent } from "@/components/ui/card";
 import {
   Accordion,
   AccordionContent,
@@ -61,137 +60,7 @@ export default function PricingPageEn() {
             </p>
           </div>
 
-          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 md:gap-8 lg:grid-cols-4">
-            <Card className="flex h-full flex-col border-2 border-[color:var(--primary)] bg-[color:var(--card)] shadow-sm transition-shadow hover:shadow-md">
-              <CardContent className="flex flex-1 flex-col p-6">
-                <div className="mb-4">
-                  <h3 className="text-lg font-semibold text-[color:var(--foreground)]">For Hungarian companies</h3>
-                  <p className="text-sm text-[color:var(--muted-foreground)]">Local businesses (Kft., Bt.)</p>
-                </div>
-                <div className="mb-6">
-                  <div className="mb-2 text-4xl font-bold text-[color:var(--primary)]">8 000 HUF</div>
-                  <p className="text-sm text-[color:var(--muted-foreground)]">+ VAT / month</p>
-                </div>
-                <ul className="mb-6 space-y-3 text-sm text-[color:var(--foreground)]">
-                  {[
-                    "Official registered office address",
-                    "Mail handling & scanning",
-                    "Email notifications 24/7",
-                  ].map((item) => (
-                    <li key={item} className="flex items-center space-x-3">
-                      <Check className="h-5 w-5 flex-shrink-0 text-[color:var(--primary)]" />
-                      <span>{item}</span>
-                    </li>
-                  ))}
-                </ul>
-                <div className="mb-6 rounded-md bg-[color:var(--muted)]/50 p-3 text-center text-xs text-[color:var(--muted-foreground)]">
-                  Pay annually: 96,000 HUF + VAT
-                </div>
-                <QuoteButton packageId="szekhely-hu" className="mt-auto w-full rounded-full font-semibold">
-                  Quote
-                </QuoteButton>
-              </CardContent>
-            </Card>
-
-            <Card className="flex h-full flex-col border-2 border-[color:var(--primary)] bg-[color:var(--card)] shadow-sm transition-shadow hover:shadow-md">
-              <CardContent className="flex flex-1 flex-col p-6">
-                <div className="mb-4">
-                  <h3 className="text-lg font-semibold text-[color:var(--foreground)]">For foreign clients</h3>
-                  <p className="text-sm text-[color:var(--muted-foreground)]">International founders</p>
-                </div>
-                <div className="mb-6">
-                  <div className="mb-2 text-4xl font-bold text-[color:var(--primary)]">10 000 HUF</div>
-                  <p className="text-sm text-[color:var(--muted-foreground)]">+ VAT / month</p>
-                </div>
-                <ul className="mb-6 space-y-3 text-sm text-[color:var(--foreground)]">
-                  {[
-                    "Official registered office address",
-                    "Mail handling & scanning",
-                    "Contract in English",
-                  ].map((item) => (
-                    <li key={item} className="flex items-center space-x-3">
-                      <Check className="h-5 w-5 flex-shrink-0 text-[color:var(--primary)]" />
-                      <span>{item}</span>
-                    </li>
-                  ))}
-                </ul>
-                <div className="mb-6 rounded-md bg-[color:var(--muted)]/50 p-3 text-center text-xs text-[color:var(--muted-foreground)]">
-                  Pay annually: 120,000 HUF + VAT
-                </div>
-                <QuoteButton packageId="szekhely-kulfoldi" className="mt-auto w-full rounded-full font-semibold">
-                  Quote
-                </QuoteButton>
-              </CardContent>
-            </Card>
-
-            <Card className="flex h-full flex-col border-2 border-[color:var(--border)] bg-[color:var(--card)] shadow-sm transition-shadow hover:shadow-md">
-              <CardContent className="flex flex-1 flex-col p-6">
-                <div className="mb-4">
-                  <h3 className="text-lg font-semibold text-[color:var(--foreground)]">Service address / delivery agent</h3>
-                  <p className="text-sm text-[color:var(--muted-foreground)]">Required in many cases</p>
-                </div>
-                <div className="mb-6">
-                  <div className="mb-2 text-4xl font-bold text-[color:var(--primary)]">5 000 HUF</div>
-                  <p className="text-sm text-[color:var(--muted-foreground)]">+ VAT / month</p>
-                </div>
-                <ul className="mb-6 space-y-3 text-sm text-[color:var(--foreground)]">
-                  {[
-                    "Receives authority documents",
-                    "Official representation",
-                    "Legal compliance",
-                  ].map((item) => (
-                    <li key={item} className="flex items-center space-x-3">
-                      <Check className="h-5 w-5 flex-shrink-0 text-[color:var(--primary)]" />
-                      <span>{item}</span>
-                    </li>
-                  ))}
-                </ul>
-                <div className="mb-6 rounded-md bg-[color:var(--muted)]/50 p-3 text-center text-xs text-[color:var(--muted-foreground)]">
-                  Pay annually: 60,000 HUF + VAT
-                </div>
-                <QuoteButton packageId="kezbesitesi" className="mt-auto w-full rounded-full font-semibold">
-                  Quote
-                </QuoteButton>
-              </CardContent>
-            </Card>
-
-            <Card className="relative flex h-full flex-col overflow-hidden border-2 border-[color:var(--primary)] bg-[color:var(--card)] shadow-lg transition-shadow hover:shadow-xl">
-              <span className="absolute right-4 top-4 rounded-full bg-[color:var(--primary)] px-3 py-1 text-xs font-bold text-[color:var(--background)]">
-                PREMIUM
-              </span>
-              <CardContent className="flex flex-1 flex-col p-6">
-                <div className="mb-4">
-                  <h3 className="text-lg font-semibold text-[color:var(--foreground)]">Virtual office</h3>
-                  <p className="text-sm text-[color:var(--muted-foreground)]">12‑month contract</p>
-                </div>
-                <div className="mb-6">
-                  <div className="mb-2 text-4xl font-bold text-[color:var(--primary)]">30 000 HUF</div>
-                  <p className="text-sm text-[color:var(--muted-foreground)]">+ VAT / month</p>
-                </div>
-                <ul className="mb-6 space-y-3 text-sm text-[color:var(--foreground)]">
-                  {[
-                    "Suitable for banking procedures",
-                    "Long‑term contract",
-                    "Ideal for foreign founders",
-                  ].map((item) => (
-                    <li key={item} className="flex items-center space-x-3">
-                      <Check className="h-5 w-5 flex-shrink-0 text-[color:var(--primary)]" />
-                      <span>{item}</span>
-                    </li>
-                  ))}
-                </ul>
-                <div className="mb-6 rounded-md bg-[color:var(--primary)]/10 p-3 text-center text-xs font-medium text-[color:var(--foreground)]">
-                  Pay annually: 360,000 HUF + VAT
-                </div>
-                <QuoteButton
-                  packageId="szerzodeses-irodaberles"
-                  className="mt-auto w-full rounded-full bg-[color:var(--primary)] text-[color:var(--background)] hover:bg-[color:var(--primary)]/90"
-                >
-                  Quote
-                </QuoteButton>
-              </CardContent>
-            </Card>
-          </div>
+          <PricingCardsGrid group="basic" language="en" />
         </div>
       </section>
 
@@ -206,80 +75,7 @@ export default function PricingPageEn() {
             </p>
           </div>
 
-          <div className="grid grid-cols-1 gap-6 md:grid-cols-2 md:gap-8">
-            <Card className="flex h-full flex-col border-2 border-[color:var(--primary)]/50 bg-[color:var(--card)] shadow-sm transition-shadow hover:shadow-md">
-              <CardContent className="flex flex-1 flex-col p-6">
-                <div className="mb-2 flex items-center justify-between">
-                  <h3 className="text-lg font-semibold text-[color:var(--foreground)]">Bundle for Hungarian companies</h3>
-                  <span className="rounded bg-[color:var(--primary)]/10 px-2 py-1 text-xs font-bold text-[color:var(--primary)]">
-                    -15%
-                  </span>
-                </div>
-                <p className="mb-4 text-sm text-[color:var(--muted-foreground)]">Registered office + delivery agent</p>
-                <div className="mb-4">
-                  <div className="text-sm text-[color:var(--muted-foreground)] line-through">13 000 HUF</div>
-                  <div className="text-4xl font-bold text-[color:var(--primary)]">11 000 HUF</div>
-                  <p className="text-sm text-[color:var(--muted-foreground)]">+ VAT / month</p>
-                </div>
-                <ul className="mb-6 space-y-3 text-sm text-[color:var(--foreground)]">
-                  {[
-                    "Registered office (8,000 HUF)",
-                    "Delivery agent (5,000 HUF)",
-                    "All services in one — simplified administration",
-                  ].map((item) => (
-                    <li key={item} className="flex items-center space-x-3">
-                      <Check className="h-5 w-5 flex-shrink-0 text-[color:var(--primary)]" />
-                      <span>{item}</span>
-                    </li>
-                  ))}
-                </ul>
-                <div className="mb-6 rounded-md bg-[color:var(--muted)]/50 p-3 text-center text-xs text-[color:var(--muted-foreground)]">
-                  Pay annually: 132,000 HUF + VAT
-                </div>
-                <QuoteButton packageId="szekhely-kezbesitesi-hu" className="mt-auto w-full rounded-full font-semibold">
-                  Quote
-                </QuoteButton>
-              </CardContent>
-            </Card>
-
-            <Card className="flex h-full flex-col border-2 border-[color:var(--primary)] bg-[color:var(--card)] shadow-sm transition-shadow hover:shadow-md">
-              <CardContent className="flex flex-1 flex-col p-6">
-                <div className="mb-2 flex items-center justify-between">
-                  <h3 className="text-lg font-semibold text-[color:var(--foreground)]">Bundle for foreign clients</h3>
-                  <span className="rounded bg-[color:var(--primary)]/10 px-2 py-1 text-xs font-bold text-[color:var(--primary)]">
-                    -13%
-                  </span>
-                </div>
-                <p className="mb-4 text-sm text-[color:var(--muted-foreground)]">Registered office + delivery agent</p>
-                <div className="mb-4">
-                  <div className="text-sm text-[color:var(--muted-foreground)] line-through">15 000 HUF</div>
-                  <div className="text-4xl font-bold text-[color:var(--primary)]">13 000 HUF</div>
-                  <p className="text-sm text-[color:var(--muted-foreground)]">+ VAT / month</p>
-                </div>
-                <ul className="mb-6 space-y-3 text-sm text-[color:var(--foreground)]">
-                  {[
-                    "Registered office (10,000 HUF)",
-                    "Delivery agent (5,000 HUF)",
-                    "Contract and documentation in English",
-                  ].map((item) => (
-                    <li key={item} className="flex items-center space-x-3">
-                      <Check className="h-5 w-5 flex-shrink-0 text-[color:var(--primary)]" />
-                      <span>{item}</span>
-                    </li>
-                  ))}
-                </ul>
-                <div className="mb-6 rounded-md bg-[color:var(--muted)]/50 p-3 text-center text-xs text-[color:var(--muted-foreground)]">
-                  Pay annually: 156,000 HUF + VAT
-                </div>
-                <QuoteButton
-                  packageId="szekhely-kezbesitesi-kulfoldi"
-                  className="mt-auto w-full rounded-full font-semibold"
-                >
-                  Quote
-                </QuoteButton>
-              </CardContent>
-            </Card>
-          </div>
+          <PricingCardsGrid group="bundles" language="en" />
         </div>
       </section>
 
@@ -294,74 +90,7 @@ export default function PricingPageEn() {
             </p>
           </div>
 
-          <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
-            <Card className="flex h-full flex-col border-2 border-[color:var(--border)] bg-[color:var(--card)] shadow-sm transition-shadow hover:shadow-md">
-              <CardContent className="flex flex-1 flex-col p-6">
-                <div className="mb-4">
-                  <h3 className="text-lg font-semibold text-[color:var(--foreground)]">Full solution for Hungarian companies</h3>
-                  <p className="text-sm text-[color:var(--muted-foreground)]">Registered office + office use</p>
-                </div>
-                <div className="mb-4">
-                  <div className="mb-2 text-4xl font-bold text-[color:var(--primary)]">18 000 HUF</div>
-                  <p className="text-sm text-[color:var(--muted-foreground)]">+ VAT / month</p>
-                </div>
-                <ul className="mb-6 space-y-3 text-sm text-[color:var(--foreground)]">
-                  {[
-                    "Registered office service (8,000 HUF/month).",
-                    "Up to 4 office uses per month.",
-                    "Discounted office fee: 10,000 HUF/month.",
-                    "Mail handling and forwarding.",
-                    "Email notifications for incoming mail.",
-                    "Meeting room rental available at a discounted rate.",
-                  ].map((item) => (
-                    <li key={item} className="flex items-start space-x-3">
-                      <Check className="mt-0.5 h-5 w-5 flex-shrink-0 text-[color:var(--primary)]" />
-                      <span>{item}</span>
-                    </li>
-                  ))}
-                </ul>
-                <div className="mb-6 rounded-md bg-[color:var(--muted)]/50 p-3 text-center text-xs text-[color:var(--muted-foreground)]">
-                  Pay in advance for 6 or 12 months.
-                </div>
-                <QuoteButton packageId="iroda-hu" className="mt-auto w-full rounded-full font-semibold">
-                  Quote
-                </QuoteButton>
-              </CardContent>
-            </Card>
-
-            <Card className="flex h-full flex-col border-2 border-[color:var(--border)] bg-[color:var(--card)] shadow-sm transition-shadow hover:shadow-md">
-              <CardContent className="flex flex-1 flex-col p-6">
-                <div className="mb-4">
-                  <h3 className="text-lg font-semibold text-[color:var(--foreground)]">Comprehensive package for foreign clients</h3>
-                  <p className="text-sm text-[color:var(--muted-foreground)]">Registered office + office long‑term</p>
-                </div>
-                <div className="mb-4">
-                  <div className="mb-2 text-4xl font-bold text-[color:var(--primary)]">20 000 HUF</div>
-                  <p className="text-sm text-[color:var(--muted-foreground)]">+ VAT / month</p>
-                </div>
-                <ul className="mb-6 space-y-3 text-sm text-[color:var(--foreground)]">
-                  {[
-                    "Up to 4 office uses per month.",
-                    "Contract in English or Hungarian.",
-                    "Eco-Office coworking access.",
-                    "Documents issued for company registration.",
-                    "Dedicated support for foreign clients.",
-                  ].map((item) => (
-                    <li key={item} className="flex items-start space-x-3">
-                      <Check className="mt-0.5 h-5 w-5 flex-shrink-0 text-[color:var(--primary)]" />
-                      <span>{item}</span>
-                    </li>
-                  ))}
-                </ul>
-                <div className="mb-6 rounded-md bg-[color:var(--muted)]/50 p-3 text-center text-xs text-[color:var(--muted-foreground)]">
-                  Pay annually in advance.
-                </div>
-                <QuoteButton packageId="iroda-kulfoldi" className="mt-auto w-full rounded-full font-semibold">
-                  Quote
-                </QuoteButton>
-              </CardContent>
-            </Card>
-          </div>
+          <PricingCardsGrid group="officeBundles" language="en" />
         </div>
       </section>
 
@@ -376,82 +105,7 @@ export default function PricingPageEn() {
             </p>
           </div>
 
-          <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
-            <Card className="flex h-full flex-col border-2 border-[color:var(--primary)] bg-[color:var(--card)] shadow-md transition-shadow hover:shadow-lg">
-              <CardContent className="flex flex-1 flex-col p-6">
-                <div className="mb-2 flex items-center justify-between">
-                  <h3 className="text-lg font-semibold text-[color:var(--foreground)]">Full package for Hungarian companies</h3>
-                  <span className="rounded bg-[color:var(--primary)]/10 px-2 py-1 text-xs font-bold text-[color:var(--primary)]">
-                    -8%
-                  </span>
-                </div>
-                <p className="mb-4 text-sm text-[color:var(--muted-foreground)]">Registered office + office + delivery agent</p>
-                <div className="mb-4">
-                  <div className="text-sm text-[color:var(--muted-foreground)] line-through">26 000 HUF</div>
-                  <div className="text-4xl font-bold text-[color:var(--primary)]">24 000 HUF</div>
-                  <p className="text-sm text-[color:var(--muted-foreground)]">+ VAT / month</p>
-                </div>
-                <ul className="mb-6 space-y-3 text-sm text-[color:var(--foreground)]">
-                  {[
-                    "Registered office service (8,000 HUF).",
-                    "Office use (10,000 HUF).",
-                    "Delivery agent (5,000 HUF).",
-                    "End‑to‑end administration and mail handling.",
-                  ].map((item) => (
-                    <li key={item} className="flex items-start space-x-3">
-                      <Check className="mt-0.5 h-5 w-5 flex-shrink-0 text-[color:var(--primary)]" />
-                      <span>{item}</span>
-                    </li>
-                  ))}
-                </ul>
-                <div className="mb-6 rounded-md bg-[color:var(--muted)]/50 p-3 text-center text-xs text-[color:var(--muted-foreground)]">
-                  Pay annually: 288,000 HUF + VAT
-                </div>
-                <QuoteButton packageId="iroda-kezbesitesi-hu" className="mt-auto w-full rounded-full font-semibold">
-                  Quote
-                </QuoteButton>
-              </CardContent>
-            </Card>
-
-            <Card className="flex h-full flex-col border-2 border-[color:var(--primary)] bg-[color:var(--card)] shadow-md transition-shadow hover:shadow-lg">
-              <CardContent className="flex flex-1 flex-col p-6">
-                <div className="mb-2 flex items-center justify-between">
-                  <h3 className="text-lg font-semibold text-[color:var(--foreground)]">Full package for foreign clients</h3>
-                  <span className="rounded bg-[color:var(--primary)]/10 px-2 py-1 text-xs font-bold text-[color:var(--primary)]">
-                    -10%
-                  </span>
-                </div>
-                <p className="mb-4 text-sm text-[color:var(--muted-foreground)]">Registered office + office + delivery agent</p>
-                <div className="mb-4">
-                  <div className="text-sm text-[color:var(--muted-foreground)] line-through">30 000 HUF</div>
-                  <div className="text-4xl font-bold text-[color:var(--primary)]">27 000 HUF</div>
-                  <p className="text-sm text-[color:var(--muted-foreground)]">+ VAT / month</p>
-                </div>
-                <ul className="mb-6 space-y-3 text-sm text-[color:var(--foreground)]">
-                  {[
-                    "Registered office service (10,000 HUF).",
-                    "Office use (10,000 HUF).",
-                    "Delivery agent (5,000 HUF).",
-                    "Contract and documentation in English.",
-                  ].map((item) => (
-                    <li key={item} className="flex items-start space-x-3">
-                      <Check className="mt-0.5 h-5 w-5 flex-shrink-0 text-[color:var(--primary)]" />
-                      <span>{item}</span>
-                    </li>
-                  ))}
-                </ul>
-                <div className="mb-6 rounded-md bg-[color:var(--muted)]/50 p-3 text-center text-xs text-[color:var(--muted-foreground)]">
-                  Pay annually: 324,000 HUF + VAT
-                </div>
-                <QuoteButton
-                  packageId="iroda-kezbesitesi-kulfoldi"
-                  className="mt-auto w-full rounded-full font-semibold"
-                >
-                  Quote
-                </QuoteButton>
-              </CardContent>
-            </Card>
-          </div>
+          <PricingCardsGrid group="fullEntrepreneur" language="en" />
         </div>
       </section>
 

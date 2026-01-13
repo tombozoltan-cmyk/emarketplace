@@ -36,27 +36,26 @@ const OPTIONS: { value: Lang; label: string; flag: string; flagSrc: string }[] =
 ];
 
 export function LanguageSelector() {
-  const [lang, setLang] = useState<Lang>("hu");
+  const [lang, setLang] = useState<Lang>(() => {
+    if (typeof window === "undefined") {
+      return "hu";
+    }
+
+    const stored = window.localStorage.getItem(STORAGE_KEY) as Lang | null;
+    if (stored && ["hu", "en", "de", "es"].includes(stored)) {
+      return stored;
+    }
+
+    const path = window.location.pathname;
+    if (path.startsWith("/en")) {
+      return "en";
+    }
+
+    return "hu";
+  });
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
   const router = useRouter();
-
-  // Betöltés localStorage-ből csak kliens oldalon, a hydration után
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const stored = window.localStorage.getItem(STORAGE_KEY) as Lang | null;
-    if (stored && ["hu", "en", "de", "es"].includes(stored)) {
-      setLang(stored);
-      return;
-    }
-
-    // Ha nincs tárolt nyelv, próbáljuk a path alapján kitalálni
-    if (pathname?.startsWith("/en")) {
-      setLang("en");
-    } else {
-      setLang("hu");
-    }
-  }, []);
 
   useEffect(() => {
     if (typeof window === "undefined") return;

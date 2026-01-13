@@ -3,12 +3,12 @@
 import React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Building2, FileCheck, Monitor, Scale, Calculator } from "lucide-react";
+import { Building2, FileCheck, Monitor, Scale, Calculator, type LucideIcon } from "lucide-react";
 
 type ServiceItem = {
   title: string;
   description: string;
-  icon: React.ComponentType<any>;
+  icon: LucideIcon;
   href: string;
 };
 
@@ -108,22 +108,22 @@ export function ServicesSection() {
           </p>
         </div>
 
-        <div className="grid gap-7 md:grid-cols-3 lg:grid-cols-5">
+        <div className="grid grid-cols-2 gap-4 sm:gap-6 md:grid-cols-3 lg:grid-cols-5">
           {services.map((service) => {
             const Icon = service.icon;
             return (
               <Link
                 key={service.title}
                 href={service.href}
-                className="group flex h-full min-h-[260px] flex-col items-center justify-start gap-4 rounded-[28px] bg-card px-8 py-9 text-sm text-card-foreground shadow-[0_20px_45px_rgba(15,23,42,0.08)] ring-2 ring-[color:var(--border)] transition-all duration-200 hover:-translate-y-2 hover:shadow-[0_30px_70px_rgba(15,23,42,0.2)] hover:ring-[color:var(--primary)]"
+                className="group flex h-full min-h-[210px] flex-col items-center justify-start gap-3 rounded-[24px] bg-card px-4 py-6 text-sm text-card-foreground shadow-[0_20px_45px_rgba(15,23,42,0.08)] ring-2 ring-[color:var(--border)] transition-all duration-200 hover:-translate-y-2 hover:shadow-[0_30px_70px_rgba(15,23,42,0.2)] hover:ring-[color:var(--primary)] sm:gap-4 sm:rounded-[28px] sm:px-8 sm:py-9 sm:min-h-[260px]"
               >
-                <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-[#fdf3dd] text-[color:var(--primary)] shadow-[0_10px_22px_rgba(248,220,158,0.7)] transition-transform duration-200 group-hover:-translate-y-1 group-hover:rotate-3">
-                  <Icon className="h-7 w-7" strokeWidth={1.8} />
+                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#fdf3dd] text-[color:var(--primary)] shadow-[0_10px_22px_rgba(248,220,158,0.7)] transition-transform duration-200 group-hover:-translate-y-1 group-hover:rotate-3 sm:h-16 sm:w-16">
+                  <Icon className="h-6 w-6 sm:h-7 sm:w-7" strokeWidth={1.8} />
                 </div>
                 <h3 className="text-center text-sm font-semibold tracking-tight text-foreground">
                   {service.title}
                 </h3>
-                <p className="text-center text-[13px] leading-relaxed text-muted-foreground">
+                <p className="text-center text-[12px] leading-relaxed text-muted-foreground sm:text-[13px]">
                   {service.description}
                 </p>
               </Link>

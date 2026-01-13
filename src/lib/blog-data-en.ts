@@ -16,7 +16,7 @@ export const blogPostsEn: BlogPostEn[] = [
       "AML (PMT) changes in 2025 – what do they mean for registered office providers?",
     excerpt:
       "A practical overview of the most important 2025 anti‑money laundering changes and how they affect registered office services in Hungary.",
-    image: "/legal-documents-modern-office.jpg",
+    image: "/placeholder.svg",
     date: "Jan 15, 2025",
     category: "Law & Compliance",
     readingTime: 8,
@@ -42,7 +42,7 @@ export const blogPostsEn: BlogPostEn[] = [
     title: "Registered office in Hungary for foreign companies – key rules",
     excerpt:
       "A step‑by‑step guide for foreign founders who need a Hungarian business address, service address and English documentation.",
-    image: "/international-business-handshake-budapest.jpg",
+    image: "/placeholder.svg",
     date: "Jan 10, 2025",
     category: "International",
     readingTime: 7,
@@ -65,7 +65,7 @@ export const blogPostsEn: BlogPostEn[] = [
     title: "Registered office vs. home address – why use a professional service?",
     excerpt:
       "Privacy, credibility and compliance: the practical reasons founders choose a professional registered office instead of their home address.",
-    image: "/professional-business-office-building.jpg",
+    image: "/placeholder.svg",
     date: "Jan 5, 2025",
     category: "Tips",
     readingTime: 6,

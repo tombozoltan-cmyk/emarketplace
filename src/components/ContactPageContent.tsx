@@ -2,15 +2,17 @@
 
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
-import { Mail, MapPin, Phone, Building2, FileText, User } from "lucide-react";
+import { Mail, MapPin, Phone, Building2, FileText, User, CheckCircle2 } from "lucide-react";
 import { usePathname } from "next/navigation";
+import { addDoc, collection, serverTimestamp } from "firebase/firestore";
 
 import { Button } from "@/components/ui/button";
 import { QuoteButton } from "@/components/QuoteButton";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Select } from "@/components/ui/select";
+import { NativeSelect } from "@/components/ui/select";
+import { firestoreDb } from "@/lib/firebase";
 
 const serviceMap: Record<string, string> = {
   virtualis: "office",
@@ -21,7 +23,19 @@ const serviceMap: Record<string, string> = {
 };
 
 export function ContactPageContent() {
-  const [selectedService, setSelectedService] = useState("");
+  const [selectedService, setSelectedService] = useState(() => {
+    if (typeof window === "undefined") {
+      return "";
+    }
+
+    const hash = window.location.hash;
+    if (!hash) {
+      return "";
+    }
+
+    const key = hash.replace("#", "");
+    return serviceMap[key] ?? "";
+  });
   const pathname = usePathname();
   const isEnglish = pathname?.startsWith("/en");
 
@@ -80,13 +94,16 @@ export function ContactPageContent() {
     message: "",
   });
 
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitStatus, setSubmitStatus] = useState<"idle" | "success" | "error">("idle");
+  const [submitErrorMessage, setSubmitErrorMessage] = useState<string | null>(null);
+
   useEffect(() => {
     const hash = window.location.hash;
     if (hash) {
       const key = hash.replace("#", "");
       const mapped = serviceMap[key];
       if (mapped) {
-        setSelectedService(mapped);
         setTimeout(() => {
           const form = document.getElementById("contact-form");
           if (form) {
@@ -104,12 +121,52 @@ export function ContactPageContent() {
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log("[kapcsolat] form submit", {
-      ...formData,
-      service: selectedService,
-    });
+
+    if (isSubmitting) return;
+
+    setIsSubmitting(true);
+    setSubmitStatus("idle");
+    setSubmitErrorMessage(null);
+
+    try {
+      await addDoc(collection(firestoreDb, "inquiries"), {
+        createdAt: serverTimestamp(),
+        site: "emarketplace",
+        language: isEnglish ? "en" : "hu",
+        sourcePath: pathname ?? null,
+        status: "new",
+        type: isEnglish ? "Contact" : "Kapcsolat",
+        selectedPackage: "",
+        companyType: "contact",
+        companyName: "",
+        taxNumber: "",
+        name: `${formData.lastName} ${formData.firstName}`.trim(),
+        email: formData.email.trim(),
+        phone: formData.phone.trim(),
+        country: "",
+        address: "",
+        message: formData.message.trim(),
+        contact: null,
+        service: selectedService,
+      });
+
+      setSubmitStatus("success");
+      setFormData({
+        firstName: "",
+        lastName: "",
+        email: "",
+        phone: "",
+        message: "",
+      });
+      setSelectedService("");
+    } catch (error: unknown) {
+      setSubmitErrorMessage(error instanceof Error ? error.message : null);
+      setSubmitStatus("error");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -201,96 +258,141 @@ export function ContactPageContent() {
 
           <div className="grid grid-cols-1 gap-8 lg:grid-cols-2 lg:gap-12">
             {/* Bal: űrlap */}
-            <form className="space-y-6" onSubmit={handleSubmit}>
-              <div>
-                <Label htmlFor="service">{text.serviceQuestion}</Label>
-                <Select
-                  id="service"
-                  value={selectedService}
-                  onChange={(e) => setSelectedService(e.target.value)}
-                  className="mt-1"
+            {submitStatus === "success" ? (
+              <div className="flex flex-col items-center justify-center space-y-6 rounded-2xl border border-[color:var(--border)] bg-card p-6 text-center text-card-foreground shadow-lg">
+                <div className="flex h-20 w-20 items-center justify-center rounded-full bg-green-100">
+                  <CheckCircle2 className="h-10 w-10 text-green-600" />
+                </div>
+                <div className="space-y-2">
+                  <h3 className="text-2xl font-bold text-foreground">
+                    {isEnglish ? "Thank you!" : "Köszönjük!"}
+                  </h3>
+                  <p className="mx-auto max-w-md text-sm text-[color:var(--muted-foreground)]">
+                    {isEnglish
+                      ? "We received your message. Our team will get back to you shortly."
+                      : "Megkaptuk az üzenetet. Kollégáink hamarosan felveszik Önnel a kapcsolatot."}
+                  </p>
+                </div>
+                <div className="max-w-md rounded-lg bg-blue-50 p-4 text-sm text-blue-800 dark:bg-blue-950 dark:text-blue-200">
+                  {isEnglish
+                    ? "If you don’t see our response, please check your spam folder as well."
+                    : "Ha nem érkezik válasz, kérjük ellenőrizze a spam mappát is."}
+                </div>
+                <Button
+                  type="button"
+                  className="w-full rounded-full bg-[color:var(--primary)] px-8 py-6 text-lg font-semibold text-[color:var(--primary-foreground)] hover:bg-[color:var(--primary)]/90"
+                  onClick={() => {
+                    setSubmitStatus("idle");
+                    setSubmitErrorMessage(null);
+                  }}
                 >
-                  <option value="" disabled>
-                    {text.servicePlaceholder}
-                  </option>
-                  <option value="seat">{text.serviceSeat}</option>
-                  <option value="delivery">{text.serviceDelivery}</option>
-                  <option value="office">{text.serviceOffice}</option>
-                  <option value="legal">{text.serviceLegal}</option>
-                  <option value="accounting">{text.serviceAccounting}</option>
-                </Select>
+                  {isEnglish ? "Send another message" : "Új üzenet küldése"}
+                </Button>
               </div>
+            ) : (
+              <form className="space-y-6" onSubmit={handleSubmit}>
+                {submitStatus === "error" ? (
+                  <div className="rounded-xl border border-[color:var(--border)] bg-[color:var(--muted)]/40 p-4 text-sm text-foreground">
+                    {isEnglish
+                      ? "Something went wrong. Please try again."
+                      : "Hiba történt a küldés során. Kérjük próbálja újra."}
+                    {submitErrorMessage ? (
+                      <div className="mt-2 text-xs text-muted-foreground">{submitErrorMessage}</div>
+                    ) : null}
+                  </div>
+                ) : null}
 
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div>
-                  <Label htmlFor="firstName">{text.lastName}</Label>
-                  <Input
-                    id="firstName"
+                  <Label htmlFor="service">{text.serviceQuestion}</Label>
+                  <NativeSelect
+                    id="service"
+                    value={selectedService}
+                    onChange={(e) => setSelectedService(e.target.value)}
+                    className="mt-1"
+                  >
+                    <option value="" disabled>
+                      {text.servicePlaceholder}
+                    </option>
+                    <option value="seat">{text.serviceSeat}</option>
+                    <option value="delivery">{text.serviceDelivery}</option>
+                    <option value="office">{text.serviceOffice}</option>
+                    <option value="legal">{text.serviceLegal}</option>
+                    <option value="accounting">{text.serviceAccounting}</option>
+                  </NativeSelect>
+                </div>
+
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <div>
+                    <Label htmlFor="firstName">{text.lastName}</Label>
+                    <Input
+                      id="firstName"
+                      required
+                      value={formData.firstName}
+                      onChange={(e) => handleChange("firstName", e.target.value)}
+                      placeholder={text.lastNamePh}
+                      className="mt-1"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="lastName">{text.firstName}</Label>
+                    <Input
+                      id="lastName"
+                      required
+                      value={formData.lastName}
+                      onChange={(e) => handleChange("lastName", e.target.value)}
+                      placeholder={text.firstNamePh}
+                      className="mt-1"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <div>
+                    <Label htmlFor="email">{text.emailField}</Label>
+                    <Input
+                      id="email"
+                      type="email"
+                      required
+                      value={formData.email}
+                      onChange={(e) => handleChange("email", e.target.value)}
+                      placeholder={text.emailPh}
+                      className="mt-1"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="phone">{text.phoneField}</Label>
+                    <Input
+                      id="phone"
+                      type="tel"
+                      value={formData.phone}
+                      onChange={(e) => handleChange("phone", e.target.value)}
+                      placeholder="+36 30 123 4567"
+                      className="mt-1"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <Label htmlFor="message">{text.message}</Label>
+                  <Textarea
+                    id="message"
                     required
-                    value={formData.firstName}
-                    onChange={(e) => handleChange("firstName", e.target.value)}
-                    placeholder={text.lastNamePh}
-                    className="mt-1"
+                    value={formData.message}
+                    onChange={(e) => handleChange("message", e.target.value)}
+                    placeholder={text.messagePh}
+                    className="mt-1 min-h-[150px]"
                   />
                 </div>
-                <div>
-                  <Label htmlFor="lastName">{text.firstName}</Label>
-                  <Input
-                    id="lastName"
-                    required
-                    value={formData.lastName}
-                    onChange={(e) => handleChange("lastName", e.target.value)}
-                    placeholder={text.firstNamePh}
-                    className="mt-1"
-                  />
-                </div>
-              </div>
 
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <div>
-                  <Label htmlFor="email">{text.emailField}</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    required
-                    value={formData.email}
-                    onChange={(e) => handleChange("email", e.target.value)}
-                    placeholder={text.emailPh}
-                    className="mt-1"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="phone">{text.phoneField}</Label>
-                  <Input
-                    id="phone"
-                    type="tel"
-                    value={formData.phone}
-                    onChange={(e) => handleChange("phone", e.target.value)}
-                    placeholder="+36 30 123 4567"
-                    className="mt-1"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <Label htmlFor="message">{text.message}</Label>
-                <Textarea
-                  id="message"
-                  required
-                  value={formData.message}
-                  onChange={(e) => handleChange("message", e.target.value)}
-                  placeholder={text.messagePh}
-                  className="mt-1 min-h-[150px]"
-                />
-              </div>
-
-              <Button
-                type="submit"
-                className="w-full rounded-full bg-[color:var(--primary)] py-6 text-lg font-semibold text-[color:var(--primary-foreground)] hover:bg-[color:var(--primary)]/90"
-              >
-                {text.submit}
-              </Button>
-            </form>
+                <Button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="w-full rounded-full bg-[color:var(--primary)] py-6 text-lg font-semibold text-[color:var(--primary-foreground)] hover:bg-[color:var(--primary)]/90"
+                >
+                  {isSubmitting ? (isEnglish ? "Sending..." : "Küldés...") : text.submit}
+                </Button>
+              </form>
+            )}
 
             {/* Jobb: céginfo + térkép */}
             <div className="space-y-8">

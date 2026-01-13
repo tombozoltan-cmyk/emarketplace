@@ -1,6 +1,8 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
+import { createPortal } from "react-dom";
 import { Cookie, Shield, Settings, ChevronDown, ChevronUp, BarChart3, Megaphone } from "lucide-react";
 
 type ConsentMode = "simple" | "detailed";
@@ -19,10 +21,15 @@ const PREF_KEY = "cookie-preferences";
 
 function getInitialConsent(): ConsentValue | null {
   if (typeof window === "undefined") return null;
-  const raw = window.localStorage.getItem(CONSENT_KEY) as ConsentValue | null;
-  if (!raw) return null;
-  if (["accepted", "necessary-only", "custom"].includes(raw)) return raw;
-  return null;
+
+  try {
+    const raw = window.localStorage.getItem(CONSENT_KEY) as ConsentValue | null;
+    if (!raw) return null;
+    if (["accepted", "necessary-only", "custom"].includes(raw)) return raw;
+    return null;
+  } catch {
+    return null;
+  }
 }
 
 function getInitialPrefs(): CookiePreferences {
@@ -34,16 +41,18 @@ function getInitialPrefs(): CookiePreferences {
       marketing: false,
     };
   }
-  const raw = window.localStorage.getItem(PREF_KEY);
-  if (!raw) {
-    return {
-      necessary: true,
-      functional: false,
-      analytics: false,
-      marketing: false,
-    };
-  }
+
   try {
+    const raw = window.localStorage.getItem(PREF_KEY);
+    if (!raw) {
+      return {
+        necessary: true,
+        functional: false,
+        analytics: false,
+        marketing: false,
+      };
+    }
+
     const parsed = JSON.parse(raw) as CookiePreferences;
     return {
       necessary: true,
@@ -62,26 +71,39 @@ function getInitialPrefs(): CookiePreferences {
 }
 
 export function CookieBanner() {
+  const pathname = usePathname();
+  const isAdminRoute = pathname?.startsWith("/ops/");
+
+  const [mounted, setMounted] = useState(false);
   const [open, setOpen] = useState(false);
   const [mode, setMode] = useState<ConsentMode>("simple");
-  const [consent, setConsent] = useState<ConsentValue | null>(() => getInitialConsent());
-  const [prefs, setPrefs] = useState<CookiePreferences>(() => getInitialPrefs());
+  const [consent, setConsent] = useState<ConsentValue | null>(null);
+  const [prefs, setPrefs] = useState<CookiePreferences>({
+    necessary: true,
+    functional: false,
+    analytics: false,
+    marketing: false,
+  });
   const [expandedCategory, setExpandedCategory] = useState<"necessary" | "functional" | "analytics" | "marketing" | null>(
     null,
   );
 
+  // Initialize state on client only to avoid hydration mismatch
   useEffect(() => {
-    if (typeof window === "undefined") return;
-    const stored = getInitialConsent();
-    if (!stored) {
-      setOpen(true);
-    } else {
-      setConsent(stored);
-    }
+    const initialConsent = getInitialConsent();
+    const initialPrefs = getInitialPrefs();
+    setConsent(initialConsent);
+    setPrefs(initialPrefs);
+    setOpen(initialConsent === null);
+    setMounted(true);
   }, []);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
+
+    if (isAdminRoute) {
+      return;
+    }
 
     const handler = () => {
       setOpen(true);
@@ -91,61 +113,67 @@ export function CookieBanner() {
     return () => {
       window.removeEventListener("open-cookie-settings", handler);
     };
-  }, []);
+  }, [isAdminRoute]);
+
+  if (!mounted || isAdminRoute || !open) {
+    return null;
+  }
 
   const handleSave = (value: ConsentValue) => {
     if (typeof window !== "undefined") {
-      window.localStorage.setItem(CONSENT_KEY, value);
-      window.localStorage.setItem(
-        PREF_KEY,
-        JSON.stringify({
-          necessary: true,
-          functional: prefs.functional,
-          analytics: prefs.analytics,
-          marketing: prefs.marketing,
-        }),
-      );
+      try {
+        window.localStorage.setItem(CONSENT_KEY, value);
+        window.localStorage.setItem(
+          PREF_KEY,
+          JSON.stringify({
+            necessary: true,
+            functional: prefs.functional,
+            analytics: prefs.analytics,
+            marketing: prefs.marketing,
+          }),
+        );
+      } catch {
+        // Ignore storage errors (privacy mode / blocked storage)
+      }
     }
     setConsent(value);
     setOpen(false);
   };
 
-  return (
+  const content = (
     <>
-      {open && (
-        <>
-          {/* Overlay */}
-          <div className="fixed inset-0 z-40 bg-black/50" />
+      {/* Overlay */}
+      <div className="pointer-events-auto fixed inset-0 z-[9998] bg-black/50" />
 
-          {/* Banner */}
-          <div className="fixed bottom-4 left-4 right-4 z-50 md:bottom-8 md:right-8 md:left-auto md:max-w-md">
-            <div className="overflow-hidden rounded-2xl bg-card text-card-foreground shadow-2xl ring-2 ring-secondary">
-              {/* Header */}
-              <div className="flex items-start justify-between gap-3 bg-gradient-to-r from-secondary to-secondary/80 p-6 text-white">
-                <div className="flex items-start gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10">
-                    <Cookie className="h-6 w-6 text-[color:var(--primary)]" />
-                  </div>
-                  <div>
-                    <h3 className="text-base font-bold">Cookie beállítások</h3>
-                    <p className="text-xs text-white/90">
-                      Adatvédelem és süti kezelés – Ön dönt arról, milyen sütiket engedélyez.
-                    </p>
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => handleSave("necessary-only")}
-                  className="ml-2 inline-flex h-7 w-7 items-center justify-center rounded-full text-xs text-white/80 hover:bg-white/10 hover:text-white"
-                  aria-label="Bezárás csak szükséges sütikkel"
-                >
-                  ✕
-                </button>
+      {/* Banner */}
+      <div className="pointer-events-auto fixed bottom-4 left-4 right-4 z-[9999] md:bottom-8 md:right-8 md:left-auto md:max-w-md">
+        <div className="pointer-events-auto overflow-hidden rounded-2xl bg-card text-card-foreground shadow-2xl ring-2 ring-secondary">
+          {/* Header */}
+          <div className="flex items-start justify-between gap-3 bg-gradient-to-r from-secondary to-secondary/80 p-6 text-white">
+            <div className="flex items-start gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10">
+                <Cookie className="h-6 w-6 text-[color:var(--primary)]" />
               </div>
+              <div>
+                <h3 className="text-base font-bold">Cookie beállítások</h3>
+                <p className="text-xs text-white/90">
+                  Adatvédelem és süti kezelés – Ön dönt arról, milyen sütiket engedélyez.
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => handleSave("necessary-only")}
+              className="ml-2 inline-flex h-7 w-7 items-center justify-center rounded-full text-xs text-white/80 hover:bg-white/10 hover:text-white"
+              aria-label="Bezárás csak szükséges sütikkel"
+            >
+              ✕
+            </button>
+          </div>
 
-              {/* Body */}
-              {mode === "simple" ? (
-                <div className="space-y-4 bg-card p-6 text-xs text-foreground">
+          {/* Body */}
+          {mode === "simple" ? (
+            <div className="space-y-4 bg-card p-6 text-xs text-foreground">
                   <p className="leading-relaxed">
                     Az oldal működéséhez szükséges sütiket mindig használjuk. Opcionális
                     funkcionális, statisztikai és marketing sütikhez az Ön hozzájárulása
@@ -178,7 +206,7 @@ export function CookieBanner() {
                     <button
                       type="button"
                       onClick={() => setMode("detailed")}
-                      className="flex w-full items-center justify-center gap-2 rounded-full border border-secondary px-4 py-2 text-sm font-medium text-secondary hover:bg-secondary/10"
+                      className="flex w-full items-center justify-center gap-2 rounded-full border border-[color:var(--border)] px-4 py-2 text-sm font-medium text-foreground hover:bg-[color:var(--muted)]"
                     >
                       <Settings className="h-4 w-4" />
                       Részletes beállítások
@@ -199,15 +227,15 @@ export function CookieBanner() {
                     </span>
                     .
                   </p>
-                </div>
-              ) : (
-                <div className="bg-card p-6 text-xs text-foreground">
+            </div>
+          ) : (
+            <div className="bg-card p-6 text-xs text-foreground">
                   <div className="mb-3 flex items-center justify-between">
                     <p className="text-sm font-medium">Részletes süti beállítások</p>
                     <button
                       type="button"
                       onClick={() => setMode("simple")}
-                      className="rounded-full border border-secondary px-3 py-1 text-[11px] font-medium text-secondary hover:bg-secondary/10"
+                      className="rounded-full border border-[color:var(--border)] px-3 py-1 text-[11px] font-medium text-foreground hover:bg-[color:var(--muted)]"
                     >
                       Vissza az egyszerű nézethez
                     </button>
@@ -365,17 +393,17 @@ export function CookieBanner() {
                     <button
                       type="button"
                       onClick={() => setMode("simple")}
-                      className="w-full rounded-full border border-secondary px-4 py-2 text-sm font-medium text-secondary hover:bg-secondary/10"
+                      className="w-full rounded-full border border-[color:var(--border)] px-4 py-2 text-sm font-medium text-foreground hover:bg-[color:var(--muted)]"
                     >
                       Vissza
                     </button>
                   </div>
-                </div>
-              )}
             </div>
-          </div>
-        </>
-      )}
+          )}
+        </div>
+      </div>
     </>
   );
+
+  return createPortal(content, document.body);
 }
