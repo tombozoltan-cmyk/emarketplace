@@ -383,7 +383,7 @@ export const sendAdminInviteEmail = onRequest(
       const inviteeEmail = safeString(body.email).toLowerCase();
       const inviteeName = safeString(body.name) || inviteeEmail.split("@")[0];
       const role = safeString(body.role) || "editor";
-      const adminUrl = safeString(body.adminUrl) || "https://e-marketplace.hu/ops/portal-7d3k9a2f";
+      const adminUrl = safeString(body.adminUrl) || "https://e-marketplace.hu/ops/nova";
 
       if (!inviteeEmail) {
         res.status(400).json({ error: "Missing email" });

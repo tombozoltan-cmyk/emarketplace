@@ -197,7 +197,7 @@ export default function AdminDashboardPage() {
                     <MessageSquare className="w-5 h-5 text-[color:var(--primary)]" />
                     <h3 className="font-semibold text-[color:var(--foreground)]">Legutóbbi érdeklődések</h3>
                   </div>
-                  <Link href="/ops/portal-7d3k9a2f/inquiries">
+                  <Link href="/ops/nova/inquiries">
                     <Button variant="ghost" size="sm" className="text-xs">
                       Összes <ArrowRight className="w-3 h-3 ml-1" />
                     </Button>
@@ -213,7 +213,7 @@ export default function AdminDashboardPage() {
                     {recentInquiries.map((item) => (
                       <Link
                         key={item.id}
-                        href="/ops/portal-7d3k9a2f/inquiries"
+                        href="/ops/nova/inquiries"
                         className="flex items-center gap-3 p-3 rounded-lg bg-[color:var(--muted)]/30 hover:bg-[color:var(--muted)]/50 transition-colors"
                       >
                         <div className="flex-1 min-w-0">
@@ -251,7 +251,7 @@ export default function AdminDashboardPage() {
                     <FileText className="w-5 h-5 text-[color:var(--primary)]" />
                     <h3 className="font-semibold text-[color:var(--foreground)]">Legutóbbi szerződések</h3>
                   </div>
-                  <Link href="/ops/portal-7d3k9a2f/contracts">
+                  <Link href="/ops/nova/contracts">
                     <Button variant="ghost" size="sm" className="text-xs">
                       Összes <ArrowRight className="w-3 h-3 ml-1" />
                     </Button>
@@ -267,7 +267,7 @@ export default function AdminDashboardPage() {
                     {recentContracts.map((item) => (
                       <Link
                         key={item.id}
-                        href="/ops/portal-7d3k9a2f/contracts"
+                        href="/ops/nova/contracts"
                         className="flex items-center gap-3 p-3 rounded-lg bg-[color:var(--muted)]/30 hover:bg-[color:var(--muted)]/50 transition-colors"
                       >
                         <div className="flex-1 min-w-0">

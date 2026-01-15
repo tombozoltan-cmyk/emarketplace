@@ -12,7 +12,8 @@ import type { User } from "firebase/auth";
 import {
   GoogleAuthProvider,
   onAuthStateChanged,
-  signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult,
   signOut,
 } from "firebase/auth";
 import { firebaseAuth } from "../../lib/firebase";
@@ -56,6 +57,10 @@ export function AdminAuthProvider({
   }, [adminEmails, user?.email]);
 
   useEffect(() => {
+    getRedirectResult(firebaseAuth).catch((err) => {
+      console.error("Redirect result error:", err);
+    });
+
     const unsubscribe = onAuthStateChanged(firebaseAuth, (nextUser) => {
       setUser(nextUser);
       setIsLoading(false);
@@ -66,8 +71,7 @@ export function AdminAuthProvider({
 
   const handleSignIn = useCallback(async () => {
     const provider = new GoogleAuthProvider();
-
-    await signInWithPopup(firebaseAuth, provider);
+    await signInWithRedirect(firebaseAuth, provider);
   }, []);
 
   const handleSignOut = useCallback(async () => {

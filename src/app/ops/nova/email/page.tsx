@@ -121,7 +121,7 @@ export default function EmailSettingsPage() {
       type: "Teszt érdeklődés",
       message: "Ez egy teszt üzenet az admin felületről.",
       companyName: "Teszt Kft.",
-      sourcePath: "/ops/portal-7d3k9a2f/email",
+      sourcePath: "/ops/nova/email",
       site: "admin",
     };
   }, []);
@@ -244,7 +244,7 @@ export default function EmailSettingsPage() {
       await addDoc(collection(firestoreDb, "inquiries"), {
         createdAt: serverTimestamp(),
         language: "hu",
-        sourcePath: "/ops/portal-7d3k9a2f/email",
+        sourcePath: "/ops/nova/email",
         status: "new",
         type: "Teszt admin értesítés",
         companyName: "Teszt Kft.",

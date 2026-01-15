@@ -87,8 +87,8 @@ export default function AdminUsersPage() {
 
       const functionUrl = `https://us-central1-emarketplace-8aab1.cloudfunctions.net/sendAdminInviteEmail`;
       const adminUrl = typeof window !== "undefined" 
-        ? `${window.location.origin}/ops/portal-7d3k9a2f`
-        : "https://e-marketplace.hu/ops/portal-7d3k9a2f";
+        ? `${window.location.origin}/ops/nova`
+        : "https://e-marketplace.hu/ops/nova";
 
       const response = await fetch(functionUrl, {
         method: "POST",

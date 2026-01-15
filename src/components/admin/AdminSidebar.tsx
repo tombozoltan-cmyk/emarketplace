@@ -20,7 +20,7 @@ import {
 import { cn } from "@/lib/utils";
 import { useAdminAuth } from "@/components/admin/AdminAuthProvider";
 
-const ADMIN_BASE = "/ops/portal-7d3k9a2f";
+const ADMIN_BASE = "/ops/nova";
 
 type NavItem = {
   href: string;
