@@ -35,27 +35,31 @@ const OPTIONS: { value: Lang; label: string; flag: string; flagSrc: string }[] =
   },
 ];
 
+const VISIBLE_OPTIONS: Lang[] = ["hu", "en"];
+
 export function LanguageSelector() {
-  const [lang, setLang] = useState<Lang>(() => {
-    if (typeof window === "undefined") {
-      return "hu";
-    }
-
-    const stored = window.localStorage.getItem(STORAGE_KEY) as Lang | null;
-    if (stored && ["hu", "en", "de", "es"].includes(stored)) {
-      return stored;
-    }
-
-    const path = window.location.pathname;
-    if (path.startsWith("/en")) {
-      return "en";
-    }
-
-    return "hu";
-  });
+  const [lang, setLang] = useState<Lang>("hu");
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
   const router = useRouter();
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const stored = window.localStorage.getItem(STORAGE_KEY) as Lang | null;
+    if (stored && ["hu", "en", "de", "es"].includes(stored)) {
+      setLang(stored);
+      return;
+    }
+
+    const safePathname = pathname ?? "";
+    if (safePathname.startsWith("/en")) {
+      setLang("en");
+      return;
+    }
+
+    setLang("hu");
+  }, [pathname]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -86,7 +90,7 @@ export function LanguageSelector() {
 
       {open && (
         <div className="absolute right-0 z-40 mt-2 w-40 rounded-xl bg-[color:var(--card)] p-1 text-xs shadow-lg ring-1 ring-[color:var(--border)]">
-          {OPTIONS.map((option) => (
+          {OPTIONS.filter((option) => VISIBLE_OPTIONS.includes(option.value)).map((option) => (
             <button
               key={option.value}
               type="button"
@@ -98,6 +102,8 @@ export function LanguageSelector() {
                   const mappings: Record<string, { en: string; hu: string }> = {
                     "/": { en: "/en", hu: "/" },
                     "/en": { en: "/en", hu: "/" },
+                    "/szerzodes": { en: "/en/contract", hu: "/szerzodes" },
+                    "/en/contract": { en: "/en/contract", hu: "/szerzodes" },
                     "/szekhelyszolgaltatas": {
                       en: "/en/registered-office-hungary",
                       hu: "/szekhelyszolgaltatas",

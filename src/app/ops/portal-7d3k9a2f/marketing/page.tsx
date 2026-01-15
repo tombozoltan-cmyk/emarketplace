@@ -2,8 +2,7 @@
 
 import React from "react";
 import { doc, onSnapshot, setDoc, type DocumentData } from "firebase/firestore";
-import { AdminGate } from "../../../../components/admin/AdminGate";
-import { AdminShell } from "../../../../components/admin/AdminShell";
+import { AdminLayout } from "@/components/admin";
 import { Button } from "../../../../components/ui/button";
 import { Card } from "../../../../components/ui/card";
 import { Input } from "../../../../components/ui/input";
@@ -165,8 +164,7 @@ export default function AdminMarketingPage() {
   }, [state]);
 
   return (
-    <AdminGate>
-      <AdminShell basePath="/ops/portal-7d3k9a2f" title="Marketing beállítások">
+    <AdminLayout title="Marketing beállítások" description="Tracking és hirdetési azonosítók kezelése">
         <div className="flex flex-col gap-4">
           <Card className="p-5">
             <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
@@ -480,7 +478,6 @@ export default function AdminMarketingPage() {
             </div>
           </Card>
         </div>
-      </AdminShell>
-    </AdminGate>
+    </AdminLayout>
   );
 }

@@ -153,6 +153,21 @@ const validateStep = (
             errors.push(t ? `Tulajdonos${ownerNum} okmányszáma kötelező` : `Owner${ownerNum} ID number is required`);
           }
         }
+
+        if (owner.type === "legal" && owner.legal) {
+          if (!owner.legal.companyName.trim()) {
+            errors.push(t ? `Tulajdonos${ownerNum} cégnév megadása kötelező` : `Owner${ownerNum} company name is required`);
+          }
+          if (!owner.legal.registrationNumber.trim()) {
+            errors.push(t ? `Tulajdonos${ownerNum} cégjegyzékszám megadása kötelező` : `Owner${ownerNum} registration number is required`);
+          }
+          if (!owner.legal.address.trim()) {
+            errors.push(t ? `Tulajdonos${ownerNum} székhely megadása kötelező` : `Owner${ownerNum} registered address is required`);
+          }
+          if (!owner.legal.representativeName.trim()) {
+            errors.push(t ? `Tulajdonos${ownerNum} képviselő nevének megadása kötelező` : `Owner${ownerNum} representative name is required`);
+          }
+        }
       });
       if (!data.contact.email.trim()) {
         errors.push(t ? "Email cím kötelező" : "Email is required");

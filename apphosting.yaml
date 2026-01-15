@@ -43,6 +43,11 @@ env:
     availability:
       - BUILD
       - RUNTIME
+  - variable: NEXT_PUBLIC_FUNCTIONS_REGION
+    value: "us-central1"
+    availability:
+      - BUILD
+      - RUNTIME
   - variable: NEXT_PUBLIC_GITHUB_REPO_URL
     value: "https://github.com/tombozoltan-cmyk/emarketplace"
     availability:

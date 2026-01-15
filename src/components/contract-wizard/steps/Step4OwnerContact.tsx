@@ -81,13 +81,27 @@ export function Step4OwnerContact({
 
   // Ha a kapcsolattartó megegyezik az első tulajdonossal
   const handleSameAsOwnerChange = (checked: boolean) => {
-    onContactChange({ isSameAsOwner: checked });
-    if (checked && owners[0]?.natural?.fullName) {
-      onContactChange({
-        isSameAsOwner: checked,
-        fullName: owners[0].natural.fullName,
-        address: owners[0].natural.address,
-      });
+    if (checked) {
+      const firstOwner = owners[0];
+      // Ha természetes személy, használjuk az adatait
+      if (firstOwner?.type !== "legal" && firstOwner?.natural?.fullName) {
+        onContactChange({
+          isSameAsOwner: checked,
+          fullName: firstOwner.natural.fullName,
+          address: firstOwner.natural.address,
+        });
+      } else if (firstOwner?.type === "legal" && firstOwner?.legal?.representativeName) {
+        // Ha jogi személy, a képviselő nevét használjuk
+        onContactChange({
+          isSameAsOwner: checked,
+          fullName: firstOwner.legal.representativeName,
+          address: firstOwner.legal.address,
+        });
+      } else {
+        onContactChange({ isSameAsOwner: checked });
+      }
+    } else {
+      onContactChange({ isSameAsOwner: checked });
     }
   };
 

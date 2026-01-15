@@ -184,21 +184,53 @@ export function Step7Summary({
                 )}
                 <div className="grid gap-2">
                   <SummaryRow
-                    label={t ? "Név" : "Name"}
-                    value={owner.natural?.fullName || "-"}
+                    label={t ? "Típus" : "Type"}
+                    value={owner.type === "legal" ? (t ? "Jogi személy" : "Legal entity") : (t ? "Természetes személy" : "Natural person")}
                   />
-                  <SummaryRow
-                    label={t ? "Születési hely, idő" : "Birth place, date"}
-                    value={`${owner.natural?.birthPlace || ""}, ${owner.natural?.birthDate || ""}`}
-                  />
-                  <SummaryRow
-                    label={t ? "Lakcím" : "Address"}
-                    value={owner.natural?.address || "-"}
-                  />
-                  <SummaryRow
-                    label={t ? "Okmány száma" : "ID number"}
-                    value={owner.natural?.idNumber || "-"}
-                  />
+
+                  {owner.type === "legal" ? (
+                    <>
+                      <SummaryRow
+                        label={t ? "Cégnév" : "Company name"}
+                        value={owner.legal?.companyName || "-"}
+                      />
+                      <SummaryRow
+                        label={t ? "Rövidített név" : "Short name"}
+                        value={owner.legal?.shortName || "-"}
+                      />
+                      <SummaryRow
+                        label={t ? "Cégjegyzékszám" : "Registration number"}
+                        value={owner.legal?.registrationNumber || "-"}
+                      />
+                      <SummaryRow
+                        label={t ? "Székhely" : "Registered address"}
+                        value={owner.legal?.address || "-"}
+                      />
+                      <SummaryRow
+                        label={t ? "Képviselő" : "Representative"}
+                        value={owner.legal?.representativeName || "-"}
+                      />
+                    </>
+                  ) : (
+                    <>
+                      <SummaryRow
+                        label={t ? "Név" : "Name"}
+                        value={owner.natural?.fullName || "-"}
+                      />
+                      <SummaryRow
+                        label={t ? "Születési hely, idő" : "Birth place, date"}
+                        value={`${owner.natural?.birthPlace || ""}, ${owner.natural?.birthDate || ""}`}
+                      />
+                      <SummaryRow
+                        label={t ? "Lakcím" : "Address"}
+                        value={owner.natural?.address || "-"}
+                      />
+                      <SummaryRow
+                        label={t ? "Okmány száma" : "ID number"}
+                        value={owner.natural?.idNumber || "-"}
+                      />
+                    </>
+                  )}
                   {data.owners.length === 1 && (
                     <SummaryRow
                       label={t ? "Tulajdoni arány" : "Ownership"}

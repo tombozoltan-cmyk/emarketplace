@@ -249,10 +249,19 @@ export default function ContractsPage() {
 
   const buildShortcodeDataFromContract = (contract: ContractDoc): Record<string, string> => {
     const company = contract.company || {};
-    const firstOwner = contract.owners?.[0]?.natural;
+    const owners = contract.owners || [];
+    const firstNaturalOwner = owners.find((o) => o.type !== "legal")?.natural;
+    const firstLegalOwner = owners.find((o) => o.type === "legal")?.legal;
     const representative = contract.representative || ({} as ContractDoc["representative"]);
     const contact = contract.contact || {};
     const date = new Date();
+
+    const monthlyFee = contract.monthlyPrice || 0;
+    const annualFee = contract.annualPrice || 0;
+
+    const contactName = contact.isSameAsOwner
+      ? firstNaturalOwner?.fullName || ""
+      : contact.fullName || "";
 
     return {
       "{{CEG_NEV}}": company.name || "",
@@ -262,16 +271,22 @@ export default function ContractsPage() {
       "{{ADOSZAM}}": company.taxNumber || "",
       "{{FOTEV}}": company.mainActivity || "",
       "{{SZEKHELY}}": "1052 Budapest, Váci utca 8. 1. em.",
-      "{{TULAJDONOS_NEV}}": firstOwner?.fullName || "",
-      "{{TULAJDONOS_SZUL_NEV}}": firstOwner?.birthName || "",
-      "{{TULAJDONOS_SZUL_HELY}}": firstOwner?.birthPlace || "",
-      "{{TULAJDONOS_SZUL_DATUM}}": firstOwner?.birthDate || "",
-      "{{TULAJDONOS_ANYJA_NEVE}}": firstOwner?.motherName || "",
-      "{{TULAJDONOS_LAKCIM}}": firstOwner?.address || "",
-      "{{TULAJDONOS_OKMANY_TIPUS}}": firstOwner?.idType || "",
-      "{{TULAJDONOS_OKMANY_SZAM}}": firstOwner?.idNumber || "",
-      "{{TULAJDONOS_ALLAMPOLGARSAG}}": firstOwner?.nationality || "",
-      "{{TULAJDONOS_ARANY}}": (contract.owners?.[0]?.ownershipPercent ?? 100).toString(),
+      "{{TULAJDONOS_NEV}}": firstNaturalOwner?.fullName || "",
+      "{{TULAJDONOS_SZUL_NEV}}": firstNaturalOwner?.birthName || "",
+      "{{TULAJDONOS_SZUL_HELY}}": firstNaturalOwner?.birthPlace || "",
+      "{{TULAJDONOS_SZUL_DATUM}}": firstNaturalOwner?.birthDate || "",
+      "{{TULAJDONOS_ANYJA_NEVE}}": firstNaturalOwner?.motherName || "",
+      "{{TULAJDONOS_LAKCIM}}": firstNaturalOwner?.address || "",
+      "{{TULAJDONOS_OKMANY_TIPUS}}": firstNaturalOwner?.idType || "",
+      "{{TULAJDONOS_OKMANY_SZAM}}": firstNaturalOwner?.idNumber || "",
+      "{{TULAJDONOS_ALLAMPOLGARSAG}}": firstNaturalOwner?.nationality || "",
+      "{{TULAJDONOS_ARANY}}": (owners?.[0]?.ownershipPercent ?? 100).toString(),
+
+      "{{TULAJ_CEG_NEV}}": firstLegalOwner?.companyName || "",
+      "{{TULAJ_CEG_SZEKHELY}}": firstLegalOwner?.address || "",
+      "{{TULAJ_CEG_CEGJSZ}}": firstLegalOwner?.registrationNumber || "",
+      "{{TULAJ_CEG_KEPVISELO}}": firstLegalOwner?.representativeName || "",
+      "{{TULAJ_CEG_KEPV_BEOSZTAS}}": firstLegalOwner?.representativePosition || "",
       "{{KEPVISELO_NEV}}": representative.fullName || "",
       "{{KEPVISELO_SZUL_NEV}}": representative.birthName || "",
       "{{KEPVISELO_SZUL_HELY}}": representative.birthPlace || "",
@@ -281,18 +296,22 @@ export default function ContractsPage() {
       "{{KEPVISELO_OKMANY_SZAM}}": representative.idNumber || "",
       "{{KEPVISELO_BEOSZTAS}}": representative.position || "",
       "{{KEPVISELO_ALLAMPOLGARSAG}}": representative.nationality || "",
-      "{{KAPCSOLAT_NEV}}": contact.fullName || "",
+      "{{KAPCSOLAT_NEV}}": contactName,
       "{{KAPCSOLAT_EMAIL}}": contact.email || "",
       "{{KAPCSOLAT_TELEFON}}": contact.phone || "",
       "{{KAPCSOLAT_CIM}}": contact.address || "",
       "{{CSOMAG_NEV}}": PACKAGE_NAMES[contract.packageId || ""] || contract.packageId || "",
-      "{{HAVI_DIJ}}": (contract.monthlyPrice || 0).toLocaleString("hu-HU"),
-      "{{EVES_DIJ}}": (contract.annualPrice || 0).toLocaleString("hu-HU"),
+      "{{HAVI_DIJ}}": monthlyFee.toLocaleString("hu-HU"),
+      "{{HAVI_DIJ_SZOVEG}}": monthlyFee.toLocaleString("hu-HU"),
+      "{{EVES_DIJ}}": annualFee.toLocaleString("hu-HU"),
+      "{{EVES_DIJ_SZOVEG}}": annualFee.toLocaleString("hu-HU"),
       "{{SZOLGALTATO_NEV}}": "E-Marketplace Kft.",
       "{{SZOLGALTATO_CIM}}": "1064 Budapest, Izabella utca 68/b.",
       "{{DATUM}}": date.toLocaleDateString("hu-HU"),
       "{{DATUM_SZO}}": date.toLocaleDateString("hu-HU", { year: "numeric", month: "long", day: "numeric" }),
       "{{EV}}": date.getFullYear().toString(),
+      "{{HONAP}}": (date.getMonth() + 1).toString(),
+      "{{NAP}}": date.getDate().toString(),
       "{{SZERZODES_ID}}": contract.id,
       "{{KEZBESITESI_CIM}}": "1052 Budapest, Váci utca 8. 1. em.",
     };
@@ -592,32 +611,59 @@ export default function ContractsPage() {
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {filteredContracts.map((contract) => (
             <AdminCard key={contract.id} onClick={() => openModal(contract)} hoverable>
-              <AdminCardHeader>
-                <div className="flex-1 min-w-0">
-                  <AdminCardTitle>{contract.company?.name || "Névtelen cég"}</AdminCardTitle>
-                  <p className="text-xs text-[color:var(--muted-foreground)] mt-0.5">
+              <div className="space-y-3">
+                {/* Header: Cégnév és csomag */}
+                <div>
+                  <h3 className="font-semibold text-[color:var(--foreground)] text-base leading-tight">
+                    {contract.company?.name || "Névtelen cég"}
+                  </h3>
+                  {contract.company?.shortName && (
+                    <p className="text-xs text-[color:var(--muted-foreground)] mt-0.5">
+                      ({contract.company.shortName})
+                    </p>
+                  )}
+                  <p className="text-xs text-[color:var(--primary)] mt-1 font-medium">
                     {PACKAGE_NAMES[contract.packageId || ""] || "Ismeretlen csomag"}
                   </p>
                 </div>
-                <StatusBadge
-                  status={STATUS_CONFIG[contract.status || "draft"].label}
-                  variant={STATUS_CONFIG[contract.status || "draft"].variant}
-                />
-              </AdminCardHeader>
-              <AdminCardContent>
-                <div className="flex items-center gap-2 text-sm text-[color:var(--muted-foreground)]">
-                  <User className="w-3.5 h-3.5 shrink-0" />
-                  <span className="truncate">{contract.representative?.fullName || "-"}</span>
+
+                {/* Státusz badge - külön sorban, jól olvasható */}
+                <div>
+                  <span className={`inline-flex items-center px-2.5 py-1 rounded text-xs font-semibold ${
+                    contract.status === "approved" || contract.status === "active" 
+                      ? "bg-green-600 text-white" 
+                      : contract.status === "pending_review" || contract.status === "documents_needed"
+                      ? "bg-amber-500 text-white"
+                      : contract.status === "rejected"
+                      ? "bg-red-600 text-white"
+                      : "bg-gray-500 text-white"
+                  }`}>
+                    {STATUS_CONFIG[contract.status || "draft"].label}
+                  </span>
                 </div>
-                <div className="flex items-center gap-2 text-sm text-[color:var(--muted-foreground)]">
-                  <Mail className="w-3.5 h-3.5 shrink-0" />
-                  <span className="truncate">{contract.contact?.email || "-"}</span>
+
+                {/* Info rows */}
+                <div className="space-y-1.5 pt-2 border-t border-[color:var(--border)]">
+                  <div className="flex items-center gap-2 text-sm text-[color:var(--muted-foreground)]">
+                    <User className="w-3.5 h-3.5 shrink-0" />
+                    <span className="truncate">{contract.representative?.fullName || "-"}</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-sm text-[color:var(--muted-foreground)]">
+                    <Mail className="w-3.5 h-3.5 shrink-0" />
+                    <span className="truncate">{contract.contact?.email || "-"}</span>
+                  </div>
+                  {contract.contact?.phone && (
+                    <div className="flex items-center gap-2 text-sm text-[color:var(--muted-foreground)]">
+                      <Phone className="w-3.5 h-3.5 shrink-0" />
+                      <span className="truncate">{contract.contact.phone}</span>
+                    </div>
+                  )}
+                  <div className="flex items-center gap-2 text-sm text-[color:var(--muted-foreground)]">
+                    <Calendar className="w-3.5 h-3.5 shrink-0" />
+                    <span>{formatDate(contract.createdAt)}</span>
+                  </div>
                 </div>
-                <div className="flex items-center gap-2 text-sm text-[color:var(--muted-foreground)]">
-                  <Calendar className="w-3.5 h-3.5 shrink-0" />
-                  <span>{formatDate(contract.createdAt)}</span>
-                </div>
-              </AdminCardContent>
+              </div>
             </AdminCard>
           ))}
         </div>
@@ -642,197 +688,226 @@ export default function ContractsPage() {
         }
       >
         {selectedContract && (
-          <div className="space-y-6">
-            {/* Status & Actions */}
-            <div className="flex flex-wrap items-center gap-3 p-4 bg-[color:var(--muted)]/30 rounded-lg">
-              <span className="text-sm font-medium">Státusz:</span>
-              <div className="flex flex-wrap gap-2">
-                {STATUS_OPTIONS.map((status) => (
-                  <button
-                    key={status}
-                    onClick={() => updateStatus(status)}
-                    disabled={isUpdating}
-                    className={`px-3 py-1 text-xs font-medium rounded-full transition-all ${
-                      selectedContract.status === status
-                        ? "ring-2 ring-[color:var(--primary)] ring-offset-1"
-                        : "opacity-70 hover:opacity-100"
-                    } ${
-                      STATUS_CONFIG[status].variant === "success" ? "bg-green-100 text-green-800" :
-                      STATUS_CONFIG[status].variant === "warning" ? "bg-yellow-100 text-yellow-800" :
-                      STATUS_CONFIG[status].variant === "error" ? "bg-red-100 text-red-800" :
-                      STATUS_CONFIG[status].variant === "info" ? "bg-blue-100 text-blue-800" :
-                      "bg-gray-100 text-gray-800"
-                    }`}
-                  >
-                    {STATUS_CONFIG[status].label}
-                  </button>
-                ))}
+          <div className="space-y-5">
+            {/* Status Row */}
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-sm font-medium text-[color:var(--foreground)] mr-2">Státusz:</span>
+              {STATUS_OPTIONS.map((status) => (
+                <button
+                  key={status}
+                  onClick={() => updateStatus(status)}
+                  disabled={isUpdating}
+                  className={`px-3 py-1.5 text-sm font-medium rounded-md transition-all ${
+                    selectedContract.status === status
+                      ? "bg-[color:var(--primary)] text-white shadow-sm"
+                      : "bg-[color:var(--muted)] text-[color:var(--muted-foreground)] hover:bg-[color:var(--muted)]/80"
+                  }`}
+                >
+                  {STATUS_CONFIG[status].label}
+                </button>
+              ))}
+            </div>
+
+            {/* Documents */}
+            <div className="bg-[color:var(--muted)]/20 rounded-lg p-4">
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-sm font-semibold text-[color:var(--foreground)]">Dokumentumok generálása</span>
+                <Button size="sm" variant="default" onClick={handleGenerateAll} disabled={isGeneratingPdf}>
+                  {isGeneratingPdf ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <FileDown className="w-4 h-4 mr-2" />}
+                  Összes letöltése
+                </Button>
+              </div>
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
+                <Button variant="outline" size="sm" className="justify-start" onClick={previewContract} disabled={isGeneratingPdf}>
+                  <Eye className="w-4 h-4 mr-2" />
+                  Szerződés
+                </Button>
+                <Button variant="outline" size="sm" className="justify-start" onClick={previewKyc} disabled={isGeneratingPdf}>
+                  <Eye className="w-4 h-4 mr-2" />
+                  KYC adatlap
+                </Button>
+                <Button variant="outline" size="sm" className="justify-start" onClick={previewPep} disabled={isGeneratingPdf}>
+                  <Eye className="w-4 h-4 mr-2" />
+                  PEP nyilatkozat
+                </Button>
+                <Button variant="outline" size="sm" className="justify-start" onClick={previewPostalAuth} disabled={isGeneratingPdf}>
+                  <Eye className="w-4 h-4 mr-2" />
+                  Meghatalmazás
+                </Button>
               </div>
             </div>
 
-            {/* Document Cards */}
-            <AdminModalSection title="Dokumentumok">
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                {/* Szerződés */}
-                <div className="p-4 bg-[color:var(--muted)]/20 rounded-xl border border-[color:var(--border)] hover:border-[color:var(--primary)]/50 transition-colors">
-                  <div className="flex items-center gap-3 mb-3">
-                    <div className="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center">
-                      <FileText className="w-5 h-5 text-blue-600" />
+            {/* Two Column Layout */}
+            <div className="grid lg:grid-cols-2 gap-6">
+              {/* Left Column */}
+              <div className="space-y-5">
+                {/* Company */}
+                <div>
+                  <h4 className="text-sm font-semibold text-[color:var(--foreground)] mb-3 pb-1 border-b border-[color:var(--border)]">Cégadatok</h4>
+                  <dl className="space-y-2 text-sm">
+                    <div>
+                      <dt className="text-[color:var(--muted-foreground)]">Cégnév</dt>
+                      <dd className="font-medium">{selectedContract.company?.name || "-"}</dd>
                     </div>
                     <div>
-                      <div className="font-medium text-sm">Szerződés</div>
-                      <div className="text-xs text-[color:var(--muted-foreground)]">Székhelyszolgáltatás</div>
+                      <dt className="text-[color:var(--muted-foreground)]">Rövidített név</dt>
+                      <dd>{selectedContract.company?.shortName || "-"}</dd>
                     </div>
-                  </div>
-                  <div className="flex gap-2">
-                    <Button size="sm" variant="ghost" className="flex-1" onClick={previewContract} disabled={isGeneratingPdf}>
-                      <Eye className="w-3.5 h-3.5" />
-                    </Button>
-                    <Button size="sm" variant="outline" className="flex-1" onClick={generateContract} disabled={isGeneratingPdf}>
-                      <Download className="w-3.5 h-3.5" />
-                    </Button>
-                  </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <dt className="text-[color:var(--muted-foreground)]">Cégjegyzékszám</dt>
+                        <dd>{selectedContract.company?.registrationNumber || "-"}</dd>
+                      </div>
+                      <div>
+                        <dt className="text-[color:var(--muted-foreground)]">Adószám</dt>
+                        <dd>{selectedContract.company?.taxNumber || "-"}</dd>
+                      </div>
+                    </div>
+                    <div>
+                      <dt className="text-[color:var(--muted-foreground)]">Főtevékenység</dt>
+                      <dd>{selectedContract.company?.mainActivity || "-"}</dd>
+                    </div>
+                  </dl>
                 </div>
 
-                {/* KYC */}
-                <div className="p-4 bg-[color:var(--muted)]/20 rounded-xl border border-[color:var(--border)] hover:border-[color:var(--primary)]/50 transition-colors">
-                  <div className="flex items-center gap-3 mb-3">
-                    <div className="w-10 h-10 rounded-lg bg-green-100 flex items-center justify-center">
-                      <ClipboardList className="w-5 h-5 text-green-600" />
+                {/* Representative */}
+                <div>
+                  <h4 className="text-sm font-semibold text-[color:var(--foreground)] mb-3 pb-1 border-b border-[color:var(--border)]">Képviselő</h4>
+                  <dl className="space-y-2 text-sm">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <dt className="text-[color:var(--muted-foreground)]">Név</dt>
+                        <dd className="font-medium">{selectedContract.representative?.fullName || "-"}</dd>
+                      </div>
+                      <div>
+                        <dt className="text-[color:var(--muted-foreground)]">Beosztás</dt>
+                        <dd>{selectedContract.representative?.position || "-"}</dd>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <dt className="text-[color:var(--muted-foreground)]">Születési hely</dt>
+                        <dd>{selectedContract.representative?.birthPlace || "-"}</dd>
+                      </div>
+                      <div>
+                        <dt className="text-[color:var(--muted-foreground)]">Születési idő</dt>
+                        <dd>{selectedContract.representative?.birthDate || "-"}</dd>
+                      </div>
                     </div>
                     <div>
-                      <div className="font-medium text-sm">Ügyfél-átvilágítás</div>
-                      <div className="text-xs text-[color:var(--muted-foreground)]">KYC adatlap</div>
+                      <dt className="text-[color:var(--muted-foreground)]">Anyja neve</dt>
+                      <dd>{selectedContract.representative?.motherName || "-"}</dd>
                     </div>
-                  </div>
-                  <div className="flex gap-2">
-                    <Button size="sm" variant="ghost" className="flex-1" onClick={previewKyc} disabled={isGeneratingPdf}>
-                      <Eye className="w-3.5 h-3.5" />
-                    </Button>
-                    <Button size="sm" variant="outline" className="flex-1" onClick={generateKyc} disabled={isGeneratingPdf}>
-                      <Download className="w-3.5 h-3.5" />
-                    </Button>
-                  </div>
+                    <div>
+                      <dt className="text-[color:var(--muted-foreground)]">Lakcím</dt>
+                      <dd>{selectedContract.representative?.address || "-"}</dd>
+                    </div>
+                  </dl>
                 </div>
 
-                {/* PEP */}
-                <div className="p-4 bg-[color:var(--muted)]/20 rounded-xl border border-[color:var(--border)] hover:border-[color:var(--primary)]/50 transition-colors">
-                  <div className="flex items-center gap-3 mb-3">
-                    <div className="w-10 h-10 rounded-lg bg-purple-100 flex items-center justify-center">
-                      <Shield className="w-5 h-5 text-purple-600" />
-                    </div>
+                {/* Contact */}
+                <div>
+                  <h4 className="text-sm font-semibold text-[color:var(--foreground)] mb-3 pb-1 border-b border-[color:var(--border)]">Kapcsolattartó</h4>
+                  <dl className="space-y-2 text-sm">
                     <div>
-                      <div className="font-medium text-sm">PEP nyilatkozat</div>
-                      <div className="text-xs text-[color:var(--muted-foreground)]">Politikai kitettség</div>
+                      <dt className="text-[color:var(--muted-foreground)]">Név</dt>
+                      <dd className="font-medium">{selectedContract.contact?.fullName || (selectedContract.contact?.isSameAsOwner ? selectedContract.owners?.[0]?.natural?.fullName : "-") || "-"}</dd>
                     </div>
-                  </div>
-                  <div className="flex gap-2">
-                    <Button size="sm" variant="ghost" className="flex-1" onClick={previewPep} disabled={isGeneratingPdf}>
-                      <Eye className="w-3.5 h-3.5" />
-                    </Button>
-                    <Button size="sm" variant="outline" className="flex-1" onClick={generatePep} disabled={isGeneratingPdf}>
-                      <Download className="w-3.5 h-3.5" />
-                    </Button>
-                  </div>
-                </div>
-
-                {/* Postai meghatalmazás */}
-                <div className="p-4 bg-[color:var(--muted)]/20 rounded-xl border border-[color:var(--border)] hover:border-[color:var(--primary)]/50 transition-colors">
-                  <div className="flex items-center gap-3 mb-3">
-                    <div className="w-10 h-10 rounded-lg bg-orange-100 flex items-center justify-center">
-                      <Mail className="w-5 h-5 text-orange-600" />
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <dt className="text-[color:var(--muted-foreground)]">Email</dt>
+                        <dd>{selectedContract.contact?.email || "-"}</dd>
+                      </div>
+                      <div>
+                        <dt className="text-[color:var(--muted-foreground)]">Telefon</dt>
+                        <dd>{selectedContract.contact?.phone || "-"}</dd>
+                      </div>
                     </div>
-                    <div>
-                      <div className="font-medium text-sm">Meghatalmazás</div>
-                      <div className="text-xs text-[color:var(--muted-foreground)]">{selectedContract.owners?.length || 1} tulajdonos</div>
-                    </div>
-                  </div>
-                  <div className="flex gap-2">
-                    <Button size="sm" variant="ghost" className="flex-1" onClick={previewPostalAuth} disabled={isGeneratingPdf}>
-                      <Eye className="w-3.5 h-3.5" />
-                    </Button>
-                    <Button size="sm" variant="outline" className="flex-1" onClick={generatePostalAuth} disabled={isGeneratingPdf}>
-                      <Download className="w-3.5 h-3.5" />
-                    </Button>
-                  </div>
+                  </dl>
                 </div>
               </div>
 
-              {/* Action buttons */}
-              <div className="flex flex-wrap gap-2 mt-4 pt-4 border-t border-[color:var(--border)]">
-                <Button onClick={handleGenerateAll} disabled={isGeneratingPdf} className="bg-green-600 hover:bg-green-700">
-                  {isGeneratingPdf ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <FileDown className="w-4 h-4 mr-1" />}
-                  Összes letöltése
-                </Button>
-                <Button variant="outline" onClick={handlePrint}>
-                  <Printer className="w-4 h-4 mr-1" />
-                  Nyomtatás
-                </Button>
-              </div>
-            </AdminModalSection>
-
-            {/* Company Info */}
-            <AdminModalSection title="Cég adatok">
-              <AdminModalGrid>
-                <AdminModalField label="Cégnév" value={selectedContract.company?.name} />
-                <AdminModalField label="Rövidített név" value={selectedContract.company?.shortName} />
-                <AdminModalField label="Cégforma" value={selectedContract.company?.legalForm} />
-                <AdminModalField label="Cégjegyzékszám" value={selectedContract.company?.registrationNumber} />
-                <AdminModalField label="Adószám" value={selectedContract.company?.taxNumber} />
-                <AdminModalField label="Főtevékenység" value={selectedContract.company?.mainActivity} />
-                <AdminModalField label="Új cég" value={selectedContract.company?.isNew ? "Igen" : "Nem"} />
-              </AdminModalGrid>
-            </AdminModalSection>
-
-            {/* Owners */}
-            <AdminModalSection title={`Tulajdonosok (${selectedContract.owners?.length || 0})`}>
-              {selectedContract.owners?.map((owner, idx) => (
-                <div key={idx} className="p-3 bg-[color:var(--muted)]/20 rounded-lg mb-3 last:mb-0">
-                  <div className="font-medium text-sm mb-2">{owner.natural?.fullName || `Tulajdonos ${idx + 1}`}</div>
-                  <AdminModalGrid columns={3}>
-                    <AdminModalField label="Születési hely" value={owner.natural?.birthPlace} />
-                    <AdminModalField label="Születési idő" value={owner.natural?.birthDate} />
-                    <AdminModalField label="Anyja neve" value={owner.natural?.motherName} />
-                    <AdminModalField label="Lakcím" value={owner.natural?.address} />
-                    <AdminModalField label="Okmány" value={`${owner.natural?.idType}: ${owner.natural?.idNumber}`} />
-                    <AdminModalField label="Tulajdoni hányad" value={`${owner.ownershipPercent}%`} />
-                  </AdminModalGrid>
+              {/* Right Column */}
+              <div className="space-y-5">
+                {/* Owners */}
+                <div>
+                  <h4 className="text-sm font-semibold text-[color:var(--foreground)] mb-3 pb-1 border-b border-[color:var(--border)]">Tulajdonosok ({selectedContract.owners?.length || 0})</h4>
+                  <div className="space-y-3">
+                    {selectedContract.owners?.map((owner, idx) => (
+                      <div key={idx} className="p-3 bg-[color:var(--muted)]/30 rounded-lg text-sm">
+                        <div className="font-medium mb-2 flex items-center justify-between">
+                          <span>{owner.type === "legal" ? owner.legal?.companyName : owner.natural?.fullName}</span>
+                          <span className="text-[color:var(--primary)] font-semibold">{owner.ownershipPercent}%</span>
+                        </div>
+                        {owner.type === "legal" ? (
+                          <dl className="space-y-1 text-xs">
+                            <div className="grid grid-cols-2 gap-2">
+                              <div>
+                                <dt className="text-[color:var(--muted-foreground)]">Cégjegyzékszám</dt>
+                                <dd>{owner.legal?.registrationNumber || "-"}</dd>
+                              </div>
+                              <div>
+                                <dt className="text-[color:var(--muted-foreground)]">Adószám</dt>
+                                <dd>{owner.legal?.taxNumber || "-"}</dd>
+                              </div>
+                            </div>
+                          </dl>
+                        ) : (
+                          <dl className="space-y-1 text-xs">
+                            <div className="grid grid-cols-2 gap-2">
+                              <div>
+                                <dt className="text-[color:var(--muted-foreground)]">Születési hely, idő</dt>
+                                <dd>{owner.natural?.birthPlace || "-"}, {owner.natural?.birthDate || "-"}</dd>
+                              </div>
+                              <div>
+                                <dt className="text-[color:var(--muted-foreground)]">Okmány</dt>
+                                <dd>{owner.natural?.idType}: {owner.natural?.idNumber || "-"}</dd>
+                              </div>
+                            </div>
+                          </dl>
+                        )}
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              ))}
-            </AdminModalSection>
 
-            {/* Representative */}
-            <AdminModalSection title="Képviselő">
-              <AdminModalGrid>
-                <AdminModalField label="Név" value={selectedContract.representative?.fullName} />
-                <AdminModalField label="Beosztás" value={selectedContract.representative?.position} />
-                <AdminModalField label="Születési hely" value={selectedContract.representative?.birthPlace} />
-                <AdminModalField label="Születési idő" value={selectedContract.representative?.birthDate} />
-                <AdminModalField label="Anyja neve" value={selectedContract.representative?.motherName} />
-                <AdminModalField label="Lakcím" value={selectedContract.representative?.address} />
-                <AdminModalField label="Okmányszám" value={selectedContract.representative?.idNumber} />
-                <AdminModalField label="Állampolgárság" value={selectedContract.representative?.nationality} />
-              </AdminModalGrid>
-            </AdminModalSection>
+                {/* Service */}
+                <div>
+                  <h4 className="text-sm font-semibold text-[color:var(--foreground)] mb-3 pb-1 border-b border-[color:var(--border)]">Szolgáltatás</h4>
+                  <dl className="space-y-2 text-sm">
+                    <div>
+                      <dt className="text-[color:var(--muted-foreground)]">Csomag</dt>
+                      <dd className="font-medium">{PACKAGE_NAMES[selectedContract.packageId || ""] || selectedContract.packageId || "-"}</dd>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <dt className="text-[color:var(--muted-foreground)]">Havi díj</dt>
+                        <dd className="font-semibold text-[color:var(--primary)]">{selectedContract.monthlyPrice ? `${selectedContract.monthlyPrice.toLocaleString()} Ft` : "-"}</dd>
+                      </div>
+                      <div>
+                        <dt className="text-[color:var(--muted-foreground)]">Éves díj</dt>
+                        <dd className="font-semibold text-[color:var(--primary)]">{selectedContract.annualPrice ? `${selectedContract.annualPrice.toLocaleString()} Ft` : "-"}</dd>
+                      </div>
+                    </div>
+                  </dl>
+                </div>
 
-            {/* Contact */}
-            <AdminModalSection title="Kapcsolattartó">
-              <AdminModalGrid>
-                <AdminModalField label="Név" value={selectedContract.contact?.fullName} />
-                <AdminModalField label="Email" value={selectedContract.contact?.email} />
-                <AdminModalField label="Telefon" value={selectedContract.contact?.phone} />
-                <AdminModalField label="Cím" value={selectedContract.contact?.address} />
-              </AdminModalGrid>
-            </AdminModalSection>
-
-            {/* Package */}
-            <AdminModalSection title="Szolgáltatás">
-              <AdminModalGrid>
-                <AdminModalField label="Csomag" value={PACKAGE_NAMES[selectedContract.packageId || ""] || selectedContract.packageId} />
-                <AdminModalField label="Havi díj" value={selectedContract.monthlyPrice ? `${selectedContract.monthlyPrice.toLocaleString()} Ft` : "-"} />
-                <AdminModalField label="Éves díj" value={selectedContract.annualPrice ? `${selectedContract.annualPrice.toLocaleString()} Ft` : "-"} />
-              </AdminModalGrid>
-            </AdminModalSection>
+                {/* Timestamps */}
+                <div>
+                  <h4 className="text-sm font-semibold text-[color:var(--foreground)] mb-3 pb-1 border-b border-[color:var(--border)]">Időbélyegek</h4>
+                  <dl className="grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <dt className="text-[color:var(--muted-foreground)]">Létrehozva</dt>
+                      <dd>{formatDate(selectedContract.createdAt)}</dd>
+                    </div>
+                    <div>
+                      <dt className="text-[color:var(--muted-foreground)]">Módosítva</dt>
+                      <dd>{formatDate(selectedContract.updatedAt)}</dd>
+                    </div>
+                  </dl>
+                </div>
+              </div>
+            </div>
 
             {/* Uploaded Documents */}
             {selectedContract.uploadedDocuments && Object.keys(selectedContract.uploadedDocuments).length > 0 && (

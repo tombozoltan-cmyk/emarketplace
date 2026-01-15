@@ -214,32 +214,60 @@ export default function InquiriesPage() {
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {filteredItems.map((item) => (
             <AdminCard key={item.id} onClick={() => openModal(item)} hoverable>
-              <AdminCardHeader>
-                <div className="flex-1 min-w-0">
-                  <AdminCardTitle>{item.companyName || item.name || "Névtelen"}</AdminCardTitle>
-                  <p className="text-xs text-[color:var(--muted-foreground)] mt-0.5 truncate">
-                    {item.selectedPackage || "Nincs csomag"}
+              <div className="space-y-3">
+                {/* Header: Ügyfél név és cégnév */}
+                <div>
+                  <h3 className="font-semibold text-[color:var(--foreground)] text-base leading-tight">
+                    {item.name || "Névtelen"}
+                  </h3>
+                  {item.companyName && (
+                    <p className="text-sm text-[color:var(--muted-foreground)] mt-0.5 flex items-center gap-1">
+                      <Building2 className="w-3.5 h-3.5" />
+                      <span className="truncate">{item.companyName}</span>
+                    </p>
+                  )}
+                  <p className="text-xs text-[color:var(--primary)] mt-1 font-medium">
+                    {item.type || item.selectedPackage || "Általános érdeklődés"}
                   </p>
                 </div>
-                <StatusBadge
-                  status={STATUS_CONFIG[item.status].label}
-                  variant={STATUS_CONFIG[item.status].variant}
-                />
-              </AdminCardHeader>
-              <AdminCardContent>
-                <div className="flex items-center gap-2 text-sm text-[color:var(--muted-foreground)]">
-                  <Mail className="w-3.5 h-3.5 shrink-0" />
-                  <span className="truncate">{item.email || "-"}</span>
+
+                {/* Státusz badge - külön sorban, jól olvasható */}
+                <div>
+                  <span className={`inline-flex items-center px-2.5 py-1 rounded text-xs font-semibold ${
+                    item.status === "new" 
+                      ? "bg-amber-500 text-white" 
+                      : item.status === "in_progress"
+                      ? "bg-blue-600 text-white"
+                      : "bg-gray-500 text-white"
+                  }`}>
+                    {STATUS_CONFIG[item.status].label}
+                  </span>
                 </div>
-                <div className="flex items-center gap-2 text-sm text-[color:var(--muted-foreground)]">
-                  <Phone className="w-3.5 h-3.5 shrink-0" />
-                  <span className="truncate">{item.phone || "-"}</span>
+
+                {/* Info rows */}
+                <div className="space-y-1.5 pt-2 border-t border-[color:var(--border)]">
+                  <div className="flex items-center gap-2 text-sm text-[color:var(--muted-foreground)]">
+                    <Mail className="w-3.5 h-3.5 shrink-0" />
+                    <span className="truncate">{item.email || "-"}</span>
+                  </div>
+                  {item.phone && (
+                    <div className="flex items-center gap-2 text-sm text-[color:var(--muted-foreground)]">
+                      <Phone className="w-3.5 h-3.5 shrink-0" />
+                      <span className="truncate">{item.phone}</span>
+                    </div>
+                  )}
+                  <div className="flex items-center gap-2 text-sm text-[color:var(--muted-foreground)]">
+                    <Calendar className="w-3.5 h-3.5 shrink-0" />
+                    <span>{formatDate(item.createdAt)}</span>
+                  </div>
+                  {item.language && (
+                    <div className="flex items-center gap-2 text-sm text-[color:var(--muted-foreground)]">
+                      <Globe className="w-3.5 h-3.5 shrink-0" />
+                      <span>{item.language === "hu" ? "Magyar" : "English"}</span>
+                    </div>
+                  )}
                 </div>
-                <div className="flex items-center gap-2 text-sm text-[color:var(--muted-foreground)]">
-                  <Calendar className="w-3.5 h-3.5 shrink-0" />
-                  <span>{formatDate(item.createdAt)}</span>
-                </div>
-              </AdminCardContent>
+              </div>
             </AdminCard>
           ))}
         </div>
@@ -264,87 +292,151 @@ export default function InquiriesPage() {
         }
       >
         {selectedInquiry && (
-          <div className="space-y-6">
-            {/* Status & Actions */}
-            <div className="flex flex-wrap items-center gap-3 p-4 bg-[color:var(--muted)]/30 rounded-lg">
-              <span className="text-sm font-medium">Státusz:</span>
-              <div className="flex flex-wrap gap-2">
-                {(["new", "in_progress", "closed"] as InquiryStatus[]).map((status) => (
-                  <button
-                    key={status}
-                    onClick={() => updateStatus(status)}
-                    disabled={isUpdating}
-                    className={`px-3 py-1 text-xs font-medium rounded-full transition-all ${
-                      selectedInquiry.status === status
-                        ? "ring-2 ring-[color:var(--primary)] ring-offset-1"
-                        : "opacity-70 hover:opacity-100"
-                    } ${
-                      status === "new" ? "bg-yellow-100 text-yellow-800" :
-                      status === "in_progress" ? "bg-blue-100 text-blue-800" :
-                      "bg-gray-100 text-gray-800"
-                    }`}
-                  >
-                    {STATUS_CONFIG[status].label}
-                  </button>
-                ))}
-              </div>
+          <div className="space-y-5">
+            {/* Status Row */}
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-sm font-medium text-[color:var(--foreground)] mr-2">Státusz:</span>
+              {(["new", "in_progress", "closed"] as InquiryStatus[]).map((status) => (
+                <button
+                  key={status}
+                  onClick={() => updateStatus(status)}
+                  disabled={isUpdating}
+                  className={`px-3 py-1.5 text-sm font-medium rounded-md transition-all ${
+                    selectedInquiry.status === status
+                      ? "bg-[color:var(--primary)] text-white shadow-sm"
+                      : "bg-[color:var(--muted)] text-[color:var(--muted-foreground)] hover:bg-[color:var(--muted)]/80"
+                  }`}
+                >
+                  {STATUS_CONFIG[status].label}
+                </button>
+              ))}
             </div>
 
-            {/* Contact Info */}
-            <AdminModalSection title="Kapcsolat">
-              <AdminModalGrid>
-                <AdminModalField label="Név" value={selectedInquiry.name} />
-                <AdminModalField label="Email" value={selectedInquiry.email} />
-                <AdminModalField label="Telefon" value={selectedInquiry.phone} />
-                <AdminModalField label="Ország" value={selectedInquiry.country} />
-                <AdminModalField label="Cím" value={selectedInquiry.address} />
-              </AdminModalGrid>
-            </AdminModalSection>
-
-            {/* Company Info */}
-            <AdminModalSection title="Cég">
-              <AdminModalGrid>
-                <AdminModalField label="Cégnév" value={selectedInquiry.companyName} />
-                <AdminModalField label="Cég típus" value={selectedInquiry.companyType} />
-                <AdminModalField label="Adószám" value={selectedInquiry.taxNumber} />
-              </AdminModalGrid>
-            </AdminModalSection>
-
-            {/* Package */}
-            <AdminModalSection title="Szolgáltatás">
-              <AdminModalField label="Kiválasztott csomag" value={selectedInquiry.selectedPackage} />
-            </AdminModalSection>
-
-            {/* Message */}
-            {selectedInquiry.message && (
-              <AdminModalSection title="Üzenet">
-                <div className="p-3 bg-[color:var(--muted)]/30 rounded-lg text-sm whitespace-pre-wrap">
-                  {selectedInquiry.message}
+            {/* Two Column Layout */}
+            <div className="grid lg:grid-cols-2 gap-8">
+              {/* Left Column */}
+              <div className="space-y-6">
+                {/* Contact */}
+                <div>
+                  <h4 className="text-sm font-semibold text-[color:var(--foreground)] mb-4 pb-2 border-b border-[color:var(--border)]">Kapcsolat</h4>
+                  <dl className="space-y-3 text-sm">
+                    <div>
+                      <dt className="text-[color:var(--muted-foreground)]">Név</dt>
+                      <dd className="font-medium mt-0.5">{selectedInquiry.name || "-"}</dd>
+                    </div>
+                    <div>
+                      <dt className="text-[color:var(--muted-foreground)]">Email</dt>
+                      <dd className="mt-0.5">{selectedInquiry.email || "-"}</dd>
+                    </div>
+                    <div>
+                      <dt className="text-[color:var(--muted-foreground)]">Telefon</dt>
+                      <dd className="mt-0.5">{selectedInquiry.phone || "-"}</dd>
+                    </div>
+                    <div>
+                      <dt className="text-[color:var(--muted-foreground)]">Ország</dt>
+                      <dd className="mt-0.5">{selectedInquiry.country || "-"}</dd>
+                    </div>
+                    <div>
+                      <dt className="text-[color:var(--muted-foreground)]">Cím</dt>
+                      <dd className="mt-0.5">{selectedInquiry.address || "-"}</dd>
+                    </div>
+                  </dl>
                 </div>
-              </AdminModalSection>
-            )}
 
-            {/* Additional Contact */}
-            {selectedInquiry.contact && (
-              <AdminModalSection title="Kapcsolattartó">
-                <AdminModalGrid>
-                  <AdminModalField label="Név" value={selectedInquiry.contact.name} />
-                  <AdminModalField label="Email" value={selectedInquiry.contact.email} />
-                  <AdminModalField label="Telefon" value={selectedInquiry.contact.phone} />
-                  <AdminModalField label="Cím" value={selectedInquiry.contact.address} />
-                </AdminModalGrid>
-              </AdminModalSection>
-            )}
+                {/* Company */}
+                <div>
+                  <h4 className="text-sm font-semibold text-[color:var(--foreground)] mb-4 pb-2 border-b border-[color:var(--border)]">Cégadatok</h4>
+                  <dl className="space-y-3 text-sm">
+                    <div>
+                      <dt className="text-[color:var(--muted-foreground)]">Cégnév</dt>
+                      <dd className="font-medium mt-0.5">{selectedInquiry.companyName || "-"}</dd>
+                    </div>
+                    <div>
+                      <dt className="text-[color:var(--muted-foreground)]">Cégtípus</dt>
+                      <dd className="mt-0.5">{selectedInquiry.companyType || "-"}</dd>
+                    </div>
+                    <div>
+                      <dt className="text-[color:var(--muted-foreground)]">Adószám</dt>
+                      <dd className="mt-0.5">{selectedInquiry.taxNumber || "-"}</dd>
+                    </div>
+                  </dl>
+                </div>
 
-            {/* Meta */}
-            <AdminModalSection title="Meta">
-              <AdminModalGrid>
-                <AdminModalField label="Típus" value={selectedInquiry.type} />
-                <AdminModalField label="Nyelv" value={selectedInquiry.language === "hu" ? "Magyar" : "English"} />
-                <AdminModalField label="Forrás" value={selectedInquiry.sourcePath} />
-                <AdminModalField label="Beérkezés" value={formatDate(selectedInquiry.createdAt)} />
-              </AdminModalGrid>
-            </AdminModalSection>
+                {/* Additional Contact */}
+                {selectedInquiry.contact && (
+                  <div>
+                    <h4 className="text-sm font-semibold text-[color:var(--foreground)] mb-4 pb-2 border-b border-[color:var(--border)]">Kapcsolattartó</h4>
+                    <dl className="space-y-3 text-sm">
+                      <div>
+                        <dt className="text-[color:var(--muted-foreground)]">Név</dt>
+                        <dd className="font-medium mt-0.5">{selectedInquiry.contact.name || "-"}</dd>
+                      </div>
+                      <div>
+                        <dt className="text-[color:var(--muted-foreground)]">Email</dt>
+                        <dd className="mt-0.5">{selectedInquiry.contact.email || "-"}</dd>
+                      </div>
+                      <div>
+                        <dt className="text-[color:var(--muted-foreground)]">Telefon</dt>
+                        <dd className="mt-0.5">{selectedInquiry.contact.phone || "-"}</dd>
+                      </div>
+                      <div>
+                        <dt className="text-[color:var(--muted-foreground)]">Cím</dt>
+                        <dd className="mt-0.5">{selectedInquiry.contact.address || "-"}</dd>
+                      </div>
+                    </dl>
+                  </div>
+                )}
+              </div>
+
+              {/* Right Column */}
+              <div className="space-y-6">
+                {/* Service */}
+                <div>
+                  <h4 className="text-sm font-semibold text-[color:var(--foreground)] mb-4 pb-2 border-b border-[color:var(--border)]">Szolgáltatás</h4>
+                  <dl className="space-y-3 text-sm">
+                    <div>
+                      <dt className="text-[color:var(--muted-foreground)]">Kiválasztott csomag</dt>
+                      <dd className="font-semibold text-[color:var(--primary)] mt-0.5">{selectedInquiry.selectedPackage || "-"}</dd>
+                    </div>
+                    <div>
+                      <dt className="text-[color:var(--muted-foreground)]">Érdeklődés típusa</dt>
+                      <dd className="mt-0.5">{selectedInquiry.type || "-"}</dd>
+                    </div>
+                  </dl>
+                </div>
+
+                {/* Message */}
+                {selectedInquiry.message && (
+                  <div>
+                    <h4 className="text-sm font-semibold text-[color:var(--foreground)] mb-4 pb-2 border-b border-[color:var(--border)]">Üzenet</h4>
+                    <div className="p-4 bg-[color:var(--muted)]/30 rounded-lg text-sm whitespace-pre-wrap">
+                      {selectedInquiry.message}
+                    </div>
+                  </div>
+                )}
+
+                {/* Meta */}
+                <div>
+                  <h4 className="text-sm font-semibold text-[color:var(--foreground)] mb-4 pb-2 border-b border-[color:var(--border)]">Részletek</h4>
+                  <dl className="space-y-3 text-sm">
+                    <div>
+                      <dt className="text-[color:var(--muted-foreground)]">Nyelv</dt>
+                      <dd className="mt-0.5">{selectedInquiry.language === "hu" ? "Magyar" : "English"}</dd>
+                    </div>
+                    <div>
+                      <dt className="text-[color:var(--muted-foreground)]">Beérkezés</dt>
+                      <dd className="mt-0.5">{formatDate(selectedInquiry.createdAt)}</dd>
+                    </div>
+                    {selectedInquiry.sourcePath && (
+                      <div>
+                        <dt className="text-[color:var(--muted-foreground)]">Forrás oldal</dt>
+                        <dd className="text-xs font-mono mt-0.5">{selectedInquiry.sourcePath}</dd>
+                      </div>
+                    )}
+                  </dl>
+                </div>
+              </div>
+            </div>
           </div>
         )}
       </AdminModal>

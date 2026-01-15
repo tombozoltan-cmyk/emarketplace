@@ -1,18 +1,26 @@
 "use client";
 
 import React, { useEffect, useState, useCallback } from "react";
-import { doc, onSnapshot, setDoc, type DocumentData } from "firebase/firestore";
-import { Loader2, Save, Mail, ToggleLeft, ToggleRight } from "lucide-react";
-import { firestoreDb } from "@/lib/firebase";
+import {
+  addDoc,
+  collection,
+  doc,
+  onSnapshot,
+  serverTimestamp,
+  setDoc,
+  type DocumentData,
+} from "firebase/firestore";
+import { Loader2, Save, Mail, ToggleLeft, ToggleRight, Eye, Send } from "lucide-react";
+import { firestoreDb, firebaseAuth } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { AdminLayout, RichTextEditor } from "@/components/admin";
+import { AdminLayout, AdminModal } from "@/components/admin";
 
 type LanguageTemplate = {
   subject: string;
-  html: string;
+  mjml: string;
 };
 
 type AdminTemplate = {
@@ -29,7 +37,6 @@ type EmailSettings = {
   adminTemplate: AdminTemplate;
   customerAutoReplyEnabled: boolean;
   customerTemplateHu: LanguageTemplate;
-  customerTemplateEn: LanguageTemplate;
 };
 
 const DEFAULT_SETTINGS: EmailSettings = {
@@ -45,16 +52,24 @@ const DEFAULT_SETTINGS: EmailSettings = {
   customerAutoReplyEnabled: false,
   customerTemplateHu: {
     subject: "Köszönjük megkeresését!",
-    html: "<p>Kedves {{name}}!</p><p>Köszönjük megkeresését, hamarosan jelentkezünk.</p>",
-  },
-  customerTemplateEn: {
-    subject: "Thank you for your message!",
-    html: "<p>Dear {{name}}!</p><p>Thank you for reaching out. We will get back to you shortly.</p>",
+    mjml: "<mjml>\n  <mj-body>\n    <mj-section>\n      <mj-column>\n        <mj-text font-size=\"16px\">Kedves {{name}}!</mj-text>\n        <mj-text font-size=\"16px\">Köszönjük megkeresését, hamarosan jelentkezünk.</mj-text>\n      </mj-column>\n    </mj-section>\n  </mj-body>\n</mjml>",
   },
 };
 
 const normalizeSettings = (raw: DocumentData | undefined): EmailSettings => {
   if (!raw) return DEFAULT_SETTINGS;
+  const rawCustomer = (raw.customerTemplateHu ?? {}) as {
+    subject?: unknown;
+    mjml?: unknown;
+    html?: unknown;
+  };
+
+  // Only use mjml field - legacy html is not valid MJML, so fall back to default
+  const mjmlContent =
+    typeof rawCustomer.mjml === "string" && rawCustomer.mjml.trim().startsWith("<mjml")
+      ? rawCustomer.mjml.trim()
+      : DEFAULT_SETTINGS.customerTemplateHu.mjml;
+
   return {
     adminToEmail: raw.adminToEmail || DEFAULT_SETTINGS.adminToEmail,
     adminSubjectPrefix: raw.adminSubjectPrefix || DEFAULT_SETTINGS.adminSubjectPrefix,
@@ -68,11 +83,7 @@ const normalizeSettings = (raw: DocumentData | undefined): EmailSettings => {
     customerAutoReplyEnabled: Boolean(raw.customerAutoReplyEnabled),
     customerTemplateHu: {
       subject: raw.customerTemplateHu?.subject || DEFAULT_SETTINGS.customerTemplateHu.subject,
-      html: raw.customerTemplateHu?.html || DEFAULT_SETTINGS.customerTemplateHu.html,
-    },
-    customerTemplateEn: {
-      subject: raw.customerTemplateEn?.subject || DEFAULT_SETTINGS.customerTemplateEn.subject,
-      html: raw.customerTemplateEn?.html || DEFAULT_SETTINGS.customerTemplateEn.html,
+      mjml: mjmlContent,
     },
   };
 };
@@ -93,6 +104,114 @@ export default function EmailSettingsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [savedAt, setSavedAt] = useState<number | null>(null);
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  const [previewHtml, setPreviewHtml] = useState<string>("");
+  const [previewErrors, setPreviewErrors] = useState<string[]>([]);
+  const [previewSubject, setPreviewSubject] = useState<string>("");
+  const [isSendingTest, setIsSendingTest] = useState(false);
+  const [testStatus, setTestStatus] = useState<string | null>(null);
+  const [customerEditorTab, setCustomerEditorTab] = useState<"mjml" | "preview">("mjml");
+  const [isCompilingPreview, setIsCompilingPreview] = useState(false);
+
+  const previewVariables = useCallback((): Record<string, string> => {
+    return {
+      name: "Teszt Elek",
+      email: "teszt@pelda.hu",
+      phone: "+36 30 123 4567",
+      type: "Teszt érdeklődés",
+      message: "Ez egy teszt üzenet az admin felületről.",
+      companyName: "Teszt Kft.",
+      sourcePath: "/ops/portal-7d3k9a2f/email",
+      site: "admin",
+    };
+  }, []);
+
+  const compileMjmlPreview = useCallback(
+    async ({ subject, mjml }: { subject: string; mjml: string }) => {
+      const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
+      if (!projectId) {
+        throw new Error("Missing NEXT_PUBLIC_FIREBASE_PROJECT_ID");
+      }
+
+      const region = process.env.NEXT_PUBLIC_FUNCTIONS_REGION || "us-central1";
+
+      const user = firebaseAuth.currentUser;
+      if (!user) {
+        throw new Error("Nincs bejelentkezett admin felhasználó");
+      }
+
+      const token = await user.getIdToken();
+      const url = `https://${region}-${projectId}.cloudfunctions.net/compileMjmlPreview`;
+
+      let res: Response;
+      try {
+        res = await fetch(url, {
+          method: "POST",
+          headers: {
+            "content-type": "application/json",
+            authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            subject,
+            mjml,
+            variables: previewVariables(),
+          }),
+        });
+      } catch (error) {
+        throw new Error(
+          `Nem sikerült elérni az MJML előnézet szolgáltatást (Failed to fetch). ` +
+            `Ellenőrizd, hogy a Firebase Function deployolva van-e: compileMjmlPreview. ` +
+            `Project: ${projectId}, region: ${region}. URL: ${url}. ` +
+            `Hiba: ${error instanceof Error ? error.message : String(error)}`
+        );
+      }
+
+      if (!res.ok) {
+        const text = await res.text().catch(() => "");
+        throw new Error(text || `Preview compile failed (${res.status})`);
+      }
+
+      const payload = (await res.json()) as {
+        html?: string;
+        subject?: string;
+        errors?: string[];
+      };
+
+      return {
+        html: payload.html ?? "",
+        subject: payload.subject ?? "",
+        errors: payload.errors ?? [],
+      };
+    },
+    [previewVariables]
+  );
+
+  const openCustomerPreview = useCallback(async () => {
+    setIsCompilingPreview(true);
+    setPreviewErrors([]);
+    setPreviewHtml("");
+    setPreviewSubject("");
+    try {
+      const result = await compileMjmlPreview({
+        subject: settings.customerTemplateHu.subject,
+        mjml: settings.customerTemplateHu.mjml,
+      });
+
+      setPreviewHtml(result.html);
+      setPreviewSubject(result.subject);
+      setPreviewErrors(result.errors);
+      setIsPreviewOpen(true);
+      setCustomerEditorTab("preview");
+    } catch (error) {
+      console.error("Preview compile error:", error);
+      setPreviewErrors([
+        error instanceof Error ? error.message : "Ismeretlen hiba a preview generálásakor.",
+      ]);
+      setIsPreviewOpen(true);
+    } finally {
+      setIsCompilingPreview(false);
+    }
+  }, [compileMjmlPreview, settings.customerTemplateHu.mjml, settings.customerTemplateHu.subject]);
 
   // Fetch settings
   useEffect(() => {
@@ -118,6 +237,32 @@ export default function EmailSettingsPage() {
     }
   }, [settings]);
 
+  const sendTestAdminNotification = useCallback(async () => {
+    setIsSendingTest(true);
+    setTestStatus(null);
+    try {
+      await addDoc(collection(firestoreDb, "inquiries"), {
+        createdAt: serverTimestamp(),
+        language: "hu",
+        sourcePath: "/ops/portal-7d3k9a2f/email",
+        status: "new",
+        type: "Teszt admin értesítés",
+        companyName: "Teszt Kft.",
+        name: "Teszt Elek",
+        email: "",
+        phone: "+36 30 123 4567",
+        message: "Teszt üzenet az admin Email beállítások oldalról.",
+        site: "admin",
+      });
+      setTestStatus("Teszt elküldve: létrejött egy új 'inquiries' rekord. Az admin értesítés pár másodpercen belül meg kell érkezzen.");
+    } catch (error) {
+      console.error("Test send error:", error);
+      setTestStatus("Teszt küldés sikertelen (lásd konzol).");
+    } finally {
+      setIsSendingTest(false);
+    }
+  }, []);
+
   // Update field helper
   const updateField = <K extends keyof EmailSettings>(key: K, value: EmailSettings[K]) => {
     setSettings((prev) => ({ ...prev, [key]: value }));
@@ -136,7 +281,7 @@ export default function EmailSettingsPage() {
   return (
     <AdminLayout
       title="Email beállítások"
-      description="Admin értesítések és ügyfél köszönőlevelek konfigurációja"
+      description="Admin értesítések és automatikus visszaigazoló email konfiguráció"
     >
       {/* Save button header */}
       <div className="flex items-center justify-between mb-6 p-4 bg-[color:var(--card)] rounded-xl border border-[color:var(--border)]">
@@ -158,16 +303,38 @@ export default function EmailSettingsPage() {
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
-        {/* Admin notification settings */}
         <div className="p-5 bg-[color:var(--card)] rounded-xl border border-[color:var(--border)]">
-          <h3 className="font-semibold mb-4">Admin értesítések</h3>
-          <p className="text-sm text-[color:var(--muted-foreground)] mb-4">
-            Ezeket a leveleket te kapod, amikor új érdeklődés érkezik.
-          </p>
+          <div className="flex items-start justify-between gap-4 mb-4">
+            <div>
+              <h3 className="font-semibold">Admin értesítő email</h3>
+              <p className="text-sm text-[color:var(--muted-foreground)]">
+                Ezt a levelet te kapod, amikor új érdeklődés érkezik.
+              </p>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={sendTestAdminNotification}
+              disabled={isSendingTest}
+            >
+              {isSendingTest ? (
+                <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+              ) : (
+                <Send className="w-4 h-4 mr-1" />
+              )}
+              Teszt küldés
+            </Button>
+          </div>
+
+          {testStatus && (
+            <div className="mb-4 text-xs text-[color:var(--muted-foreground)] p-3 bg-[color:var(--muted)]/30 rounded-lg">
+              {testStatus}
+            </div>
+          )}
 
           <div className="space-y-4">
             <div>
-              <Label>Címzett email</Label>
+              <Label>Admin címzett email</Label>
               <Input
                 value={settings.adminToEmail}
                 onChange={(e) => updateField("adminToEmail", e.target.value)}
@@ -187,50 +354,61 @@ export default function EmailSettingsPage() {
             </div>
 
             <div>
-              <Label>Feladó név</Label>
+              <Label>Admin email subject (MJML sablon esetén)</Label>
               <Input
-                value={settings.senderName}
-                onChange={(e) => updateField("senderName", e.target.value)}
-                placeholder="E-Marketplace"
+                value={settings.adminTemplate.subject}
+                onChange={(e) =>
+                  updateField("adminTemplate", {
+                    ...settings.adminTemplate,
+                    subject: e.target.value,
+                  })
+                }
+                placeholder="{{type}} – Új érdeklődés"
                 className="mt-1"
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label>Reply-to email</Label>
-                <Input
-                  value={settings.replyToEmail}
-                  onChange={(e) => updateField("replyToEmail", e.target.value)}
-                  placeholder="emarketplacekft@gmail.com"
-                  className="mt-1"
-                />
+            <div>
+              <Label>Admin email sablon (MJML)</Label>
+              <Textarea
+                value={settings.adminTemplate.mjml}
+                onChange={(e) =>
+                  updateField("adminTemplate", {
+                    ...settings.adminTemplate,
+                    mjml: e.target.value,
+                  })
+                }
+                className="mt-1 min-h-[320px] font-mono text-xs"
+                placeholder="<mjml>...</mjml>"
+              />
+              <div className="mt-2 text-xs text-[color:var(--muted-foreground)]">
+                MJML → HTML fordítás küldéskor történik (Cloud Function). Ha szeretnél itt helyben előnézetet, kell egy külön MJML-compile endpoint.
               </div>
-              <div>
-                <Label>Reply-to név</Label>
-                <Input
-                  value={settings.replyToName}
-                  onChange={(e) => updateField("replyToName", e.target.value)}
-                  placeholder="E-Marketplace"
-                  className="mt-1"
-                />
-              </div>
+            </div>
+
+            <div className="text-xs text-[color:var(--muted-foreground)] p-3 bg-[color:var(--muted)]/30 rounded-lg">
+              <strong>Használható változók:</strong>{" "}
+              {EMAIL_SHORTCODES.map((sc) => (
+                <code key={sc.code} className="mx-1 px-1 bg-[color:var(--muted)] rounded">
+                  {sc.code}
+                </code>
+              ))}
             </div>
           </div>
         </div>
 
-        {/* Auto-reply toggle */}
         <div className="p-5 bg-[color:var(--card)] rounded-xl border border-[color:var(--border)]">
           <div className="flex items-center justify-between mb-4">
             <div>
-              <h3 className="font-semibold">Ügyfél köszönőlevél</h3>
+              <h3 className="font-semibold">Automatikus visszaigazoló email (ügyfélnek)</h3>
               <p className="text-sm text-[color:var(--muted-foreground)]">
-                Automatikus visszaigazolás az érdeklődőknek
+                Ha be van kapcsolva, az érdeklődő automatikus visszaigazolást kap.
               </p>
             </div>
             <button
               onClick={() => updateField("customerAutoReplyEnabled", !settings.customerAutoReplyEnabled)}
               className="flex items-center gap-2"
+              title={settings.customerAutoReplyEnabled ? "Bekapcsolva" : "Kikapcsolva"}
             >
               {settings.customerAutoReplyEnabled ? (
                 <ToggleRight className="w-10 h-10 text-green-500" />
@@ -240,52 +418,84 @@ export default function EmailSettingsPage() {
             </button>
           </div>
 
-          <div className="text-xs text-[color:var(--muted-foreground)] p-3 bg-[color:var(--muted)]/30 rounded-lg">
-            <strong>Használható változók:</strong>{" "}
-            {EMAIL_SHORTCODES.map((sc) => (
-              <code key={sc.code} className="mx-1 px-1 bg-[color:var(--muted)] rounded">
-                {sc.code}
-              </code>
-            ))}
+          <div className="flex items-center justify-end mb-3">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={openCustomerPreview}
+              disabled={isCompilingPreview}
+            >
+              {isCompilingPreview ? (
+                <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+              ) : (
+                <Eye className="w-4 h-4 mr-1" />
+              )}
+              Előnézet (MJML)
+            </Button>
           </div>
-        </div>
-
-        {/* Admin MJML template */}
-        <div className="p-5 bg-[color:var(--card)] rounded-xl border border-[color:var(--border)]">
-          <h3 className="font-semibold mb-4">Admin email template (MJML)</h3>
-          <p className="text-sm text-[color:var(--muted-foreground)] mb-4">
-            MJML alapú sablon az admin értesítő emailhez. Küldéskor MJML → HTML fordítás történik.
-          </p>
 
           <div className="space-y-4">
             <div>
-              <Label>Subject</Label>
+              <Label>Tárgy</Label>
               <Input
-                value={settings.adminTemplate.subject}
+                value={settings.customerTemplateHu.subject}
                 onChange={(e) =>
-                  updateField("adminTemplate", {
-                    ...settings.adminTemplate,
+                  updateField("customerTemplateHu", {
+                    ...settings.customerTemplateHu,
                     subject: e.target.value,
                   })
                 }
-                placeholder="{{type}} – New inquiry"
+                placeholder="Köszönjük megkeresését!"
                 className="mt-1"
               />
             </div>
 
             <div>
-              <Label>MJML</Label>
-              <Textarea
-                value={settings.adminTemplate.mjml}
-                onChange={(e) =>
-                  updateField("adminTemplate", {
-                    ...settings.adminTemplate,
-                    mjml: e.target.value,
-                  })
-                }
-                className="mt-1 min-h-[260px] font-mono text-xs"
-                placeholder="<mjml>...</mjml>"
-              />
+              <Label>Tartalom</Label>
+              <div className="mt-2 flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setCustomerEditorTab("mjml")}
+                  className={
+                    customerEditorTab === "mjml"
+                      ? "text-xs px-2 py-1 rounded bg-[color:var(--primary)] text-[color:var(--primary-foreground)]"
+                      : "text-xs px-2 py-1 rounded hover:bg-[color:var(--muted)] text-[color:var(--muted-foreground)]"
+                  }
+                >
+                  MJML
+                </button>
+                <button
+                  type="button"
+                  onClick={openCustomerPreview}
+                  className={
+                    customerEditorTab === "preview"
+                      ? "text-xs px-2 py-1 rounded bg-[color:var(--primary)] text-[color:var(--primary-foreground)]"
+                      : "text-xs px-2 py-1 rounded hover:bg-[color:var(--muted)] text-[color:var(--muted-foreground)]"
+                  }
+                >
+                  Preview
+                </button>
+              </div>
+
+              {customerEditorTab === "mjml" ? (
+                <div className="mt-2">
+                  <Textarea
+                    value={settings.customerTemplateHu.mjml}
+                    onChange={(e) =>
+                      updateField("customerTemplateHu", {
+                        ...settings.customerTemplateHu,
+                        mjml: e.target.value,
+                      })
+                    }
+                    className="min-h-[260px] font-mono text-xs"
+                    placeholder="<mjml>...</mjml>"
+                  />
+                </div>
+              ) : (
+                <div className="mt-2 rounded-lg border border-[color:var(--border)] overflow-hidden bg-white">
+                  <iframe title="Customer MJML preview" className="w-full h-[320px]" srcDoc={previewHtml} />
+                </div>
+              )}
             </div>
 
             <div className="text-xs text-[color:var(--muted-foreground)] p-3 bg-[color:var(--muted)]/30 rounded-lg">
@@ -300,81 +510,75 @@ export default function EmailSettingsPage() {
         </div>
       </div>
 
-      {/* Hungarian template */}
       <div className="mt-6 p-5 bg-[color:var(--card)] rounded-xl border border-[color:var(--border)]">
-        <h3 className="font-semibold mb-4">🇭🇺 Magyar sablon</h3>
-        <div className="space-y-4">
+        <h3 className="font-semibold mb-4">Haladó beállítások</h3>
+        <div className="grid gap-4 md:grid-cols-2">
           <div>
-            <Label>Tárgy</Label>
+            <Label>Feladó név</Label>
             <Input
-              value={settings.customerTemplateHu.subject}
-              onChange={(e) =>
-                updateField("customerTemplateHu", {
-                  ...settings.customerTemplateHu,
-                  subject: e.target.value,
-                })
-              }
-              placeholder="Köszönjük megkeresését!"
+              value={settings.senderName}
+              onChange={(e) => updateField("senderName", e.target.value)}
+              placeholder="E-Marketplace"
               className="mt-1"
             />
           </div>
+
           <div>
-            <Label>Tartalom</Label>
-            <div className="mt-1">
-              <RichTextEditor
-                content={settings.customerTemplateHu.html}
-                onChange={(html) =>
-                  updateField("customerTemplateHu", {
-                    ...settings.customerTemplateHu,
-                    html,
-                  })
-                }
-                shortcodes={EMAIL_SHORTCODES}
-                placeholder="Kedves {{name}}! Köszönjük megkeresését..."
-                minHeight="200px"
-              />
-            </div>
+            <Label>Reply-to név</Label>
+            <Input
+              value={settings.replyToName}
+              onChange={(e) => updateField("replyToName", e.target.value)}
+              placeholder="E-Marketplace"
+              className="mt-1"
+            />
+          </div>
+
+          <div>
+            <Label>Reply-to email</Label>
+            <Input
+              value={settings.replyToEmail}
+              onChange={(e) => updateField("replyToEmail", e.target.value)}
+              placeholder="emarketplacekft@gmail.com"
+              className="mt-1"
+            />
           </div>
         </div>
       </div>
 
-      {/* English template */}
-      <div className="mt-6 p-5 bg-[color:var(--card)] rounded-xl border border-[color:var(--border)]">
-        <h3 className="font-semibold mb-4">🇬🇧 English template</h3>
-        <div className="space-y-4">
-          <div>
-            <Label>Subject</Label>
-            <Input
-              value={settings.customerTemplateEn.subject}
-              onChange={(e) =>
-                updateField("customerTemplateEn", {
-                  ...settings.customerTemplateEn,
-                  subject: e.target.value,
-                })
-              }
-              placeholder="Thank you for your message!"
-              className="mt-1"
-            />
+      <AdminModal
+        isOpen={isPreviewOpen}
+        onClose={() => setIsPreviewOpen(false)}
+        title="Előnézet (teszt adatokkal)"
+        description="A változók teszt értékekkel vannak kitöltve."
+        size="xl"
+        footer={<Button onClick={() => setIsPreviewOpen(false)}>Bezárás</Button>}
+      >
+        {previewSubject ? (
+          <div className="mb-3 text-sm">
+            <span className="text-[color:var(--muted-foreground)]">Tárgy: </span>
+            <span className="font-medium">{previewSubject}</span>
           </div>
-          <div>
-            <Label>Content</Label>
-            <div className="mt-1">
-              <RichTextEditor
-                content={settings.customerTemplateEn.html}
-                onChange={(html) =>
-                  updateField("customerTemplateEn", {
-                    ...settings.customerTemplateEn,
-                    html,
-                  })
-                }
-                shortcodes={EMAIL_SHORTCODES}
-                placeholder="Dear {{name}}! Thank you for reaching out..."
-                minHeight="200px"
-              />
+        ) : null}
+
+        {previewErrors.length ? (
+          <div className="mb-3 text-xs p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-red-700">
+            <div className="font-semibold mb-1">MJML hibák / figyelmeztetések</div>
+            <div className="space-y-1">
+              {previewErrors.map((err, idx) => (
+                <div key={idx}>{err}</div>
+              ))}
             </div>
           </div>
+        ) : null}
+
+        <div className="rounded-lg border border-[color:var(--border)] overflow-hidden bg-white">
+          <iframe
+            title="Email preview"
+            className="w-full h-[70vh]"
+            srcDoc={previewHtml}
+          />
         </div>
-      </div>
+      </AdminModal>
     </AdminLayout>
   );
 }

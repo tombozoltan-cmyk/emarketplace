@@ -13,8 +13,7 @@ import {
 } from "firebase/firestore";
 import { ChevronDown, ChevronUp } from "lucide-react";
 
-import { AdminGate } from "../../../../components/admin/AdminGate";
-import { AdminShell } from "../../../../components/admin/AdminShell";
+import { AdminLayout } from "@/components/admin";
 import { Button } from "../../../../components/ui/button";
 import { Card } from "../../../../components/ui/card";
 import { Input } from "../../../../components/ui/input";
@@ -507,8 +506,7 @@ export default function AdminPricingPage() {
   }, []);
 
   return (
-    <AdminGate>
-      <AdminShell basePath="/ops/portal-7d3k9a2f" title="Árak">
+    <AdminLayout title="Árazás" description="Árkártyák kezelése">
         <div className="flex flex-col gap-4 lg:flex-row">
           <Card className="w-full p-4 lg:w-[420px]">
             <div className="flex items-start justify-between gap-3">
@@ -568,11 +566,13 @@ export default function AdminPricingPage() {
                 const meta = groupOrderMeta[card.id];
 
                 return (
-                  <button
+                  <div
                     key={card.id}
-                    type="button"
+                    role="button"
+                    tabIndex={0}
                     onClick={() => setSelectedId(card.id)}
-                    className={`w-full rounded-xl border px-3 py-3 text-left transition-colors ${
+                    onKeyDown={(e) => e.key === "Enter" && setSelectedId(card.id)}
+                    className={`w-full cursor-pointer rounded-xl border px-3 py-3 text-left transition-colors ${
                       isSelected
                         ? "border-primary/40 bg-primary/10"
                         : "border-border bg-background hover:bg-muted"
@@ -621,7 +621,7 @@ export default function AdminPricingPage() {
                         </div>
                       </div>
                     </div>
-                  </button>
+                  </div>
                 );
               })}
             </div>
@@ -959,7 +959,6 @@ export default function AdminPricingPage() {
             </div>
           </Card>
         </div>
-      </AdminShell>
-    </AdminGate>
+    </AdminLayout>
   );
 }

@@ -25,6 +25,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
+import {
   AdminLayout,
   AdminCard,
   AdminCardHeader,
@@ -309,34 +315,42 @@ export default function ContractTemplatesPage() {
       {/* Shortcodes reference */}
       <div className="mt-8 p-4 bg-[color:var(--muted)]/30 rounded-xl">
         <h3 className="font-semibold mb-4">Shortcode referencia</h3>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        <Accordion type="multiple" className="bg-[color:var(--card)] rounded-xl border border-[color:var(--border)] divide-y divide-[color:var(--border)]">
           {CONTRACT_SHORTCODE_CATEGORIES.map((category) => (
-            <div key={category.name} className="bg-[color:var(--card)] rounded-lg p-3 border border-[color:var(--border)]">
-              <h4 className="text-sm font-medium mb-2 text-[color:var(--foreground)]">
-                {category.name}
-              </h4>
-              <div className="space-y-1">
-                {category.shortcodes.map((sc) => (
-                  <button
-                    key={sc.code}
-                    onClick={() => copyShortcode(sc.code)}
-                    className="w-full flex items-center justify-between gap-2 text-left text-xs p-1.5 rounded hover:bg-[color:var(--muted)] transition-colors group"
-                  >
-                    <span className="font-mono text-[color:var(--primary)]">{sc.code}</span>
-                    <span className="text-[color:var(--muted-foreground)] truncate flex-1 text-right">
-                      {sc.label}
-                    </span>
-                    {copiedCode === sc.code ? (
-                      <Check className="w-3 h-3 text-green-500" />
-                    ) : (
-                      <Copy className="w-3 h-3 opacity-0 group-hover:opacity-50" />
-                    )}
-                  </button>
-                ))}
-              </div>
-            </div>
+            <AccordionItem key={category.name} value={category.name} className="px-4">
+              <AccordionTrigger className="text-[color:var(--foreground)]">
+                <div className="flex items-center justify-between w-full">
+                  <span className="text-sm font-semibold">{category.name}</span>
+                  <span className="text-xs text-[color:var(--muted-foreground)]">
+                    {category.shortcodes.length}
+                  </span>
+                </div>
+              </AccordionTrigger>
+              <AccordionContent>
+                <div className="grid gap-1 sm:grid-cols-2">
+                  {category.shortcodes.map((sc) => (
+                    <button
+                      key={sc.code}
+                      onClick={() => copyShortcode(sc.code)}
+                      className="w-full flex items-center justify-between gap-2 text-left text-xs px-2 py-2 rounded hover:bg-[color:var(--muted)] transition-colors group"
+                      title={sc.description ? `${sc.label} – ${sc.description}` : sc.label}
+                    >
+                      <span className="font-mono text-[color:var(--primary)]">{sc.code}</span>
+                      <span className="text-[color:var(--muted-foreground)] truncate flex-1 text-right">
+                        {sc.label}
+                      </span>
+                      {copiedCode === sc.code ? (
+                        <Check className="w-3 h-3 text-green-500" />
+                      ) : (
+                        <Copy className="w-3 h-3 opacity-0 group-hover:opacity-50" />
+                      )}
+                    </button>
+                  ))}
+                </div>
+              </AccordionContent>
+            </AccordionItem>
           ))}
-        </div>
+        </Accordion>
       </div>
 
       {/* Editor Modal */}
