@@ -40,6 +40,7 @@ type EmailSettings = {
   customerTemplateHu: LanguageTemplate;
   contractAutoReplyEnabled: boolean;
   contractTemplateHu: LanguageTemplate;
+  contractAdminTemplate: AdminTemplate;
 };
 
 const DEFAULT_SETTINGS: EmailSettings = {
@@ -56,6 +57,44 @@ const DEFAULT_SETTINGS: EmailSettings = {
   customerTemplateHu: {
     subject: "Köszönjük megkeresését!",
     mjml: "<mjml>\n  <mj-body>\n    <mj-section>\n      <mj-column>\n        <mj-text font-size=\"16px\">Kedves {{name}}!</mj-text>\n        <mj-text font-size=\"16px\">Köszönjük megkeresését, hamarosan jelentkezünk.</mj-text>\n      </mj-column>\n    </mj-section>\n  </mj-body>\n</mjml>",
+  },
+  contractAdminTemplate: {
+    subject: "{{adminSubjectPrefix}} Új szerződés beadvány - {{companyName}}",
+    mjml: `<mjml>
+  <mj-body background-color="#f4f4f5">
+    <mj-section padding="40px 20px">
+      <mj-column background-color="#ffffff" border-radius="12px" padding="32px">
+        <mj-text font-size="22px" font-weight="700" color="#18181b" padding-bottom="8px">
+          Új szerződés beadvány
+        </mj-text>
+        <mj-divider border-color="#e4e4e7" border-width="1px" padding="0 0 16px 0" />
+        <mj-text font-size="15px" color="#3f3f46" line-height="1.6">
+          <strong>Cég:</strong> {{companyName}} ({{legalForm}})<br/>
+          <strong>Rövid név:</strong> {{shortName}}<br/>
+          <strong>Cég típusa:</strong> {{isNewCompany}}<br/>
+          <strong>Főtevékenység:</strong> {{mainActivity}}
+        </mj-text>
+        <mj-divider border-color="#e4e4e7" border-width="1px" padding="12px 0" />
+        <mj-text font-size="15px" color="#3f3f46" line-height="1.6">
+          <strong>Szolgáltatás:</strong> {{serviceType}}<br/>
+          <strong>Csomag:</strong> {{packageId}}<br/>
+          <strong>Havi díj:</strong> {{monthlyPrice}} Ft<br/>
+          <strong>Éves díj:</strong> {{annualPrice}} Ft
+        </mj-text>
+        <mj-divider border-color="#e4e4e7" border-width="1px" padding="12px 0" />
+        <mj-text font-size="15px" color="#3f3f46" line-height="1.6">
+          <strong>Kapcsolattartó:</strong> {{name}}<br/>
+          <strong>Email:</strong> {{email}}<br/>
+          <strong>Telefon:</strong> {{phone}}
+        </mj-text>
+        <mj-divider border-color="#e4e4e7" border-width="1px" padding="12px 0 0 0" />
+        <mj-text font-size="13px" color="#a1a1aa" align="center">
+          E-Marketplace Admin Értesítő
+        </mj-text>
+      </mj-column>
+    </mj-section>
+  </mj-body>
+</mjml>`,
   },
   contractAutoReplyEnabled: false,
   contractTemplateHu: {
@@ -115,6 +154,16 @@ const normalizeSettings = (raw: DocumentData | undefined): EmailSettings => {
       ? rawContract.mjml.trim()
       : DEFAULT_SETTINGS.contractTemplateHu.mjml;
 
+  // Contract admin template
+  const rawContractAdmin = (raw.contractAdminTemplate ?? {}) as {
+    subject?: unknown;
+    mjml?: unknown;
+  };
+  const contractAdminMjml =
+    typeof rawContractAdmin.mjml === "string" && rawContractAdmin.mjml.trim().startsWith("<mjml")
+      ? rawContractAdmin.mjml.trim()
+      : DEFAULT_SETTINGS.contractAdminTemplate.mjml;
+
   return {
     adminToEmail: raw.adminToEmail || DEFAULT_SETTINGS.adminToEmail,
     adminSubjectPrefix: raw.adminSubjectPrefix || DEFAULT_SETTINGS.adminSubjectPrefix,
@@ -136,6 +185,12 @@ const normalizeSettings = (raw: DocumentData | undefined): EmailSettings => {
         ? rawContract.subject
         : DEFAULT_SETTINGS.contractTemplateHu.subject,
       mjml: contractMjmlContent,
+    },
+    contractAdminTemplate: {
+      subject: typeof rawContractAdmin.subject === "string" && rawContractAdmin.subject.trim()
+        ? rawContractAdmin.subject
+        : DEFAULT_SETTINGS.contractAdminTemplate.subject,
+      mjml: contractAdminMjml,
     },
   };
 };
@@ -180,6 +235,7 @@ export default function EmailSettingsPage() {
   const [testStatus, setTestStatus] = useState<string | null>(null);
   const [customerEditorTab, setCustomerEditorTab] = useState<"mjml" | "preview">("mjml");
   const [contractEditorTab, setContractEditorTab] = useState<"mjml" | "preview">("mjml");
+  const [contractAdminEditorTab, setContractAdminEditorTab] = useState<"mjml" | "preview">("mjml");
   const [isCompilingPreview, setIsCompilingPreview] = useState(false);
 
   const previewVariables = useCallback((): Record<string, string> => {
@@ -325,6 +381,49 @@ export default function EmailSettingsPage() {
     }
   }, [compileMjmlPreview, settings.contractTemplateHu.mjml, settings.contractTemplateHu.subject]);
 
+  const openContractAdminPreview = useCallback(async () => {
+    setIsCompilingPreview(true);
+    setPreviewErrors([]);
+    setPreviewHtml("");
+    setPreviewSubject("");
+    try {
+      const contractAdminVars = {
+        companyName: "Teszt Kft.",
+        shortName: "Teszt",
+        legalForm: "kft",
+        isNewCompany: "Új cég alapítása",
+        serviceType: "Magyarországi székhelyszolgáltatás",
+        packageId: "basic",
+        monthlyPrice: "29000",
+        annualPrice: "348000",
+        name: "Teszt Elek",
+        email: "teszt@pelda.hu",
+        phone: "+36 30 123 4567",
+        mainActivity: "Számítástechnikai szolgáltatás",
+      };
+
+      const result = await compileMjmlPreview({
+        subject: settings.contractAdminTemplate.subject,
+        mjml: settings.contractAdminTemplate.mjml,
+        variables: contractAdminVars,
+      });
+
+      setPreviewHtml(result.html);
+      setPreviewSubject(result.subject);
+      setPreviewErrors(result.errors);
+      setIsPreviewOpen(true);
+      setContractAdminEditorTab("preview");
+    } catch (error) {
+      console.error("Contract admin preview compile error:", error);
+      setPreviewErrors([
+        error instanceof Error ? error.message : "Ismeretlen hiba a preview generálásakor.",
+      ]);
+      setIsPreviewOpen(true);
+    } finally {
+      setIsCompilingPreview(false);
+    }
+  }, [compileMjmlPreview, settings.contractAdminTemplate.mjml, settings.contractAdminTemplate.subject]);
+
   // Fetch settings
   useEffect(() => {
     const ref = doc(firestoreDb, "emailSettings", "global");
@@ -353,6 +452,9 @@ export default function EmailSettingsPage() {
     setIsSendingTest(true);
     setTestStatus(null);
     try {
+      const user = firebaseAuth.currentUser;
+      const testerEmail = user?.email || "";
+      
       await addDoc(collection(firestoreDb, "inquiries"), {
         createdAt: serverTimestamp(),
         language: "hu",
@@ -361,12 +463,14 @@ export default function EmailSettingsPage() {
         type: "Teszt admin értesítés",
         companyName: "Teszt Kft.",
         name: "Teszt Elek",
-        email: "",
+        email: testerEmail,
         phone: "+36 30 123 4567",
-        message: "Teszt üzenet az admin Email beállítások oldalról.",
+        message: `Teszt üzenet az admin Email beállítások oldalról. Tesztelő: ${testerEmail || "ismeretlen"}`,
         site: "admin",
+        isTest: true,
+        testerEmail: testerEmail,
       });
-      setTestStatus("Teszt elküldve: létrejött egy új 'inquiries' rekord. Az admin értesítés pár másodpercen belül meg kell érkezzen.");
+      setTestStatus(`Teszt elküldve. Az értesítés a beállított admin email címre (${testerEmail || "admin"}) érkezik pár másodpercen belül.`);
     } catch (error) {
       console.error("Test send error:", error);
       setTestStatus("Teszt küldés sikertelen (lásd konzol).");
@@ -746,6 +850,102 @@ export default function EmailSettingsPage() {
               ) : (
                 <div className="rounded-lg border border-[color:var(--border)] overflow-hidden bg-white">
                   <iframe title="Contract MJML preview" className="w-full h-[280px]" srcDoc={previewHtml} />
+                </div>
+              )}
+            </div>
+
+            <div className="text-xs text-[color:var(--muted-foreground)] p-3 bg-[color:var(--muted)]/30 rounded-lg">
+              <strong>Változók:</strong>{" "}
+              {CONTRACT_EMAIL_SHORTCODES.map((sc) => (
+                <code key={sc.code} className="mx-1 px-1 bg-[color:var(--muted)] rounded">
+                  {sc.code}
+                </code>
+              ))}
+            </div>
+          </div>
+        </CollapsibleSection>
+
+        {/* Contract admin notification - collapsible */}
+        <CollapsibleSection
+          title="Szerződéses admin értesítő"
+          description="Az adminnak küldött értesítő email sablonja új szerződés beadványkor"
+          icon={<Mail className="w-5 h-5" />}
+        >
+          <div className="space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-end gap-3">
+              <div className="flex-1">
+                <Label>Tárgy</Label>
+                <Input
+                  value={settings.contractAdminTemplate.subject}
+                  onChange={(e) =>
+                    updateField("contractAdminTemplate", {
+                      ...settings.contractAdminTemplate,
+                      subject: e.target.value,
+                    })
+                  }
+                  placeholder="{{adminSubjectPrefix}} Új szerződés beadvány - {{companyName}}"
+                  className="mt-1"
+                />
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={openContractAdminPreview}
+                disabled={isCompilingPreview}
+              >
+                {isCompilingPreview ? (
+                  <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                ) : (
+                  <Eye className="w-4 h-4 mr-1" />
+                )}
+                Előnézet
+              </Button>
+            </div>
+
+            <div>
+              <div className="flex items-center gap-2 mb-2">
+                <Label>Tartalom (MJML)</Label>
+                <div className="flex gap-1">
+                  <button
+                    type="button"
+                    onClick={() => setContractAdminEditorTab("mjml")}
+                    className={
+                      contractAdminEditorTab === "mjml"
+                        ? "text-xs px-2 py-1 rounded bg-[color:var(--primary)] text-[color:var(--primary-foreground)]"
+                        : "text-xs px-2 py-1 rounded hover:bg-[color:var(--muted)] text-[color:var(--muted-foreground)]"
+                    }
+                  >
+                    MJML
+                  </button>
+                  <button
+                    type="button"
+                    onClick={openContractAdminPreview}
+                    className={
+                      contractAdminEditorTab === "preview"
+                        ? "text-xs px-2 py-1 rounded bg-[color:var(--primary)] text-[color:var(--primary-foreground)]"
+                        : "text-xs px-2 py-1 rounded hover:bg-[color:var(--muted)] text-[color:var(--muted-foreground)]"
+                    }
+                  >
+                    Preview
+                  </button>
+                </div>
+              </div>
+
+              {contractAdminEditorTab === "mjml" ? (
+                <Textarea
+                  value={settings.contractAdminTemplate.mjml}
+                  onChange={(e) =>
+                    updateField("contractAdminTemplate", {
+                      ...settings.contractAdminTemplate,
+                      mjml: e.target.value,
+                    })
+                  }
+                  className="min-h-[220px] font-mono text-xs"
+                  placeholder="<mjml>...</mjml>"
+                />
+              ) : (
+                <div className="rounded-lg border border-[color:var(--border)] overflow-hidden bg-white">
+                  <iframe title="Contract admin MJML preview" className="w-full h-[280px]" srcDoc={previewHtml} />
                 </div>
               )}
             </div>

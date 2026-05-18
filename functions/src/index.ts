@@ -86,6 +86,7 @@ type EmailSettingsDoc = {
   customerTemplateHu?: EmailTemplate;
   contractAutoReplyEnabled?: boolean;
   contractTemplateHu?: EmailTemplate;
+  contractAdminTemplate?: AdminEmailTemplate;
 };
 
 type EffectiveEmailSettings = {
@@ -99,6 +100,7 @@ type EffectiveEmailSettings = {
   customerTemplateHu: EmailTemplate;
   contractAutoReplyEnabled: boolean;
   contractTemplateHu: EmailTemplate;
+  contractAdminTemplate: AdminEmailTemplate | null;
 };
 
 const parseAdminEmails = (raw: string): string[] => {
@@ -411,6 +413,7 @@ const getEffectiveEmailSettings = async (
   </mj-body>
 </mjml>`,
     },
+    contractAdminTemplate: null,
     contractAutoReplyEnabled: false,
     contractTemplateHu: {
       subject: "Szerződés beadvány visszaigazolás",
@@ -462,6 +465,7 @@ const getEffectiveEmailSettings = async (
       customerTemplateHu: normalizeMjmlTemplate(raw.customerTemplateHu, fallback.customerTemplateHu),
       contractAutoReplyEnabled: safeBool(raw.contractAutoReplyEnabled),
       contractTemplateHu: normalizeMjmlTemplate(raw.contractTemplateHu, fallback.contractTemplateHu),
+      contractAdminTemplate: normalizeAdminTemplate(raw.contractAdminTemplate),
     };
   } catch {
     return fallback;
@@ -511,6 +515,58 @@ const compileAdminMjmlTemplate = (
     return { subject, html: result.html };
   } catch (err) {
     console.error("MJML admin compile error, using fallback:", err);
+    return null;
+  }
+};
+
+const compileContractAdminTemplate = (
+  template: AdminEmailTemplate,
+  data: ContractData,
+): { subject: string; html: string } | null => {
+  const rawMjml = safeString(template.mjml);
+  if (!rawMjml) return null;
+
+  const serviceTypeMap: Record<string, string> = {
+    "szekhely-hu": "Magyarországi székhelyszolgáltatás",
+    "szekhely-de": "Németországi székhelyszolgáltatás",
+    "virtual-de": "Virtuális iroda Németországban",
+  };
+
+  const variables: Record<string, string> = {
+    companyName: escapeHtml(data.company?.name),
+    shortName: escapeHtml(data.company?.shortName),
+    legalForm: escapeHtml(data.company?.legalForm),
+    isNewCompany: escapeHtml(data.company?.isNew ? "Új cég alapítása" : "Meglévő cég székhelyének áthelyezése"),
+    serviceType: escapeHtml(serviceTypeMap[data.serviceType ?? ""] || data.serviceType),
+    packageId: escapeHtml(data.packageId),
+    monthlyPrice: data.monthlyPrice?.toLocaleString("hu-HU") ?? "",
+    annualPrice: data.annualPrice?.toLocaleString("hu-HU") ?? "",
+    name: escapeHtml(data.contact?.fullName),
+    email: escapeHtml(data.contact?.email),
+    phone: escapeHtml(data.contact?.phone),
+    mainActivity: escapeHtml(data.company?.mainActivity),
+  };
+
+  const applyVars = (str: string) =>
+    str.replace(/{{\s*(\w+)\s*}}/g, (_match, key: string) => variables[key] ?? "");
+
+  const subject = applyVars(template.subject);
+  const mjmlWithVars = applyVars(rawMjml);
+
+  try {
+    const result = mjml2html(mjmlWithVars, {
+      validationLevel: "skip",
+      keepComments: false,
+    });
+
+    if (!result.html) {
+      console.warn("MJML contractAdmin compile returned empty HTML, using fallback");
+      return null;
+    }
+
+    return { subject, html: result.html };
+  } catch (err) {
+    console.error("MJML contractAdmin compile error, using fallback:", err);
     return null;
   }
 };
@@ -957,7 +1013,16 @@ export const sendContractEmail = onDocumentCreated(
       const companyName = safeString(data.company?.name);
       const defaultSubject = `${settings.adminSubjectPrefix} Új szerződés beadvány - ${companyName}`.trim();
 
-      const htmlContent = buildContractHtml(data);
+      let adminSubject = defaultSubject;
+      let htmlContent = buildContractHtml(data);
+
+      if (settings.contractAdminTemplate) {
+        const compiled = compileContractAdminTemplate(settings.contractAdminTemplate, data);
+        if (compiled) {
+          adminSubject = compiled.subject || defaultSubject;
+          htmlContent = compiled.html;
+        }
+      }
 
       const payload = {
         sender: {
@@ -969,7 +1034,7 @@ export const sendContractEmail = onDocumentCreated(
           email: settings.replyToEmail,
           name: settings.replyToName,
         },
-        subject: defaultSubject,
+        subject: adminSubject,
         htmlContent,
         tags,
       };

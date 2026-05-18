@@ -5,7 +5,6 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { QuoteButton } from "@/components/QuoteButton";
-import { CompanySearchWidget } from "@/components/CompanySearchWidget";
 
 export function Hero() {
   const pathname = usePathname();
@@ -86,15 +85,20 @@ export function Hero() {
           </div>
         </div>
 
-        {/* Jobb oszlop – Cégkereső widget */}
-        <div className="relative flex-1">
-          <div className="absolute -right-10 -top-10 h-32 w-32 rounded-full border border-primary/25" />
-          <div className="absolute -left-6 bottom-10 h-16 w-16 rounded-full bg-primary/15" />
-
-          <div className="relative overflow-hidden rounded-3xl bg-secondary/60 p-1 shadow-2xl shadow-black/40">
-            <div className="h-full rounded-3xl bg-white/5 backdrop-blur-sm p-6 md:p-8 ring-1 ring-white/10">
-              <CompanySearchWidget />
-            </div>
+        {/* Jobb oszlop – Kép (mobilon rejtve) */}
+        <div className="hidden lg:flex relative flex-1 items-start justify-center mt-24 lg:mt-24 -ml-[200px]">
+          <div className="relative w-full max-w-full">
+            {/* Sejtelmes karika a férfi mögött */}
+            <div className="absolute top-[15%] left-[20%] w-40 h-40 rounded-full bg-primary/25 blur-3xl pointer-events-none" />
+            <div className="absolute top-[35%] left-[40%] w-28 h-28 rounded-full bg-primary/20 blur-2xl pointer-events-none" />
+            <Image
+              src="https://firebasestorage.googleapis.com/v0/b/emarketplace-8aab1.firebasestorage.app/o/image%2Femarketplace_geader-people.png?alt=media&token=ab27955b-1120-4bcf-9f1f-8f690ab86591"
+              alt="E-Marketplace csapat"
+              width={2000}
+              height={1600}
+              className="w-full h-auto object-contain rounded-2xl scale-[1.6] relative z-10"
+              priority
+            />
           </div>
         </div>
       </div>

@@ -1,6 +1,7 @@
 import { PDFDocument, PDFFont, PDFPage, rgb, StandardFonts } from "pdf-lib";
+import fontkit from "@pdf-lib/fontkit";
 
-// Hungarian character normalization for WinAnsi encoding
+// Hungarian character normalization for WinAnsi encoding (used only for StandardFonts fallback)
 function normalizeHungarian(text: string): string {
   if (!text) return "";
   const charMap: Record<string, string> = {
@@ -88,15 +89,25 @@ export async function fillOfficialPostalAuthPDF(
   const templateBytes = await fetch(templateUrl).then(res => res.arrayBuffer());
   const pdfDoc = await PDFDocument.load(templateBytes);
   
+  // Register fontkit for custom font embedding
+  pdfDoc.registerFontkit(fontkit);
+  
+  // Embed custom unicode font that supports Hungarian characters (Ő, Ű, etc.)
+  const fontUrl = "/fonts/Roboto-Regular.ttf";
+  const fontBytes = await fetch(fontUrl).then(res => res.arrayBuffer());
+  const customFont = await pdfDoc.embedFont(fontBytes, { subset: true });
+  
   // PDF form mezők használata koordináták helyett
   const form = pdfDoc.getForm();
   
-  // Segédfüggvény szövegmező kitöltéshez
+  // Segédfüggvény szövegmező kitöltéshez - egyedi fonttal és egységes mérettel
   const fillField = (fieldName: string, value: string | undefined) => {
     if (!value) return;
     try {
       const field = form.getTextField(fieldName);
-      field.setText(normalizeHungarian(value));
+      field.setFontSize(9);
+      field.setText(value);
+      field.updateAppearances(customFont);
     } catch (e) {
       console.warn(`Field not found: ${fieldName}`);
     }
