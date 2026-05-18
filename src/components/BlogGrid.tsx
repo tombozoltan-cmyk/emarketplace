@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { collection, onSnapshot } from "firebase/firestore";
 import { firestoreDb } from "@/lib/firebase";
 import { Card, CardContent } from "@/components/ui/card";
@@ -99,11 +100,12 @@ export function BlogGrid({ language = "hu" }: BlogGridProps) {
           className="group flex h-full flex-col overflow-hidden border-2 border-[color:var(--border)] bg-[color:var(--card)] shadow-sm transition-all duration-300 hover:border-[color:var(--primary)] hover:shadow-2xl"
         >
           <div className="relative h-48 overflow-hidden bg-[color:var(--secondary)]/10 md:h-56 lg:h-64">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
+            <Image
               src={post.imageUrl || "/placeholder.svg"}
               alt={post.title}
-              className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110"
+              fill
+              sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
+              className="object-cover transition-transform duration-500 group-hover:scale-110"
             />
             {post.category && (
               <div className="absolute left-3 top-3 rounded-sm bg-[color:var(--secondary)] px-3 py-1.5 text-xs font-bold uppercase tracking-wide text-[color:var(--background)] md:left-4 md:top-4 md:px-4 md:py-2">
@@ -113,7 +115,7 @@ export function BlogGrid({ language = "hu" }: BlogGridProps) {
           </div>
           <CardContent className="flex flex-1 flex-col p-4 md:p-6">
             <Link href={`${blogPath}/${post.slug}`} className="mb-2 md:mb-3">
-              <h3 className="text-lg font-bold text-foreground text-balance transition-colors group-hover:text-[color:var(--primary)] md:text-xl">
+              <h3 className="text-lg font-bold text-foreground text-balance transition-colors group-hover:text-[color:var(--link)] md:text-xl">
                 {post.title}
               </h3>
             </Link>
@@ -130,6 +132,7 @@ export function BlogGrid({ language = "hu" }: BlogGridProps) {
               <Link
                 href={`${blogPath}/${post.slug}`}
                 className="inline-flex w-full items-center justify-center rounded-full bg-[color:var(--secondary)] px-4 py-2 text-base font-medium text-[color:var(--secondary-foreground)] transition-colors hover:bg-[color:var(--primary)] hover:text-[color:var(--primary-foreground)]"
+                aria-label={language === "hu" ? `Tovább olvasás: ${post.title}` : `Read more: ${post.title}`}
               >
                 {language === "hu" ? "Tovább olvasom" : "Read more"}
               </Link>

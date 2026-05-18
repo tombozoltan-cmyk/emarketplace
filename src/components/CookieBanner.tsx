@@ -290,6 +290,8 @@ export function CookieBanner() {
                         </div>
                         <label className="relative inline-flex h-6 w-11 cursor-pointer items-center">
                           <input
+                            id="cookiePrefFunctional"
+                            name="cookiePrefFunctional"
                             type="checkbox"
                             checked={prefs.functional}
                             onChange={(e) =>
@@ -327,6 +329,8 @@ export function CookieBanner() {
                         </div>
                         <label className="relative inline-flex h-6 w-11 cursor-pointer items-center">
                           <input
+                            id="cookiePrefAnalytics"
+                            name="cookiePrefAnalytics"
                             type="checkbox"
                             checked={prefs.analytics}
                             onChange={(e) =>
@@ -364,6 +368,8 @@ export function CookieBanner() {
                         </div>
                         <label className="relative inline-flex h-6 w-11 cursor-pointer items-center">
                           <input
+                            id="cookiePrefMarketing"
+                            name="cookiePrefMarketing"
                             type="checkbox"
                             checked={prefs.marketing}
                             onChange={(e) =>

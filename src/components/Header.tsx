@@ -65,10 +65,11 @@ export function Header() {
           <Link href={homeHref} className="flex items-center gap-3">
             <div className="relative h-12 w-auto md:h-14 lg:h-16">
               <Image
-                src="https://firebasestorage.googleapis.com/v0/b/emarketplace-8aab1.firebasestorage.app/o/image%2FPlexi-tabla-86x53-E-marketplace_logo-2.png?alt=media&token=b1684b4b-932d-4f6d-ba90-d860aa24a98e"
+                src="/logo.png"
                 alt="E-Marketplace Kft. logó"
-                width={86}
-                height={53}
+                width={84}
+                height={84}
+                priority
                 className="h-full w-auto object-contain object-left drop-shadow-sm"
               />
             </div>

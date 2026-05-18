@@ -36,6 +36,9 @@ export default function RootLayout({
     <html lang="hu" suppressHydrationWarning>
       <head>
         <ThemeInitScript />
+        <link rel="preconnect" href="https://firebasestorage.googleapis.com" crossOrigin="" />
+        <link rel="preconnect" href="https://firestore.googleapis.com" crossOrigin="" />
+        <link rel="preconnect" href="https://www.googletagmanager.com" crossOrigin="" />
       </head>
       <body
         className="antialiased bg-background text-foreground transition-colors duration-300"

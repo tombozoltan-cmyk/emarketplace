@@ -13,25 +13,25 @@ const OPTIONS: { value: Lang; label: string; flag: string; flagSrc: string }[] =
     value: "hu",
     label: "Magyar",
     flag: "🇭🇺",
-    flagSrc: "https://flagcdn.com/w20/hu.png",
+    flagSrc: "https://flagcdn.com/w40/hu.png",
   },
   {
     value: "en",
     label: "English",
     flag: "🇬🇧",
-    flagSrc: "https://flagcdn.com/w20/gb.png",
+    flagSrc: "https://flagcdn.com/w40/gb.png",
   },
   {
     value: "de",
     label: "Deutsch",
     flag: "🇩🇪",
-    flagSrc: "https://flagcdn.com/w20/de.png",
+    flagSrc: "https://flagcdn.com/w40/de.png",
   },
   {
     value: "es",
     label: "Español",
     flag: "🇪🇸",
-    flagSrc: "https://flagcdn.com/w20/es.png",
+    flagSrc: "https://flagcdn.com/w40/es.png",
   },
 ];
 
@@ -81,9 +81,9 @@ export function LanguageSelector() {
         <img
           src={current.flagSrc}
           alt={current.label}
-          width={16}
-          height={12}
-          className="h-3.5 w-5 rounded-[2px] ring-1 ring-black/10"
+          width={20}
+          height={15}
+          className="h-[15px] w-5 rounded-[2px] ring-1 ring-black/10 object-cover"
           loading="lazy"
         />
       </button>
@@ -142,9 +142,9 @@ export function LanguageSelector() {
               <img
                 src={option.flagSrc}
                 alt={option.label}
-                width={16}
-                height={12}
-                className="h-3.5 w-5 rounded-[2px] ring-1 ring-black/10"
+                width={20}
+                height={15}
+                className="h-[15px] w-5 rounded-[2px] ring-1 ring-black/10 object-cover"
                 loading="lazy"
               />
               <span>{option.label}</span>

@@ -5,6 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { QuoteButton } from "@/components/QuoteButton";
+import { CompanySearchWidget } from "@/components/CompanySearchWidget";
 
 export function Hero() {
   const pathname = usePathname();
@@ -52,7 +53,7 @@ export function Hero() {
 
           <div className="flex flex-wrap items-center gap-4 pt-2">
             <QuoteButton
-              className="rounded-full bg-primary px-7 py-3 text-sm font-semibold text-secondary shadow-lg shadow-primary/30 hover:scale-[1.02] hover:bg-primary hover:shadow-xl transition"
+              className="rounded-full bg-primary px-7 py-3 text-sm font-semibold text-[color:var(--primary-foreground)] shadow-lg shadow-primary/30 hover:scale-[1.02] hover:bg-primary hover:shadow-xl transition"
             >
               {primaryCta}
             </QuoteButton>
@@ -85,40 +86,14 @@ export function Hero() {
           </div>
         </div>
 
-        {/* Jobb oszlop – vizuál + floating card */}
+        {/* Jobb oszlop – Cégkereső widget */}
         <div className="relative flex-1">
           <div className="absolute -right-10 -top-10 h-32 w-32 rounded-full border border-primary/25" />
           <div className="absolute -left-6 bottom-10 h-16 w-16 rounded-full bg-primary/15" />
 
           <div className="relative overflow-hidden rounded-3xl bg-secondary/60 p-1 shadow-2xl shadow-black/40">
-            <div className="h-full rounded-3xl bg-card p-6 text-card-foreground md:p-8">
-              <div className="mb-4 h-5 w-28 rounded-full bg-slate-200" />
-              <div className="relative mb-5 h-64 overflow-hidden rounded-2xl">
-                <Image
-                  src="https://firebasestorage.googleapis.com/v0/b/emarketplace-8aab1.firebasestorage.app/o/image%2Fpeople.jpg?alt=media"
-                  alt={isEnglish ? "E-Marketplace hero image" : "E-Marketplace hero kép"}
-                  fill
-                  className="object-cover"
-                  sizes="(max-width: 1024px) 100vw, 520px"
-                  priority
-                />
-              </div>
-
-              <div className="mt-4 flex items-center justify-between text-xs text-muted-foreground">
-                <div>
-                  <div className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-                    Budapest
-                  </div>
-                  <div className="text-sm font-semibold text-foreground">
-                    Prémium székhely lokáció
-                  </div>
-                </div>
-                <div className="flex items-center gap-2 rounded-full bg-background px-3 py-1 text-[11px] font-medium text-foreground shadow-sm">
-                  <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-primary/20 text-[11px]">✓
-                  </span>
-                  Ellenőrzött cím
-                </div>
-              </div>
+            <div className="h-full rounded-3xl bg-white/5 backdrop-blur-sm p-6 md:p-8 ring-1 ring-white/10">
+              <CompanySearchWidget />
             </div>
           </div>
         </div>

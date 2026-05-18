@@ -11,7 +11,7 @@ import {
   serverTimestamp,
   setDoc,
 } from "firebase/firestore";
-import { ChevronDown, ChevronUp } from "lucide-react";
+import { ChevronDown, ChevronUp, X, Edit3 } from "lucide-react";
 
 import { AdminLayout } from "@/components/admin";
 import { Button } from "../../../../components/ui/button";
@@ -162,6 +162,7 @@ export default function AdminPricingPage() {
   const [isSaving, setIsSaving] = React.useState(false);
   const [isImporting, setIsImporting] = React.useState(false);
   const [isReordering, setIsReordering] = React.useState(false);
+  const [isEditorOpen, setIsEditorOpen] = React.useState(false);
 
   React.useEffect(() => {
     const q = query(collection(firestoreDb, "pricingCards"), orderBy("order", "asc"));
@@ -282,7 +283,17 @@ export default function AdminPricingPage() {
     });
     setFeaturesHuText("");
     setFeaturesEnText("");
+    setIsEditorOpen(true);
   }, [groupFilter, items]);
+
+  const openEditor = React.useCallback((cardId: string) => {
+    setSelectedId(cardId);
+    setIsEditorOpen(true);
+  }, []);
+
+  const closeEditor = React.useCallback(() => {
+    setIsEditorOpen(false);
+  }, []);
 
   const groupOrderMeta = React.useMemo(() => {
     const meta: Record<string, { index: number; total: number }> = {};
@@ -507,173 +518,182 @@ export default function AdminPricingPage() {
 
   return (
     <AdminLayout title="Árazás" description="Árkártyák kezelése">
-        <div className="flex flex-col gap-4 lg:flex-row">
-          <Card className="w-full p-4 lg:w-[420px]">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <div className="text-sm font-semibold">Árkártyák</div>
-                <div className="mt-1 text-xs text-muted-foreground">
-                  {isLoading ? "Betöltés..." : `${filteredItems.length} db`}
-                </div>
-              </div>
+      {/* Header with filters */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 p-4 bg-[color:var(--card)] rounded-xl border border-[color:var(--border)]">
+        <div className="flex items-center gap-3">
+          <NativeSelect
+            value={groupFilter}
+            onChange={(e) => setGroupFilter(e.target.value as "all" | PricingGroup)}
+            className="h-9 w-[180px]"
+          >
+            <option value="all">Összes szekció</option>
+            <option value="basic">{pricingGroupLabel.basic.hu}</option>
+            <option value="bundles">{pricingGroupLabel.bundles.hu}</option>
+            <option value="officeBundles">{pricingGroupLabel.officeBundles.hu}</option>
+            <option value="fullEntrepreneur">{pricingGroupLabel.fullEntrepreneur.hu}</option>
+          </NativeSelect>
+          <span className="text-sm text-muted-foreground">
+            {isLoading ? "Betöltés..." : `${filteredItems.length} kártya`}
+          </span>
+        </div>
+        <div className="flex gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={handleImportDefaults}
+            disabled={isImporting}
+          >
+            {isImporting ? "Import..." : "Import alapok"}
+          </Button>
+          <Button type="button" size="sm" onClick={handleNew}>
+            Új kártya
+          </Button>
+        </div>
+      </div>
 
-              <div className="flex flex-col items-end gap-2">
-                <NativeSelect
-                  value={groupFilter}
-                  onChange={(e) => setGroupFilter(e.target.value as "all" | PricingGroup)}
-                  className="h-9 w-[190px]"
-                >
-                  <option value="all">Összes szekció</option>
-                  <option value="basic">{pricingGroupLabel.basic.hu}</option>
-                  <option value="bundles">{pricingGroupLabel.bundles.hu}</option>
-                  <option value="officeBundles">{pricingGroupLabel.officeBundles.hu}</option>
-                  <option value="fullEntrepreneur">{pricingGroupLabel.fullEntrepreneur.hu}</option>
-                </NativeSelect>
-                <Button type="button" size="sm" onClick={handleNew}>
-                  Új kártya
-                </Button>
-              </div>
-            </div>
+      {error && (
+        <div className="mb-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800 dark:border-red-900/40 dark:bg-red-950/40 dark:text-red-200">
+          {error}
+        </div>
+      )}
 
-            <div className="mt-3 space-y-2">
-              <Button
-                type="button"
-                variant="outline"
-                className="w-full"
-                onClick={handleImportDefaults}
-                disabled={isImporting}
-              >
-                {isImporting ? "Import..." : "Alap árkártyák importálása (HU+EN)"}
-              </Button>
-            </div>
+      {/* Cards grid */}
+      <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        {filteredItems.length === 0 && !isLoading ? (
+          <div className="col-span-full rounded-xl border border-border bg-background p-8 text-center text-sm text-muted-foreground">
+            Nincs még kártya ebben a szekcióban.
+          </div>
+        ) : null}
 
-            {error ? (
-              <div className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800 dark:border-red-900/40 dark:bg-red-950/40 dark:text-red-200">
-                {error}
-              </div>
-            ) : null}
+        {filteredItems.map((card) => {
+          const isSelected = card.id === selectedId && isEditorOpen;
+          const title = card.title.hu || card.title.en || "(Név nélkül)";
+          const meta = groupOrderMeta[card.id];
 
-            <div className="mt-4 flex max-h-[65vh] flex-col gap-2 overflow-auto">
-              {filteredItems.length === 0 && !isLoading ? (
-                <div className="rounded-xl border border-border bg-background p-4 text-sm text-muted-foreground">
-                  Nincs még kártya ebben a szekcióban.
-                </div>
-              ) : null}
-
-              {filteredItems.map((card) => {
-                const isSelected = card.id === selectedId;
-                const title = card.title.hu || card.title.en || "(Név nélkül)";
-                const meta = groupOrderMeta[card.id];
-
-                return (
-                  <div
-                    key={card.id}
-                    role="button"
-                    tabIndex={0}
-                    onClick={() => setSelectedId(card.id)}
-                    onKeyDown={(e) => e.key === "Enter" && setSelectedId(card.id)}
-                    className={`w-full cursor-pointer rounded-xl border px-3 py-3 text-left transition-colors ${
-                      isSelected
-                        ? "border-primary/40 bg-primary/10"
-                        : "border-border bg-background hover:bg-muted"
-                    }`}
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <div className="truncate text-sm font-semibold text-foreground">
-                          {title}
-                        </div>
-                        <div className="mt-0.5 truncate text-xs text-muted-foreground">
-                          {pricingGroupLabel[card.group].hu} • {card.price.hu || card.price.en}
-                        </div>
-                      </div>
-                      <div className="flex flex-shrink-0 items-center gap-2">
-                        {meta ? (
-                          <div className="flex flex-col gap-1">
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                void handleMove(card.id, -1);
-                              }}
-                              disabled={isReordering || meta.index === 0}
-                              className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-border bg-background text-muted-foreground transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
-                              aria-label="Move up"
-                            >
-                              <ChevronUp className="h-4 w-4" />
-                            </button>
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                void handleMove(card.id, 1);
-                              }}
-                              disabled={isReordering || meta.index >= meta.total - 1}
-                              className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-border bg-background text-muted-foreground transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
-                              aria-label="Move down"
-                            >
-                              <ChevronDown className="h-4 w-4" />
-                            </button>
-                          </div>
-                        ) : null}
-                        <div className="rounded-full bg-muted px-2 py-1 text-[11px] font-medium text-muted-foreground">
-                          {card.style}
-                        </div>
-                      </div>
-                    </div>
+          return (
+            <div
+              key={card.id}
+              className={`rounded-xl border p-4 transition-all ${
+                isSelected
+                  ? "border-primary/40 bg-primary/5 ring-2 ring-primary/20"
+                  : "border-border bg-[color:var(--card)] hover:border-primary/30"
+              }`}
+            >
+              <div className="flex items-start justify-between gap-2 mb-3">
+                <div className="min-w-0 flex-1">
+                  <div className="truncate font-semibold text-foreground">{title}</div>
+                  <div className="mt-1 text-xs text-muted-foreground">
+                    {pricingGroupLabel[card.group].hu}
                   </div>
-                );
-              })}
-            </div>
-          </Card>
+                </div>
+                <div className="rounded-full bg-muted px-2 py-1 text-[10px] font-medium text-muted-foreground">
+                  {card.style}
+                </div>
+              </div>
 
-          <Card className="min-w-0 flex-1 p-5">
-            <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+              <div className="text-lg font-bold text-primary mb-3">
+                {card.price.hu || card.price.en}
+              </div>
+
+              <div className="flex items-center justify-between gap-2">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => openEditor(card.id)}
+                  className="flex-1"
+                >
+                  <Edit3 className="w-3.5 h-3.5 mr-1" />
+                  Szerkesztés
+                </Button>
+                {meta && (
+                  <div className="flex gap-1">
+                    <button
+                      type="button"
+                      onClick={() => void handleMove(card.id, -1)}
+                      disabled={isReordering || meta.index === 0}
+                      className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-border bg-background text-muted-foreground transition-colors hover:bg-muted disabled:opacity-40"
+                      aria-label="Move up"
+                    >
+                      <ChevronUp className="h-4 w-4" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => void handleMove(card.id, 1)}
+                      disabled={isReordering || meta.index >= meta.total - 1}
+                      className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-border bg-background text-muted-foreground transition-colors hover:bg-muted disabled:opacity-40"
+                      aria-label="Move down"
+                    >
+                      <ChevronDown className="h-4 w-4" />
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Editor panel - slide in from right */}
+      {isEditorOpen && (
+        <div className="fixed inset-0 z-50 flex justify-end bg-black/30" onClick={closeEditor}>
+          <div
+            className="w-full max-w-2xl bg-[color:var(--background)] shadow-2xl overflow-y-auto animate-in slide-in-from-right duration-300"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="sticky top-0 z-10 flex items-center justify-between gap-4 p-4 border-b border-[color:var(--border)] bg-[color:var(--background)]">
               <div>
                 <div className="text-lg font-semibold">
                   {selectedId ? "Árkártya szerkesztése" : "Új árkártya"}
                 </div>
-                <div className="mt-1 text-sm text-muted-foreground">
-                  Firestore kollekció: <span className="font-mono">pricingCards</span>
-                </div>
+                <div className="text-xs text-muted-foreground">pricingCards</div>
               </div>
-
-              <div className="flex flex-wrap items-center gap-2">
-                {selectedId ? (
+              <div className="flex items-center gap-2">
+                {selectedId && (
                   <Button
                     type="button"
                     variant="outline"
+                    size="sm"
                     onClick={handleDelete}
                     disabled={isSaving}
                   >
                     Törlés
                   </Button>
-                ) : null}
-                <Button type="button" onClick={handleSave} disabled={isSaving}>
+                )}
+                <Button type="button" size="sm" onClick={handleSave} disabled={isSaving}>
                   {isSaving ? "Mentés..." : "Mentés"}
                 </Button>
+                <button
+                  type="button"
+                  onClick={closeEditor}
+                  className="p-2 rounded-md hover:bg-muted text-muted-foreground"
+                >
+                  <X className="w-5 h-5" />
+                </button>
               </div>
             </div>
 
-            <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="group">Szekció</Label>
-                <NativeSelect
-                  id="group"
-                  value={draft.group}
-                  onChange={(e) =>
-                    setDraft((prev) => ({
-                      ...prev,
-                      group: e.target.value as PricingGroup,
-                    }))
-                  }
-                >
-                  <option value="basic">{pricingGroupLabel.basic.hu}</option>
-                  <option value="bundles">{pricingGroupLabel.bundles.hu}</option>
-                  <option value="officeBundles">{pricingGroupLabel.officeBundles.hu}</option>
-                  <option value="fullEntrepreneur">{pricingGroupLabel.fullEntrepreneur.hu}</option>
-                </NativeSelect>
-              </div>
+            <div className="p-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="group">Szekció</Label>
+                  <NativeSelect
+                    id="group"
+                    value={draft.group}
+                    onChange={(e) =>
+                      setDraft((prev) => ({
+                        ...prev,
+                        group: e.target.value as PricingGroup,
+                      }))
+                    }
+                  >
+                    <option value="basic">{pricingGroupLabel.basic.hu}</option>
+                    <option value="bundles">{pricingGroupLabel.bundles.hu}</option>
+                    <option value="officeBundles">{pricingGroupLabel.officeBundles.hu}</option>
+                    <option value="fullEntrepreneur">{pricingGroupLabel.fullEntrepreneur.hu}</option>
+                  </NativeSelect>
+                </div>
 
               <div className="space-y-2">
                 <Label htmlFor="style">Stílus</Label>
@@ -909,7 +929,7 @@ export default function AdminPricingPage() {
                 />
               </div>
 
-              <div className="space-y-2 lg:col-span-2">
+              <div className="col-span-2 space-y-2">
                 <Label htmlFor="annualHu">Éves / megjegyzés doboz (HU)</Label>
                 <Input
                   id="annualHu"
@@ -923,7 +943,7 @@ export default function AdminPricingPage() {
                 />
               </div>
 
-              <div className="space-y-2 lg:col-span-2">
+              <div className="col-span-2 space-y-2">
                 <Label htmlFor="annualEn">Annual note (EN)</Label>
                 <Input
                   id="annualEn"
@@ -937,28 +957,30 @@ export default function AdminPricingPage() {
                 />
               </div>
 
-              <div className="space-y-2 lg:col-span-2">
+              <div className="col-span-2 space-y-2">
                 <Label htmlFor="featuresHu">Pontok (HU) (soronként 1)</Label>
                 <Textarea
                   id="featuresHu"
-                  rows={7}
+                  rows={5}
                   value={featuresHuText}
                   onChange={(e) => setFeaturesHuText(e.target.value)}
                 />
               </div>
 
-              <div className="space-y-2 lg:col-span-2">
+              <div className="col-span-2 space-y-2">
                 <Label htmlFor="featuresEn">Features (EN) (one per line)</Label>
                 <Textarea
                   id="featuresEn"
-                  rows={7}
+                  rows={5}
                   value={featuresEnText}
                   onChange={(e) => setFeaturesEnText(e.target.value)}
                 />
               </div>
             </div>
-          </Card>
+          </div>
         </div>
+      </div>
+      )}
     </AdminLayout>
   );
 }

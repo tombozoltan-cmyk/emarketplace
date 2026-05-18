@@ -62,10 +62,10 @@ export function Footer() {
               <div className="flex items-center gap-3">
                 <div className="relative h-10 w-auto md:h-12 lg:h-14">
                   <Image
-                    src="https://firebasestorage.googleapis.com/v0/b/emarketplace-8aab1.firebasestorage.app/o/image%2FPlexi-tabla-86x53-E-marketplace_logo-2.png?alt=media&token=b1684b4b-932d-4f6d-ba90-d860aa24a98e"
+                    src="/logo.png"
                     alt="E-Marketplace Kft. logó"
-                    width={86}
-                    height={53}
+                    width={84}
+                    height={84}
                     className="h-full w-auto object-contain object-left drop-shadow-sm"
                   />
                 </div>
@@ -126,11 +126,11 @@ export function Footer() {
             <h3 className="mb-3 text-base font-semibold text-[color:var(--primary)] md:mb-4 md:text-lg">
               {servicesHeading}
             </h3>
-            <ul className="space-y-1.5 md:space-y-2 text-slate-200/80">
+            <ul className="space-y-1 text-slate-200/80">
               <li>
                 <Link
                   href="/szekhelyszolgaltatas#szekhely"
-                  className="block hover:text-[color:var(--primary)]"
+                  className="block py-2 hover:text-[color:var(--primary)]"
                 >
                   {serviceRegisteredOffice}
                 </Link>
@@ -138,20 +138,20 @@ export function Footer() {
               <li>
                 <Link
                   href="/szekhelyszolgaltatas#virtualis"
-                  className="block hover:text-[color:var(--primary)]"
+                  className="block py-2 hover:text-[color:var(--primary)]"
                 >
                   {serviceOfficeRental}
                 </Link>
               </li>
               <li>
-                <Link href="/arak" className="block hover:text-[color:var(--primary)]">
+                <Link href="/arak" className="block py-2 hover:text-[color:var(--primary)]">
                   {pricesLabel}
                 </Link>
               </li>
               <li>
                 <Link
                   href="/kapcsolat"
-                  className="block hover:text-[color:var(--primary)]"
+                  className="block py-2 hover:text-[color:var(--primary)]"
                 >
                   {contactLabel}
                 </Link>
@@ -164,26 +164,26 @@ export function Footer() {
             <h3 className="mb-3 text-base font-semibold text-[color:var(--primary)] md:mb-4 md:text-lg">
               {infoHeading}
             </h3>
-            <ul className="space-y-1.5 md:space-y-2 text-slate-200/80">
+            <ul className="space-y-1 text-slate-200/80">
               <li>
-                <Link href={blogHref} className="block hover:text-[color:var(--primary)]">
+                <Link href={blogHref} className="block py-2 hover:text-[color:var(--primary)]">
                   {blogLabel}
                 </Link>
               </li>
               <li>
-                <Link href={faqHref} className="block hover:text-[color:var(--primary)]">
+                <Link href={faqHref} className="block py-2 hover:text-[color:var(--primary)]">
                   {faqLabel}
                 </Link>
               </li>
               <li>
-                <Link href="/aszf" className="block hover:text-[color:var(--primary)]">
+                <Link href="/aszf" className="block py-2 hover:text-[color:var(--primary)]">
                   {termsLabel}
                 </Link>
               </li>
               <li>
                 <Link
                   href="/adatvedelem"
-                  className="block hover:text-[color:var(--primary)]"
+                  className="block py-2 hover:text-[color:var(--primary)]"
                 >
                   {privacyLabel}
                 </Link>
@@ -201,6 +201,7 @@ export function Footer() {
                 href="https://facebook.com"
                 target="_blank"
                 className="flex h-9 w-9 items-center justify-center rounded-full bg-[color:var(--primary)]/10 text-foreground transition hover:bg-[color:var(--primary)] hover:text-[color:var(--primary-foreground)] md:h-10 md:w-10"
+                aria-label="Facebook oldal megnyitása"
               >
                 <Facebook className="h-4 w-4 md:h-5 md:w-5" />
               </Link>
@@ -208,6 +209,7 @@ export function Footer() {
                 href="https://linkedin.com"
                 target="_blank"
                 className="flex h-9 w-9 items-center justify-center rounded-full bg-[color:var(--primary)]/10 text-foreground transition hover:bg-[color:var(--primary)] hover:text-[color:var(--primary-foreground)] md:h-10 md:w-10"
+                aria-label="LinkedIn oldal megnyitása"
               >
                 <Linkedin className="h-4 w-4 md:h-5 md:w-5" />
               </Link>

@@ -1,50 +1,39 @@
-import { ImageResponse } from "next/og";
+import { ImageResponse } from "next/og"
 
-export const dynamic = "force-static";
-export const revalidate = false;
+export const runtime = "edge"
+export const contentType = "image/png"
+export const size = { width: 180, height: 180 }
 
-export default function AppleIcon() {
+const LOGO_URL = "https://firebasestorage.googleapis.com/v0/b/emarketplace-8aab1.firebasestorage.app/o/image%2FPlexi-tabla-86x53-E-marketplace_logo-2.png?alt=media"
+
+export default async function AppleIcon() {
   return new ImageResponse(
     (
       <div
         style={{
-          height: "100%",
           width: "100%",
+          height: "100%",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
           backgroundColor: "#3F3F69",
+          borderRadius: 40,
         }}
       >
-        <div
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={LOGO_URL}
+          alt=""
+          width={140}
+          height={140}
           style={{
-            height: 820,
-            width: 820,
-            borderRadius: 220,
-            backgroundColor: "#ffffff",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            boxShadow: "0 18px 50px rgba(0,0,0,0.35)",
+            objectFit: "contain",
           }}
-        >
-          <div
-            style={{
-              fontSize: 420,
-              fontWeight: 900,
-              letterSpacing: -20,
-              color: "#E5AB31",
-              lineHeight: 1,
-            }}
-          >
-            EM
-          </div>
-        </div>
+        />
       </div>
     ),
     {
-      width: 1024,
-      height: 1024,
+      ...size,
     }
-  );
+  )
 }

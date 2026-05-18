@@ -6,7 +6,8 @@
 	--background: #fdfdf9; /* nagyon világos fehér */
 	--foreground: #4a4d6e; /* sötét kékes szürke */
 	--primary: #e5ab31; /* sárga CTA */
-	--primary-foreground: #4a4d6e; /* sötét kék szöveg a sárga fölött */
+	--primary-foreground: #1c2031; /* sötét szöveg a sárga fölött */
+	--link: #b45309;
 	--secondary: #4a4d6e; /* sötét kék */
 	--secondary-foreground: #fdfdf9; /* világos szöveg a sötét kék fölött */
 	--muted: #f4f3ee; /* halvány szürke */
@@ -21,6 +22,7 @@
 	--foreground: #f6f7fb; /* nagyon világos szöveg */
 	--primary: #e5ab31;
 	--primary-foreground: #1c2031;
+	--link: #e5ab31;
 	--secondary: #2a2e44;
 	--secondary-foreground: #f6f7fb;
 	--muted: #2f344a;
@@ -43,16 +45,22 @@
 	--color-card: var(--card);
 	--color-card-foreground: var(--card-foreground);
 	--color-border: var(--border);
+	--color-link: var(--link);
 
 	/* Betűcsaládok */
 	--font-sans: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 	--font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
 }
 
-body {
+html, body {
 	background: var(--color-background);
 	color: var(--color-foreground);
 	font-family: var(--font-sans);
+	overflow-x: hidden;
+}
+
+.text-link {
+	color: var(--link);
 }
 
 @keyframes clients-marquee-left {

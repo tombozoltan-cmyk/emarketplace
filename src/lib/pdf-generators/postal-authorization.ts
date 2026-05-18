@@ -88,128 +88,114 @@ export async function fillOfficialPostalAuthPDF(
   const templateBytes = await fetch(templateUrl).then(res => res.arrayBuffer());
   const pdfDoc = await PDFDocument.load(templateBytes);
   
-  const font = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
-  const pages = pdfDoc.getPages();
-  const page = pages[0];
+  // PDF form mezők használata koordináták helyett
+  const form = pdfDoc.getForm();
   
-  const { height, width } = page.getSize();
-  
-  // Segédfüggvény - y koordináta a lap ALJÁTÓL számítva (pdf-lib standard)
-  const write = (text: string, x: number, y: number, size: number = 10) => {
-    if (!text) return;
-    page.drawText(normalizeHungarian(text), {
-      x,
-      y,
-      size,
-      font,
-      color: rgb(0, 0, 0),
-    });
+  // Segédfüggvény szövegmező kitöltéshez
+  const fillField = (fieldName: string, value: string | undefined) => {
+    if (!value) return;
+    try {
+      const field = form.getTextField(fieldName);
+      field.setText(normalizeHungarian(value));
+    } catch (e) {
+      console.warn(`Field not found: ${fieldName}`);
+    }
   };
   
-  // X jelölés checkbox-hoz
-  const markX = (x: number, y: number) => {
-    page.drawText("X", {
-      x,
-      y,
-      size: 12,
-      font,
-      color: rgb(0, 0, 0),
-    });
+  // Segédfüggvény checkbox bejelöléséhez
+  const checkBox = (fieldName: string, checked: boolean) => {
+    if (!checked) return;
+    try {
+      const field = form.getCheckBox(fieldName);
+      field.check();
+    } catch (e) {
+      console.warn(`Checkbox not found: ${fieldName}`);
+    }
   };
 
-  // ========== 1. MEGHATALMAZÓ BLOKK (felső) ==========
-  // Bal oldal - magánszemély adatai
-  // Név mező - kb. y=755 (a lap teteje kb. 842)
-  write(data.authorizer.name, 42, 755, 10);
-  if (data.authorizer.birthName) write(data.authorizer.birthName, 95, 725, 9);
-  if (data.authorizer.motherName) write(data.authorizer.motherName, 120, 695, 9);
-  if (data.authorizer.birthPlace) write(data.authorizer.birthPlace, 95, 665, 9);
-  if (data.authorizer.birthDate) write(data.authorizer.birthDate, 170, 665, 9);
+  // ========== 1. MEGHATALMAZÓ (aki ad meghatalmazást) ==========
+  // Magánszemély adatai
+  fillField("Név1", data.authorizer.name);
+  fillField("Sz.kori név1", data.authorizer.birthName);
+  fillField("Anyja sz.kori neve1", data.authorizer.motherName);
+  fillField("Sz. helye1", data.authorizer.birthPlace);
+  fillField("Sz. ideje1", data.authorizer.birthDate);
   
-  // Jobb oldal - szervezet adatai (x kezdődik kb. 298)
+  // Szervezet adatai (ha van)
   if (data.authorizerOrg) {
-    write(data.authorizerOrg.name, 298, 755, 9);
-    write(data.authorizerOrg.address, 298, 725, 8);
-    if (data.authorizerOrg.registrationNumber) {
-      write(data.authorizerOrg.registrationNumber, 298, 665, 9);
-    }
+    fillField("Szervezet neve1", data.authorizerOrg.name);
+    fillField("Szervezet neve1a", data.authorizerOrg.address);
+    fillField("Szervezet cégj. száma1", data.authorizerOrg.registrationNumber);
     if (data.authorizerOrg.noRegistration) {
-      markX(545, 635);
+      checkBox("Check Box1", true);
     }
   }
   
-  // Kézbesítési cím (1. blokk alján)
-  write(data.deliveryAddress, 42, 620, 10);
+  // Kézbesítési cím (amelyre érkező küldemények átvételére szól)
+  fillField("Cím1", data.deliveryAddress);
 
-  // ========== 2. MEGHATALMAZOTT BLOKK ==========
-  // Bal oldal - magánszemély
-  write(data.authorized.name, 42, 575, 10);
-  if (data.authorized.birthName) write(data.authorized.birthName, 95, 545, 9);
-  if (data.authorized.motherName) write(data.authorized.motherName, 120, 515, 9);
-  if (data.authorized.birthPlace) write(data.authorized.birthPlace, 95, 485, 9);
-  if (data.authorized.birthDate) write(data.authorized.birthDate, 170, 485, 9);
+  // ========== 2. MEGHATALMAZOTT (aki átveheti a küldeményeket) ==========
+  // Magánszemély adatai
+  fillField("Név2", data.authorized.name);
+  fillField("Sz.kori név2", data.authorized.birthName);
+  fillField("Anyja sz.kori neve2", data.authorized.motherName);
+  fillField("Sz. helye2", data.authorized.birthPlace);
+  fillField("Sz. ideje2", data.authorized.birthDate);
   
-  // Jobb oldal - szervezet
+  // Szervezet adatai (E-Marketplace Kft.)
   if (data.authorizedOrg) {
-    write(data.authorizedOrg.name, 298, 575, 9);
-    write(data.authorizedOrg.address, 298, 545, 8);
-    if (data.authorizedOrg.registrationNumber) {
-      write(data.authorizedOrg.registrationNumber, 298, 485, 9);
-    }
+    fillField("Szervezet neve2", data.authorizedOrg.name);
+    fillField("Szervezet neve2a", data.authorizedOrg.address);
+    fillField("Szervezet cégj. száma2", data.authorizedOrg.registrationNumber);
     if (data.authorizedOrg.noRegistration) {
-      markX(545, 455);
+      checkBox("Check Box2", true);
     }
   }
   
-  // Meghatalmazott kézbesítési címe (2. blokk alján)
+  // Meghatalmazott kézbesítési címe
   if (data.authorizedDeliveryAddress) {
-    write(data.authorizedDeliveryAddress, 42, 440, 10);
+    fillField("Cím2", data.authorizedDeliveryAddress);
   }
 
-  // ========== MEGHATALMAZÁS TÍPUSA (alsó rész) ==========
-  // "Kérjük X-szel jelölje" szekció kb. y=280-tól
-  
-  // Egy konkrét küldemény azonosító
+  // ========== MEGHATALMAZÁS TÍPUSA ==========
+  // Egy konkrét küldemény
   if (data.authType.singlePackage) {
-    markX(32, 255);
-    write(data.authType.singlePackage, 320, 255, 9);
+    checkBox("Check Box4", true);
+    fillField("Azonosító szám", data.authType.singlePackage);
   }
   
   // Meghatározott ideig / határozatlan ideig
   if (data.authType.validUntil) {
-    markX(32, 235);
-    write(data.authType.validUntil, 255, 235, 9);
+    checkBox("Check Box5", true);
+    fillField("Dátum, max 5 évig", data.authType.validUntil);
   }
   if (data.authType.indefinite) {
-    markX(470, 235);
+    checkBox("Check Box6", true);
   }
   
   // Valamennyi küldemény
   if (data.authType.allPackages) {
-    markX(32, 215);
+    checkBox("CB7", true);
   }
   
   // Saját kezébe szóló kivételével
   if (data.authType.exceptPersonal) {
-    markX(32, 198);
+    checkBox("CB7.0", true);
   }
   
-  // Küldemény típusok - "A meghatalmazás a következő küldemények átvételére terjed ki"
-  // Első sor: Levél, Utalvány, Nyugdíj utalvány
-  if (data.authType.letter) markX(235, 180);
-  if (data.authType.money) markX(335, 180);
-  if (data.authType.pension) markX(470, 180);
-  
-  // Második sor: Csomag, Időgarantált, Értékküldemény
-  if (data.authType.package) markX(70, 163);
-  if (data.authType.express) markX(235, 163);
-  if (data.authType.valuables) markX(470, 163);
-  
-  // Harmadik sor: Hivatalos irat, Távirat, Vakok írása
-  if (data.authType.official) markX(95, 146);
-  if (data.authType.telegram) markX(285, 146);
-  if (data.authType.braille) markX(470, 146);
+  // Küldemény típusok
+  if (data.authType.letter) checkBox("CB7.1", true);      // Levél
+  if (data.authType.money) checkBox("CB7.2", true);       // Utalvány
+  if (data.authType.pension) checkBox("CB7.3", true);     // Nyugdíj utalvány
+  if (data.authType.package) checkBox("CB7.4", true);     // Csomag
+  if (data.authType.express) checkBox("CB7.5", true);     // Időgarantált
+  if (data.authType.valuables) checkBox("CB7.6", true);   // Értékküldemény
+  if (data.authType.official) checkBox("CB7.7", true);    // Hivatalos irat
+  if (data.authType.telegram) checkBox("CB7.8", true);    // Távirat
 
+  // Flatten form so fields are not editable
+  form.flatten();
+  
   const pdfBytes = await pdfDoc.save();
   return pdfBytes;
 }

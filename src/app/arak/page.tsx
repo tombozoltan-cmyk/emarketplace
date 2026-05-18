@@ -27,8 +27,6 @@ export const metadata: Metadata = {
     languages: {
       hu: "https://e-marketplace.hu/arak",
       en: "https://e-marketplace.hu/en/pricing",
-      de: "https://e-marketplace.hu/de/preise",
-      es: "https://e-marketplace.hu/es/precios",
     },
   },
 };
@@ -47,12 +45,12 @@ export default function PricingPage() {
         <div className="relative mx-auto flex min-h-[220px] max-w-4xl flex-col items-center justify-center px-4 text-center sm:min-h-[260px] sm:px-6 lg:min-h-[320px] lg:justify-end lg:pb-8 lg:px-8">
           <h1 className="mb-4 text-balance text-3xl font-bold text-[color:var(--foreground)] md:mb-6 md:text-4xl lg:text-5xl xl:text-6xl">
             <span>Átlátható Árazás,</span>{" "}
-            <span className="text-[color:var(--primary)]">Rejtett Költségek Nélkül</span>
+            <span className="text-[color:var(--link)]">Rejtett Költségek Nélkül</span>
           </h1>
           <p className="mx-auto mb-6 max-w-2xl text-pretty text-base text-[color:var(--muted-foreground)] md:mb-8 md:text-lg lg:text-xl">
             Hiszünk abban, hogy egy vállalkozás elindítása nem kell, hogy bonyolult vagy drága legyen. Átlátható csomagjainkkal pontosan látja, mit kap a pénzéért.
           </p>
-          <QuoteButton className="rounded-full bg-[color:var(--primary)] px-6 py-3 text-sm text-[color:var(--background)] hover:bg-[color:var(--primary)]/90 md:px-8 md:py-4 md:text-base">
+          <QuoteButton className="rounded-full bg-[color:var(--primary)] px-6 py-3 text-sm text-[color:var(--primary-foreground)] hover:bg-[color:var(--primary)]/90 md:px-8 md:py-4 md:text-base">
             Ajánlatot kérek
           </QuoteButton>
         </div>
@@ -260,7 +258,7 @@ export default function PricingPage() {
           <p className="mb-4 text-sm text-[color:var(--muted-foreground)] md:mb-6 md:text-base">
             Foglaljon időpontot most, és indítsa el vállalkozását profi székhelyszolgáltatással, átlátható árakkal és rejtett költségek nélkül.
           </p>
-          <QuoteButton className="rounded-full bg-[color:var(--primary)] px-8 py-3 text-sm font-semibold text-[color:var(--background)] hover:bg-[color:var(--primary)]/90 md:text-base">
+          <QuoteButton className="rounded-full bg-[color:var(--primary)] px-8 py-3 text-sm font-semibold text-[color:var(--primary-foreground)] hover:bg-[color:var(--primary)]/90 md:text-base">
             Ajánlatot kérek
           </QuoteButton>
         </div>

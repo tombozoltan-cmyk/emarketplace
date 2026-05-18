@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { collection, onSnapshot } from "firebase/firestore";
 import { firestoreDb } from "@/lib/firebase";
@@ -135,7 +136,7 @@ export function BlogSection() {
             <Button
               size="lg"
               variant="outline"
-              className="rounded-full border-2 border-[color:var(--primary)] bg-transparent px-8 py-3 text-sm text-[color:var(--primary)] transition-colors hover:bg-[color:var(--primary)] hover:text-[color:var(--primary-foreground)] md:text-base"
+              className="rounded-full border-2 border-[color:var(--primary)] bg-transparent px-8 py-3 text-sm text-[color:var(--link)] transition-colors hover:bg-[color:var(--primary)] hover:text-[color:var(--primary-foreground)] md:text-base"
             >
               {allPostsLabel}
             </Button>
@@ -170,14 +171,16 @@ function BlogCard({ post, basePath, isEnglish }: BlogCardProps) {
   return (
     <Card className="group flex h-full flex-col overflow-hidden rounded-2xl bg-[color:var(--card)] shadow-none transition-shadow duration-300 hover:shadow-xl">
       <div className="relative h-40 overflow-hidden md:h-48">
-        <img
+        <Image
           src={post.imageUrl || "/placeholder.svg"}
           alt={`${post.title} - E-Marketplace blog`}
-          className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-110"
+          fill
+          sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
+          className="object-cover transition-transform duration-300 group-hover:scale-110"
         />
       </div>
       <CardContent className="flex flex-1 flex-col p-4 md:p-6">
-        <span className="mb-2 text-xs font-medium text-[color:var(--primary)] md:text-sm">
+        <span className="mb-2 text-xs font-medium text-[color:var(--link)] md:text-sm">
           {formatDate(post.publishedAt)}
         </span>
         <h3 className="mb-2 text-base font-semibold text-[color:var(--foreground)] text-balance line-clamp-2 md:mb-3 md:text-xl">
@@ -188,7 +191,8 @@ function BlogCard({ post, basePath, isEnglish }: BlogCardProps) {
         </p>
         <Link
           href={`${basePath}/${post.slug}`}
-          className="inline-flex items-center text-sm font-medium text-[color:var(--primary)] hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--primary)] focus-visible:ring-offset-2 focus-visible:ring-offset-[color:var(--background)] md:text-base"
+          className="inline-flex items-center text-sm font-medium text-[color:var(--link)] hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--primary)] focus-visible:ring-offset-2 focus-visible:ring-offset-[color:var(--background)] md:text-base"
+          aria-label={isEnglish ? `Read more: ${post.title}` : `Tovább olvasás: ${post.title}`}
         >
           {isEnglish ? "Read more →" : "Tovább →"}
         </Link>

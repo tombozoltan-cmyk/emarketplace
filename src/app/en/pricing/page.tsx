@@ -38,12 +38,12 @@ export default function PricingPageEn() {
         <div className="relative mx-auto flex min-h-[220px] max-w-4xl flex-col items-center justify-center px-4 text-center sm:min-h-[260px] sm:px-6 lg:min-h-[320px] lg:justify-end lg:pb-8 lg:px-8">
           <h1 className="mb-4 text-balance text-3xl font-bold text-[color:var(--foreground)] md:mb-6 md:text-4xl lg:text-5xl xl:text-6xl">
             <span>Transparent pricing,</span>{" "}
-            <span className="text-[color:var(--primary)]">no hidden fees</span>
+            <span className="text-[color:var(--link)]">no hidden fees</span>
           </h1>
           <p className="mx-auto mb-6 max-w-2xl text-pretty text-base text-[color:var(--muted-foreground)] md:mb-8 md:text-lg lg:text-xl">
             We believe starting a business shouldn’t be complicated or expensive. With our clear packages you always know exactly what you get.
           </p>
-          <QuoteButton className="rounded-full bg-[color:var(--primary)] px-6 py-3 text-sm text-[color:var(--background)] hover:bg-[color:var(--primary)]/90 md:px-8 md:py-4 md:text-base">
+          <QuoteButton className="rounded-full bg-[color:var(--primary)] px-6 py-3 text-sm text-[color:var(--primary-foreground)] hover:bg-[color:var(--primary)]/90 md:px-8 md:py-4 md:text-base">
             Request a quote
           </QuoteButton>
         </div>
@@ -225,7 +225,7 @@ export default function PricingPageEn() {
           <p className="mb-4 text-sm text-[color:var(--muted-foreground)] md:mb-6 md:text-base">
             Request a quote and start with a professional registered office solution — transparent pricing and no hidden fees.
           </p>
-          <QuoteButton className="rounded-full bg-[color:var(--primary)] px-8 py-3 text-sm font-semibold text-[color:var(--background)] hover:bg-[color:var(--primary)]/90 md:text-base">
+          <QuoteButton className="rounded-full bg-[color:var(--primary)] px-8 py-3 text-sm font-semibold text-[color:var(--primary-foreground)] hover:bg-[color:var(--primary)]/90 md:text-base">
             Request a quote
           </QuoteButton>
         </div>

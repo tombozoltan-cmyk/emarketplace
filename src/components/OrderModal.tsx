@@ -482,9 +482,11 @@ export function OrderModal() {
                     />
                   </div>
                   <div className="md:col-span-2">
-                    <Label>{text.phoneLabel}</Label>
+                    <Label htmlFor="phone">{text.phoneLabel}</Label>
                     <div className="mt-1 grid grid-cols-1 gap-2 sm:grid-cols-[4.75rem_minmax(0,1fr)]">
                       <NativeSelect
+                        id="phoneCountry"
+                        name="phoneCountry"
                         value={selectedPhoneCountry}
                         onChange={(e) => setSelectedPhoneCountry(e.target.value)}
                         className="px-2 text-center"
@@ -496,10 +498,13 @@ export function OrderModal() {
                         ))}
                       </NativeSelect>
                       <Input
+                        id="phone"
+                        name="phone"
                         ref={phoneRef}
                         type="tel"
                         required
                         placeholder="30 123 4567"
+                        autoComplete="tel"
                         className="min-w-0"
                       />
                     </div>

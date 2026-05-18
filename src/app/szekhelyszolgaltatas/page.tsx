@@ -39,8 +39,6 @@ export const metadata: Metadata = {
     languages: {
       hu: "https://e-marketplace.hu/szekhelyszolgaltatas",
       en: "https://e-marketplace.hu/en/registered-office-hungary",
-      de: "https://e-marketplace.hu/de/firmenadresse-ungarn",
-      es: "https://e-marketplace.hu/es/oficina-virtual-hungria",
     },
   },
 };
@@ -68,7 +66,7 @@ export default function SzekhelyszolgaltatasPage() {
           {/* Title */}
           <h1 className="text-balance text-2xl font-bold text-[color:var(--foreground)] md:text-3xl lg:text-6xl">
             <span>Székhelyszolgáltatás+</span>{" "}
-            <span className="text-[color:var(--primary)]">Budapesten</span>
+            <span className="text-[color:var(--link)]">Budapesten</span>
           </h1>
 
           {/* Subtitle */}
@@ -79,7 +77,7 @@ export default function SzekhelyszolgaltatasPage() {
           {/* Ár információ */}
           <p className="text-sm text-[color:var(--muted-foreground)] md:text-base lg:text-lg">
             <span className="font-medium">Presztízs budapesti székhely cím már</span>{" "}
-            <span className="font-bold text-[color:var(--primary)]">8.000 Ft/hó + ÁFA</span>{" "}
+            <span className="font-bold text-[color:var(--link)]">8.000 Ft/hó + ÁFA</span>{" "}
             <span className="hidden md:inline">– PMT megfelelő | Új cégeknek is</span>
           </p>
 

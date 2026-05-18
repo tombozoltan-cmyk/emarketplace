@@ -21,7 +21,7 @@ export const blogPosts: BlogPost[] = [
     readingTime: 8,
     content: `
 <h2>Mi is az a PMT törvény?</h2>
-<p>A <strong>pénzmosás és terrorizmus finanszírozása elleni törvény (PMT)</strong> az Európai Unió egyik legfontosabb jogszabálya, amely a pénzügyi bűncselekmények megelőzését szolgálja. A 2025-ös év jelentős változásokat hoz e téren, amelyek közvetlenül érintik a <a href="/szekhelyszolgaltatas" class="text-primary hover:underline font-semibold">székhelyszolgáltatókat</a> Magyarországon.</p>
+<p>A <strong>pénzmosás és terrorizmus finanszírozása elleni törvény (PMT)</strong> az Európai Unió egyik legfontosabb jogszabálya, amely a pénzügyi bűncselekmények megelőzését szolgálja. A 2025-ös év jelentős változásokat hoz e téren, amelyek közvetlenül érintik a <a href="/szekhelyszolgaltatas" class="text-link hover:underline font-semibold">székhelyszolgáltatókat</a> Magyarországon.</p>
 
 <h2>Főbb változások 2025-ben</h2>
 
@@ -35,7 +35,7 @@ export const blogPosts: BlogPost[] = [
 </ul>
 
 <h3>2. Digitális azonosítás és elektronikus aláírás</h3>
-<p>Jó hír, hogy a 2025-ös módosítások <strong>megkönnyítik az online szerződéskötést</strong>. A <em>videoazonosítás</em> és az <em>elektronikus aláírás</em> hivatalosan is elfogadott módszerré válik, ami gyorsabb és kényelmesebb ügyintézést tesz lehetővé. Nálunk az <a href="/kapcsolat" class="text-primary hover:underline font-semibold">E-Marketplace Kft.-nél</a> már most is elérhető ez a szolgáltatás!</p>
+<p>Jó hír, hogy a 2025-ös módosítások <strong>megkönnyítik az online szerződéskötést</strong>. A <em>videoazonosítás</em> és az <em>elektronikus aláírás</em> hivatalosan is elfogadott módszerré válik, ami gyorsabb és kényelmesebb ügyintézést tesz lehetővé. Nálunk az <a href="/kapcsolat" class="text-link hover:underline font-semibold">E-Marketplace Kft.-nél</a> már most is elérhető ez a szolgáltatás!</p>
 
 <h3>3. Adatmegőrzési kötelezettségek szigorítása</h3>
 <p>A székhelyszolgáltatóknak <strong>minimum 8 évig meg kell őrizniük</strong> az ügyfél-azonosítási dokumentumokat és a tranzakciós adatokat. Ez megnövelt adminisztrációs terhet jelent, de biztosítja a hatósági ellenőrzések során a megfelelő dokumentációt.</p>
@@ -48,7 +48,7 @@ export const blogPosts: BlogPost[] = [
 <h2>Hogyan érinti ez Önt, mint vállalkozót?</h2>
 
 <h3>Gyorsabb, de alaposabb szerződéskötés</h3>
-<p>Amikor <a href="/arak" class="text-primary hover:underline font-semibold">székhelyszolgáltatást</a> vesz igénybe, számítson arra, hogy a szolgáltató részletesebb dokumentációt fog kérni Öntől. Ez lehet:</p>
+<p>Amikor <a href="/arak" class="text-link hover:underline font-semibold">székhelyszolgáltatást</a> vesz igénybe, számítson arra, hogy a szolgáltató részletesebb dokumentációt fog kérni Öntől. Ez lehet:</p>
 <ul>
   <li>Érvényes személyi igazolvány vagy útlevél</li>
   <li>Lakcímkártya</li>
@@ -75,26 +75,26 @@ export const blogPosts: BlogPost[] = [
   <tbody>
     <tr>
       <td class="border border-border p-4">Alapszintű székhely</td>
-      <td class="border border-border p-4 font-semibold text-primary">9.900 Ft</td>
+      <td class="border border-border p-4 font-semibold text-link">9.900 Ft</td>
       <td class="border border-border p-4">✅ Teljes</td>
     </tr>
     <tr class="bg-muted/30">
       <td class="border border-border p-4">Prémium székhely + kézbesítés</td>
-      <td class="border border-border p-4 font-semibold text-primary">14.900 Ft</td>
+      <td class="border border-border p-4 font-semibold text-link">14.900 Ft</td>
       <td class="border border-border p-4">✅ Teljes</td>
     </tr>
     <tr>
       <td class="border border-border p-4">Székhely + iroda csomag</td>
-      <td class="border border-border p-4 font-semibold text-primary">29.900 Ft</td>
+      <td class="border border-border p-4 font-semibold text-link">29.900 Ft</td>
       <td class="border border-border p-4">✅ Teljes + extra védelem</td>
     </tr>
   </tbody>
 </table>
 
 <h2>Következtetés</h2>
-<p>A 2025-ös PMT változások <strong>szigorúbbá teszik a pénzmosás elleni védekezést</strong>, de egyben <em>modernizálják</em> és <em>digitalizálják</em> az ügyfél-azonosítási folyamatokat. Vállalkozóként fontos, hogy olyan <a href="/szekhelyszolgaltatas" class="text-primary hover:underline font-semibold">székhelyszolgáltatót</a> válasszon, aki naprakész az előírásokkal és proaktívan kezeli a változásokat.</p>
+<p>A 2025-ös PMT változások <strong>szigorúbbá teszik a pénzmosás elleni védekezést</strong>, de egyben <em>modernizálják</em> és <em>digitalizálják</em> az ügyfél-azonosítási folyamatokat. Vállalkozóként fontos, hogy olyan <a href="/szekhelyszolgaltatas" class="text-link hover:underline font-semibold">székhelyszolgáltatót</a> válasszon, aki naprakész az előírásokkal és proaktívan kezeli a változásokat.</p>
 
-<p>Ha kérdése van a PMT szabályokkal kapcsolatban, vagy szeretné igénybe venni szolgáltatásainkat, <a href="/kapcsolat" class="text-primary hover:underline font-semibold">vegye fel velünk a kapcsolatot</a>!</p>
+<p>Ha kérdése van a PMT szabályokkal kapcsolatban, vagy szeretné igénybe venni szolgáltatásainkat, <a href="/kapcsolat" class="text-link hover:underline font-semibold">vegye fel velünk a kapcsolatot</a>!</p>
 `,
   },
   {
@@ -144,7 +144,7 @@ export const blogPosts: BlogPost[] = [
 </ul>
 
 <h3>Gyakorlati példa</h3>
-<p>Képzelje el, hogy német vagy osztrák webáruházat működtet, és szeretne EU-n belüli raktárlogisztikát, számlázást és ügyfélszolgálatot. Egy magyar Kft. és egy <a href="/szekhelyszolgaltatas" class="text-primary hover:underline font-semibold">megbízható székhelyszolgáltató</a> segítségével mindezt gyorsan és kiszámítható költségek mellett oldhatja meg.</p>
+<p>Képzelje el, hogy német vagy osztrák webáruházat működtet, és szeretne EU-n belüli raktárlogisztikát, számlázást és ügyfélszolgálatot. Egy magyar Kft. és egy <a href="/szekhelyszolgaltatas" class="text-link hover:underline font-semibold">megbízható székhelyszolgáltató</a> segítségével mindezt gyorsan és kiszámítható költségek mellett oldhatja meg.</p>
 
 <h2>Miben segít az E-Marketplace Kft.?</h2>
 <p>Szolgáltatásainkat úgy alakítottuk ki, hogy a külföldi tulajdonosok számára is átlátható, egyszerű és biztonságos legyen a cégalapítás és a működtetés:</p>
@@ -152,7 +152,7 @@ export const blogPosts: BlogPost[] = [
   <li>Székhely Budapesten, a VI. kerületben</li>
   <li>Postakezelés és szkennelés 24 órán belül</li>
   <li>Partneri könyvelő és ügyvéd angol vagy német nyelven</li>
-  <li>Online egyeztetés és <a href="/kapcsolat" class="text-primary hover:underline font-semibold">ingyenes előzetes konzultáció</a></li>
+  <li>Online egyeztetés és <a href="/kapcsolat" class="text-link hover:underline font-semibold">ingyenes előzetes konzultáció</a></li>
 </ul>
 
 <p>Ha Ön is külföldi vállalkozóként gondolkodik magyar cégalapításban, keressen minket bizalommal – segítünk a teljes folyamatban az első kérdéstől az első számla kiállításáig.</p>
@@ -216,7 +216,7 @@ export const blogPosts: BlogPost[] = [
   <li>Kapcsolódó szolgáltatások: kézbesítési megbízott, könyvelői ajánlás</li>
 </ul>
 
-<p>Ha szeretné áttenni cége székhelyét egy biztonságosabb, professzionális címre, használja <a href="/kapcsolat" class="text-primary hover:underline font-semibold">kapcsolatfelvételi űrlapunkat</a>, és 1 munkanapon belül válaszolunk.</p>
+<p>Ha szeretné áttenni cége székhelyét egy biztonságosabb, professzionális címre, használja <a href="/kapcsolat" class="text-link hover:underline font-semibold">kapcsolatfelvételi űrlapunkat</a>, és 1 munkanapon belül válaszolunk.</p>
 `,
   },
   {
@@ -230,7 +230,7 @@ export const blogPosts: BlogPost[] = [
     readingTime: 5,
     content: `
 <h2>Mi az a videoazonosítás?</h2>
-<p>A <strong>videoazonosítás</strong> egy modern, digitális módszer, amely lehetővé teszi, hogy <em>otthonról, kényelmesen</em> igazolja személyazonosságát hivatalos ügyintézéshez. Ez különösen hasznos <a href="/szekhelyszolgaltatas" class="text-primary hover:underline font-semibold">székhelyszolgáltatás</a> igénybevételénél, cégalapításnál és banki ügyintézésnél.</p>
+<p>A <strong>videoazonosítás</strong> egy modern, digitális módszer, amely lehetővé teszi, hogy <em>otthonról, kényelmesen</em> igazolja személyazonosságát hivatalos ügyintézéshez. Ez különösen hasznos <a href="/szekhelyszolgaltatas" class="text-link hover:underline font-semibold">székhelyszolgáltatás</a> igénybevételénél, cégalapításnál és banki ügyintézésnél.</p>
 
 <h2>Hogyan működik a videoazonosítás lépésről lépésre?</h2>
 
@@ -288,11 +288,11 @@ export const blogPosts: BlogPost[] = [
 <ul>
   <li>külföldön tartózkodik, de magyar céget alapít,</li>
   <li>nincs ideje személyesen irodába menni,</li>
-  <li>online szeretné elintézni a <a href="/szekhelyszolgaltatas" class="text-primary hover:underline font-semibold">székhelyszolgáltatás</a> megrendelését.</li>
+  <li>online szeretné elintézni a <a href="/szekhelyszolgaltatas" class="text-link hover:underline font-semibold">székhelyszolgáltatás</a> megrendelését.</li>
 </ul>
 
 <h2>Hogyan kezdheti el?</h2>
-<p>Vegye fel velünk a kapcsolatot a <a href="/kapcsolat" class="text-primary hover:underline font-semibold">kapcsolat oldalunkon</a> keresztül, és rövid időn belül visszajelzést kap az elérhető időpontokról, illetve a szükséges dokumentumokról.</p>
+<p>Vegye fel velünk a kapcsolatot a <a href="/kapcsolat" class="text-link hover:underline font-semibold">kapcsolat oldalunkon</a> keresztül, és rövid időn belül visszajelzést kap az elérhető időpontokról, illetve a szükséges dokumentumokról.</p>
 `,
   },
   {
@@ -331,7 +331,7 @@ export const blogPosts: BlogPost[] = [
   <li>erősíti a partnerek felé mutatott bizalmat és jelenlétet.</li>
 </ul>
 
-<p>Ha érdekli ez a megoldás, kérjen személyre szabott ajánlatot a <a href="/kapcsolat" class="text-primary hover:underline font-semibold">kapcsolat oldalunkon</a> keresztül.</p>
+<p>Ha érdekli ez a megoldás, kérjen személyre szabott ajánlatot a <a href="/kapcsolat" class="text-link hover:underline font-semibold">kapcsolat oldalunkon</a> keresztül.</p>
 `,
   },
   {

@@ -141,7 +141,7 @@ export function BlogPostContent({ slug, language = "hu" }: BlogPostContentProps)
           <article className="lg:col-span-8">
             <Link
               href={blogPath}
-              className="mb-4 inline-flex items-center gap-2 text-sm font-medium text-[color:var(--primary)] hover:text-[color:var(--primary)]/80"
+              className="mb-4 inline-flex items-center gap-2 text-sm font-medium text-[color:var(--link)] hover:text-[color:var(--link)]/80"
             >
               <span className="h-2 w-2 rounded-full bg-[color:var(--primary)]" />
               Blog
@@ -190,7 +190,7 @@ export function BlogPostContent({ slug, language = "hu" }: BlogPostContentProps)
             )}
 
             <div
-              className="prose prose-base lg:prose-lg max-w-none text-[color:var(--foreground)] prose-headings:mt-8 prose-headings:mb-4 prose-headings:font-bold prose-headings:text-[color:var(--foreground)] prose-h2:text-2xl prose-h2:md:text-3xl prose-h2:border-b prose-h2:border-[color:var(--border)] prose-h2:pb-2 prose-h3:text-xl prose-h3:md:text-2xl prose-p:mb-4 prose-p:leading-relaxed prose-a:text-[color:var(--primary)] prose-a:no-underline prose-a:font-semibold hover:prose-a:underline prose-strong:text-[color:var(--foreground)] prose-strong:font-semibold prose-ul:my-4 prose-ul:list-disc prose-ul:pl-6 prose-ol:my-4 prose-ol:list-decimal prose-ol:pl-6 prose-li:mb-2 prose-li:text-[color:var(--foreground)]"
+              className="prose prose-base lg:prose-lg max-w-none text-[color:var(--foreground)] prose-headings:mt-8 prose-headings:mb-4 prose-headings:font-bold prose-headings:text-[color:var(--foreground)] prose-h2:text-2xl prose-h2:md:text-3xl prose-h2:border-b prose-h2:border-[color:var(--border)] prose-h2:pb-2 prose-h3:text-xl prose-h3:md:text-2xl prose-p:mb-4 prose-p:leading-relaxed prose-a:text-[color:var(--link)] prose-a:no-underline prose-a:font-semibold hover:prose-a:underline prose-strong:text-[color:var(--foreground)] prose-strong:font-semibold prose-ul:my-4 prose-ul:list-disc prose-ul:pl-6 prose-ol:my-4 prose-ol:list-decimal prose-ol:pl-6 prose-li:mb-2 prose-li:text-[color:var(--foreground)]"
               dangerouslySetInnerHTML={{
                 __html: hasContent
                   ? post.contentHtml
@@ -268,10 +268,10 @@ export function BlogPostContent({ slug, language = "hu" }: BlogPostContentProps)
                             )}
                           </div>
                           <div className="min-w-0 flex-1">
-                            <div className="mb-1 text-xs text-[color:var(--primary)]">
+                            <div className="mb-1 text-xs text-[color:var(--link)]">
                               {item.category}
                             </div>
-                            <h4 className="line-clamp-2 text-sm font-semibold text-[color:var(--foreground)] transition-colors group-hover:text-[color:var(--primary)]">
+                            <h4 className="line-clamp-2 text-sm font-semibold text-[color:var(--foreground)] transition-colors group-hover:text-[color:var(--link)]">
                               {item.title}
                             </h4>
                             <div className="mt-1 text-xs text-[color:var(--muted-foreground)]">

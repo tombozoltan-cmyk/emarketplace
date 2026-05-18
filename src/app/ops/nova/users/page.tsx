@@ -10,7 +10,8 @@ import {
   serverTimestamp,
   Timestamp,
 } from "firebase/firestore";
-import { firestoreDb, firebaseAuth } from "@/lib/firebase";
+import { firestoreDb } from "@/lib/firebase";
+import { firebaseAuth } from "@/lib/firebase-auth";
 import { AdminLayout, AdminCard, useAdminAuth } from "@/components/admin";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -26,6 +27,7 @@ import {
   X,
   Send,
   CheckCircle,
+  Pencil,
 } from "lucide-react";
 
 const FUNCTIONS_REGION = process.env.NEXT_PUBLIC_FUNCTIONS_REGION || "europe-west1";
@@ -33,6 +35,8 @@ const FUNCTIONS_REGION = process.env.NEXT_PUBLIC_FUNCTIONS_REGION || "europe-wes
 type AdminUser = {
   id: string;
   email: string;
+  firstName?: string;
+  lastName?: string;
   role: "admin" | "editor";
   createdAt?: Timestamp;
   createdBy?: string;
@@ -50,8 +54,14 @@ export default function AdminUsersPage() {
   const [isAdding, setIsAdding] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [newEmail, setNewEmail] = useState("");
+  const [newFirstName, setNewFirstName] = useState("");
+  const [newLastName, setNewLastName] = useState("");
   const [newRole, setNewRole] = useState<"admin" | "editor">("editor");
   const [sendInvite, setSendInvite] = useState(true);
+  const [isEditing, setIsEditing] = useState<AdminUser | null>(null);
+  const [editFirstName, setEditFirstName] = useState("");
+  const [editLastName, setEditLastName] = useState("");
+  const [editEmail, setEditEmail] = useState("");
   const [inviteStatus, setInviteStatus] = useState<"idle" | "sending" | "sent" | "error">("idle");
   const [error, setError] = useState<string | null>(null);
 
@@ -141,6 +151,8 @@ export default function AdminUsersPage() {
       const docId = normalizedEmail.replace(/[.@]/g, "_");
       await setDoc(doc(firestoreDb, "adminUsers", docId), {
         email: normalizedEmail,
+        firstName: newFirstName.trim() || null,
+        lastName: newLastName.trim() || null,
         role: newRole,
         createdAt: serverTimestamp(),
         createdBy: currentUser?.email || "unknown",
@@ -157,6 +169,8 @@ export default function AdminUsersPage() {
       }
 
       setNewEmail("");
+      setNewFirstName("");
+      setNewLastName("");
       setNewRole("editor");
       setSendInvite(true);
       
@@ -170,7 +184,7 @@ export default function AdminUsersPage() {
     } finally {
       setIsSaving(false);
     }
-  }, [newEmail, newRole, users, currentUser, sendInvite, sendInviteEmail, inviteStatus]);
+  }, [newEmail, newFirstName, newLastName, newRole, users, currentUser, sendInvite, sendInviteEmail, inviteStatus]);
 
   const handleDeleteUser = useCallback(
     async (user: AdminUser) => {
@@ -212,6 +226,73 @@ export default function AdminUsersPage() {
     [currentUser]
   );
 
+  const openEditModal = useCallback((user: AdminUser) => {
+    setIsEditing(user);
+    setEditFirstName(user.firstName || "");
+    setEditLastName(user.lastName || "");
+    setEditEmail(user.email);
+  }, []);
+
+  const handleEditUser = useCallback(async () => {
+    if (!isEditing) return;
+
+    const normalizedEmail = editEmail.trim().toLowerCase();
+    if (!normalizedEmail) {
+      setError("Email cím megadása kötelező");
+      return;
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(normalizedEmail)) {
+      setError("Érvénytelen email formátum");
+      return;
+    }
+
+    // Check if email changed and already exists
+    if (normalizedEmail !== isEditing.email.toLowerCase()) {
+      if (users.some((u) => u.email.toLowerCase() === normalizedEmail && u.id !== isEditing.id)) {
+        setError("Ez az email már létezik");
+        return;
+      }
+    }
+
+    setIsSaving(true);
+    setError(null);
+
+    try {
+      // If email changed, we need to delete old doc and create new one
+      if (normalizedEmail !== isEditing.email.toLowerCase()) {
+        await deleteDoc(doc(firestoreDb, "adminUsers", isEditing.id));
+        const newDocId = normalizedEmail.replace(/[.@]/g, "_");
+        await setDoc(doc(firestoreDb, "adminUsers", newDocId), {
+          email: normalizedEmail,
+          firstName: editFirstName.trim() || null,
+          lastName: editLastName.trim() || null,
+          role: isEditing.role,
+          createdAt: isEditing.createdAt || serverTimestamp(),
+          createdBy: isEditing.createdBy || currentUser?.email || "unknown",
+        });
+      } else {
+        // Just update names
+        await setDoc(
+          doc(firestoreDb, "adminUsers", isEditing.id),
+          { firstName: editFirstName.trim() || null, lastName: editLastName.trim() || null },
+          { merge: true }
+        );
+      }
+
+      setIsEditing(null);
+      setEditFirstName("");
+      setEditLastName("");
+      setEditEmail("");
+    } catch (err) {
+      console.error("Error updating user:", err);
+      setError("Hiba történt a mentés során");
+    } finally {
+      setIsSaving(false);
+    }
+  }, [isEditing, editEmail, editFirstName, editLastName, users, currentUser]);
+
   const formatDate = (ts?: Timestamp) => {
     if (!ts) return "-";
     return ts.toDate().toLocaleDateString("hu-HU", {
@@ -230,13 +311,13 @@ export default function AdminUsersPage() {
       ) : (
         <div className="space-y-4">
           {/* Header */}
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-3">
             <div className="text-sm text-[color:var(--muted-foreground)]">
               {users.length} felhasználó
             </div>
-            <Button onClick={() => setIsAdding(true)} disabled={isAdding}>
-              <Plus className="w-4 h-4 mr-1" />
-              Új felhasználó
+            <Button onClick={() => setIsAdding(true)} disabled={isAdding} size="sm" className="shrink-0">
+              <Plus className="w-4 h-4 sm:mr-1" />
+              <span className="hidden sm:inline">Új felhasználó</span>
             </Button>
           </div>
 
@@ -268,34 +349,60 @@ export default function AdminUsersPage() {
                   </button>
                 </div>
 
-                <div className="grid sm:grid-cols-3 gap-4">
-                  <div className="sm:col-span-2">
-                    <Label htmlFor="email" className="text-sm">
-                      Email cím
+                <div className="grid sm:grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="newLastName" className="text-sm">
+                      Családnév
                     </Label>
                     <Input
-                      id="email"
-                      type="email"
-                      value={newEmail}
-                      onChange={(e) => setNewEmail(e.target.value)}
-                      placeholder="pelda@email.com"
+                      id="newLastName"
+                      type="text"
+                      value={newLastName}
+                      onChange={(e) => setNewLastName(e.target.value)}
+                      placeholder="Kovács"
                       className="mt-1"
                     />
                   </div>
                   <div>
-                    <Label htmlFor="role" className="text-sm">
-                      Szerepkör
+                    <Label htmlFor="newFirstName" className="text-sm">
+                      Keresztnév
                     </Label>
-                    <select
-                      id="role"
-                      value={newRole}
-                      onChange={(e) => setNewRole(e.target.value as "admin" | "editor")}
-                      className="mt-1 w-full h-10 px-3 rounded-md border border-[color:var(--border)] bg-[color:var(--background)] text-sm"
-                    >
-                      <option value="editor">Szerkesztő</option>
-                      <option value="admin">Admin</option>
-                    </select>
+                    <Input
+                      id="newFirstName"
+                      type="text"
+                      value={newFirstName}
+                      onChange={(e) => setNewFirstName(e.target.value)}
+                      placeholder="János"
+                      className="mt-1"
+                    />
                   </div>
+                </div>
+                <div className="mt-4">
+                  <Label htmlFor="email" className="text-sm">
+                    Email cím *
+                  </Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    value={newEmail}
+                    onChange={(e) => setNewEmail(e.target.value)}
+                    placeholder="pelda@email.com"
+                    className="mt-1"
+                  />
+                </div>
+                <div className="mt-4">
+                  <Label htmlFor="role" className="text-sm">
+                    Szerepkör
+                  </Label>
+                  <select
+                    id="role"
+                    value={newRole}
+                    onChange={(e) => setNewRole(e.target.value as "admin" | "editor")}
+                    className="mt-1 w-full h-10 px-3 rounded-md border border-[color:var(--border)] bg-[color:var(--background)] text-sm"
+                  >
+                    <option value="editor">Szerkesztő</option>
+                    <option value="admin">Admin</option>
+                  </select>
                 </div>
 
                 <label className="flex items-center gap-3 mt-4 cursor-pointer select-none">
@@ -353,40 +460,43 @@ export default function AdminUsersPage() {
                 users.map((user) => (
                   <div
                     key={user.id}
-                    className="p-4 flex items-center justify-between gap-4"
+                    className="p-3 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
                   >
                     <div className="flex items-center gap-3 min-w-0">
-                      <div className="w-10 h-10 rounded-full bg-[color:var(--muted)] flex items-center justify-center shrink-0">
+                      <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-[color:var(--muted)] flex items-center justify-center shrink-0">
                         {user.role === "admin" ? (
-                          <Shield className="w-5 h-5 text-[color:var(--primary)]" />
+                          <Shield className="w-4 h-4 sm:w-5 sm:h-5 text-[color:var(--primary)]" />
                         ) : (
-                          <User className="w-5 h-5 text-[color:var(--muted-foreground)]" />
+                          <User className="w-4 h-4 sm:w-5 sm:h-5 text-[color:var(--muted-foreground)]" />
                         )}
                       </div>
-                      <div className="min-w-0">
-                        <div className="font-medium text-sm truncate flex items-center gap-2">
-                          {user.email}
+                      <div className="min-w-0 flex-1">
+                        <div className="font-medium text-xs sm:text-sm truncate flex items-center gap-2">
+                          <span className="truncate">
+                            {user.firstName 
+                              ? `${user.lastName || ''} ${user.firstName}`.trim() 
+                              : user.email}
+                          </span>
                           {user.email === currentUser?.email && (
-                            <span className="text-xs bg-[color:var(--primary)] text-white px-1.5 py-0.5 rounded">
+                            <span className="text-[10px] sm:text-xs bg-[color:var(--primary)] text-white px-1 sm:px-1.5 py-0.5 rounded shrink-0">
                               Te
                             </span>
                           )}
                         </div>
-                        <div className="text-xs text-[color:var(--muted-foreground)] flex items-center gap-2">
-                          <Calendar className="w-3 h-3" />
-                          {formatDate(user.createdAt)}
+                        <div className="text-[10px] sm:text-xs text-[color:var(--muted-foreground)] truncate">
+                          {user.firstName ? user.email : formatDate(user.createdAt)}
                         </div>
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-2 shrink-0">
+                    <div className="flex items-center gap-1 sm:gap-2 shrink-0 ml-11 sm:ml-0">
                       <select
                         value={user.role}
                         onChange={(e) =>
                           handleUpdateRole(user, e.target.value as "admin" | "editor")
                         }
                         disabled={user.email === currentUser?.email}
-                        className="h-8 px-2 text-xs rounded border border-[color:var(--border)] bg-[color:var(--background)] disabled:opacity-50"
+                        className="h-7 sm:h-8 px-2 text-[10px] sm:text-xs rounded border border-[color:var(--border)] bg-[color:var(--background)] disabled:opacity-50"
                       >
                         <option value="admin">Admin</option>
                         <option value="editor">Szerkesztő</option>
@@ -395,9 +505,20 @@ export default function AdminUsersPage() {
                       <Button
                         variant="ghost"
                         size="sm"
+                        onClick={() => openEditModal(user)}
+                        className="h-7 w-7 sm:h-8 sm:w-8 p-0 text-[color:var(--muted-foreground)] hover:text-[color:var(--primary)]"
+                        title="Szerkesztés"
+                      >
+                        <Pencil className="w-4 h-4" />
+                      </Button>
+
+                      <Button
+                        variant="ghost"
+                        size="sm"
                         onClick={() => handleDeleteUser(user)}
                         disabled={user.email === currentUser?.email}
-                        className="h-8 w-8 p-0 text-[color:var(--muted-foreground)] hover:text-red-600"
+                        className="h-7 w-7 sm:h-8 sm:w-8 p-0 text-[color:var(--muted-foreground)] hover:text-red-600 disabled:opacity-50"
+                        title="Törlés"
                       >
                         <Trash2 className="w-4 h-4" />
                       </Button>
@@ -415,6 +536,109 @@ export default function AdminUsersPage() {
             szerepelnek. A szerepkörök jelenleg nem különböztetnek meg
             funkciókat.
           </div>
+
+          {/* Edit Modal */}
+          {isEditing && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+              <div 
+                className="fixed inset-0 bg-black/50" 
+                onClick={() => {
+                  setIsEditing(null);
+                  setEditFirstName("");
+                  setEditLastName("");
+                  setEditEmail("");
+                }}
+              />
+              <div className="relative bg-[color:var(--card)] rounded-xl shadow-xl w-full max-w-md p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="font-semibold text-lg">Felhasználó szerkesztése</h3>
+                  <button
+                    onClick={() => {
+                      setIsEditing(null);
+                      setEditFirstName("");
+                      setEditLastName("");
+                      setEditEmail("");
+                    }}
+                    className="text-[color:var(--muted-foreground)] hover:text-[color:var(--foreground)]"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="editLastName" className="text-sm">
+                        Családnév
+                      </Label>
+                      <Input
+                        id="editLastName"
+                        type="text"
+                        value={editLastName}
+                        onChange={(e) => setEditLastName(e.target.value)}
+                        placeholder="Kovács"
+                        className="mt-1"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="editFirstName" className="text-sm">
+                        Keresztnév
+                      </Label>
+                      <Input
+                        id="editFirstName"
+                        type="text"
+                        value={editFirstName}
+                        onChange={(e) => setEditFirstName(e.target.value)}
+                        placeholder="János"
+                        className="mt-1"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <Label htmlFor="editEmail" className="text-sm">
+                      Email cím *
+                    </Label>
+                    <Input
+                      id="editEmail"
+                      type="email"
+                      value={editEmail}
+                      onChange={(e) => setEditEmail(e.target.value)}
+                      placeholder="pelda@email.com"
+                      className="mt-1"
+                      disabled={isEditing.email === currentUser?.email}
+                    />
+                    {isEditing.email === currentUser?.email && (
+                      <p className="text-xs text-[color:var(--muted-foreground)] mt-1">
+                        Saját email címedet nem módosíthatod
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex justify-end gap-2 mt-6 pt-4 border-t border-[color:var(--border)]">
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setIsEditing(null);
+                      setEditFirstName("");
+                      setEditLastName("");
+                      setEditEmail("");
+                    }}
+                  >
+                    Mégse
+                  </Button>
+                  <Button onClick={handleEditUser} disabled={isSaving}>
+                    {isSaving ? (
+                      <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                    ) : (
+                      <CheckCircle className="w-4 h-4 mr-1" />
+                    )}
+                    Mentés
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </AdminLayout>

@@ -143,70 +143,71 @@ export default function AdminDashboardPage() {
           <Loader2 className="w-8 h-8 animate-spin text-[color:var(--primary)]" />
         </div>
       ) : (
-        <>
+        <div className="space-y-6">
           {/* Stats Grid */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6 sm:mb-8">
             {/* Új érdeklődések */}
-            <div className="bg-gradient-to-br from-amber-500 to-amber-600 rounded-xl p-5 text-white">
+            <div className="bg-gradient-to-br from-amber-500 to-amber-600 rounded-xl p-3 sm:p-5 text-white">
               <div className="flex items-center justify-between">
-                <AlertCircle className="w-8 h-8 opacity-80" />
-                <span className="text-3xl font-bold">{stats.inquiries.new}</span>
+                <AlertCircle className="w-6 h-6 sm:w-8 sm:h-8 opacity-80" />
+                <span className="text-2xl sm:text-3xl font-bold">{stats.inquiries.new}</span>
               </div>
-              <div className="mt-3 text-sm font-medium opacity-90">Új érdeklődés</div>
-              <div className="text-xs opacity-75">Feldolgozásra vár</div>
+              <div className="mt-2 sm:mt-3 text-xs sm:text-sm font-medium opacity-90">Új érdeklődés</div>
+              <div className="text-[10px] sm:text-xs opacity-75 hidden sm:block">Feldolgozásra vár</div>
             </div>
 
             {/* Függőben lévő szerződések */}
-            <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl p-5 text-white">
+            <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl p-3 sm:p-5 text-white">
               <div className="flex items-center justify-between">
-                <Clock className="w-8 h-8 opacity-80" />
-                <span className="text-3xl font-bold">{stats.contracts.pending}</span>
+                <Clock className="w-6 h-6 sm:w-8 sm:h-8 opacity-80" />
+                <span className="text-2xl sm:text-3xl font-bold">{stats.contracts.pending}</span>
               </div>
-              <div className="mt-3 text-sm font-medium opacity-90">Függő szerződés</div>
-              <div className="text-xs opacity-75">Ellenőrzésre vár</div>
+              <div className="mt-2 sm:mt-3 text-xs sm:text-sm font-medium opacity-90">Függő szerződés</div>
+              <div className="text-[10px] sm:text-xs opacity-75 hidden sm:block">Ellenőrzésre vár</div>
             </div>
 
             {/* Aktív szerződések */}
-            <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-xl p-5 text-white">
+            <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-xl p-3 sm:p-5 text-white">
               <div className="flex items-center justify-between">
-                <CheckCircle className="w-8 h-8 opacity-80" />
-                <span className="text-3xl font-bold">{stats.contracts.active}</span>
+                <CheckCircle className="w-6 h-6 sm:w-8 sm:h-8 opacity-80" />
+                <span className="text-2xl sm:text-3xl font-bold">{stats.contracts.active}</span>
               </div>
-              <div className="mt-3 text-sm font-medium opacity-90">Aktív szerződés</div>
-              <div className="text-xs opacity-75">Jóváhagyva / Aktív</div>
+              <div className="mt-2 sm:mt-3 text-xs sm:text-sm font-medium opacity-90">Aktív szerződés</div>
+              <div className="text-[10px] sm:text-xs opacity-75 hidden sm:block">Jóváhagyva / Aktív</div>
             </div>
 
             {/* Heti érdeklődések */}
-            <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl p-5 text-white">
+            <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl p-3 sm:p-5 text-white">
               <div className="flex items-center justify-between">
-                <TrendingUp className="w-8 h-8 opacity-80" />
-                <span className="text-3xl font-bold">{stats.inquiries.thisWeek}</span>
+                <TrendingUp className="w-6 h-6 sm:w-8 sm:h-8 opacity-80" />
+                <span className="text-2xl sm:text-3xl font-bold">{stats.inquiries.thisWeek}</span>
               </div>
-              <div className="mt-3 text-sm font-medium opacity-90">Heti érdeklődés</div>
-              <div className="text-xs opacity-75">Elmúlt 7 nap</div>
+              <div className="mt-2 sm:mt-3 text-xs sm:text-sm font-medium opacity-90">Heti érdeklődés</div>
+              <div className="text-[10px] sm:text-xs opacity-75 hidden sm:block">Elmúlt 7 nap</div>
             </div>
           </div>
 
           {/* Recent Activity */}
-          <div className="grid lg:grid-cols-2 gap-6">
+          <div className="grid lg:grid-cols-2 gap-4 sm:gap-6">
             {/* Recent Inquiries */}
             <AdminCard>
-              <div className="p-5">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-2">
-                    <MessageSquare className="w-5 h-5 text-[color:var(--primary)]" />
-                    <h3 className="font-semibold text-[color:var(--foreground)]">Legutóbbi érdeklődések</h3>
+              <div className="p-3 sm:p-5">
+                <div className="flex items-center justify-between gap-2 mb-4">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <MessageSquare className="w-4 h-4 sm:w-5 sm:h-5 text-[color:var(--primary)] shrink-0" />
+                    <h3 className="font-semibold text-sm sm:text-base text-[color:var(--foreground)] truncate">Érdeklődések</h3>
                   </div>
-                  <Link href="/ops/nova/inquiries">
-                    <Button variant="ghost" size="sm" className="text-xs">
-                      Összes <ArrowRight className="w-3 h-3 ml-1" />
+                  <Link href="/ops/nova/inquiries" className="shrink-0">
+                    <Button variant="ghost" size="sm" className="text-xs h-8 px-2">
+                      <span className="hidden sm:inline">Mind</span>
+                      <ArrowRight className="w-3 h-3 sm:ml-1" />
                     </Button>
                   </Link>
                 </div>
 
                 {recentInquiries.length === 0 ? (
-                  <p className="text-sm text-[color:var(--muted-foreground)] py-4 text-center">
-                    Még nincs érdeklődés
+                  <p className="text-sm text-[color:var(--muted-foreground)] py-4 text-center break-words">
+                    Még nincsen érdeklődés
                   </p>
                 ) : (
                   <div className="space-y-3">
@@ -245,22 +246,23 @@ export default function AdminDashboardPage() {
 
             {/* Recent Contracts */}
             <AdminCard>
-              <div className="p-5">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-2">
-                    <FileText className="w-5 h-5 text-[color:var(--primary)]" />
-                    <h3 className="font-semibold text-[color:var(--foreground)]">Legutóbbi szerződések</h3>
+              <div className="p-3 sm:p-5">
+                <div className="flex items-center justify-between gap-2 mb-4">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <FileText className="w-4 h-4 sm:w-5 sm:h-5 text-[color:var(--primary)] shrink-0" />
+                    <h3 className="font-semibold text-sm sm:text-base text-[color:var(--foreground)] truncate">Szerződések</h3>
                   </div>
-                  <Link href="/ops/nova/contracts">
-                    <Button variant="ghost" size="sm" className="text-xs">
-                      Összes <ArrowRight className="w-3 h-3 ml-1" />
+                  <Link href="/ops/nova/contracts" className="shrink-0">
+                    <Button variant="ghost" size="sm" className="text-xs h-8 px-2">
+                      <span className="hidden sm:inline">Mind</span>
+                      <ArrowRight className="w-3 h-3 sm:ml-1" />
                     </Button>
                   </Link>
                 </div>
 
                 {recentContracts.length === 0 ? (
-                  <p className="text-sm text-[color:var(--muted-foreground)] py-4 text-center">
-                    Még nincs szerződés
+                  <p className="text-sm text-[color:var(--muted-foreground)] py-4 text-center break-words">
+                    Még nincsen szerződés
                   </p>
                 ) : (
                   <div className="space-y-3">
@@ -270,8 +272,8 @@ export default function AdminDashboardPage() {
                         href="/ops/nova/contracts"
                         className="flex items-center gap-3 p-3 rounded-lg bg-[color:var(--muted)]/30 hover:bg-[color:var(--muted)]/50 transition-colors"
                       >
-                        <div className="flex-1 min-w-0">
-                          <div className="font-medium text-sm text-[color:var(--foreground)] truncate">
+                        <div className="flex-1 min-w-0 overflow-hidden">
+                          <div className="font-medium text-sm text-[color:var(--foreground)] line-clamp-2 break-words">
                             {item.company?.name || "Névtelen cég"}
                           </div>
                           <div className="text-xs text-[color:var(--muted-foreground)] truncate">
@@ -300,46 +302,46 @@ export default function AdminDashboardPage() {
           </div>
 
           {/* Summary Stats */}
-          <div className="mt-6 grid grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="bg-[color:var(--card)] border border-[color:var(--border)] rounded-xl p-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center">
-                  <MessageSquare className="w-5 h-5 text-blue-600" />
+          <div className="mt-4 sm:mt-6 grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+            <div className="bg-[color:var(--card)] border border-[color:var(--border)] rounded-xl p-3 sm:p-4">
+              <div className="flex items-center gap-2 sm:gap-3">
+                <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-blue-100 flex items-center justify-center flex-shrink-0">
+                  <MessageSquare className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600" />
                 </div>
-                <div>
-                  <div className="text-2xl font-bold text-[color:var(--foreground)]">{stats.inquiries.total}</div>
-                  <div className="text-xs text-[color:var(--muted-foreground)]">Összes érdeklődés</div>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-[color:var(--card)] border border-[color:var(--border)] rounded-xl p-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-green-100 flex items-center justify-center">
-                  <FileText className="w-5 h-5 text-green-600" />
-                </div>
-                <div>
-                  <div className="text-2xl font-bold text-[color:var(--foreground)]">{stats.contracts.total}</div>
-                  <div className="text-xs text-[color:var(--muted-foreground)]">Összes szerződés</div>
+                <div className="min-w-0">
+                  <div className="text-xl sm:text-2xl font-bold text-[color:var(--foreground)]">{stats.inquiries.total}</div>
+                  <div className="text-[10px] sm:text-xs text-[color:var(--muted-foreground)] truncate">Összes érdeklődés</div>
                 </div>
               </div>
             </div>
 
-            <div className="bg-[color:var(--card)] border border-[color:var(--border)] rounded-xl p-4 col-span-2">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-purple-100 flex items-center justify-center">
-                  <Calendar className="w-5 h-5 text-purple-600" />
+            <div className="bg-[color:var(--card)] border border-[color:var(--border)] rounded-xl p-3 sm:p-4">
+              <div className="flex items-center gap-2 sm:gap-3">
+                <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-green-100 flex items-center justify-center flex-shrink-0">
+                  <FileText className="w-4 h-4 sm:w-5 sm:h-5 text-green-600" />
                 </div>
-                <div>
-                  <div className="text-sm font-medium text-[color:var(--foreground)]">
-                    {new Date().toLocaleDateString("hu-HU", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}
+                <div className="min-w-0">
+                  <div className="text-xl sm:text-2xl font-bold text-[color:var(--foreground)]">{stats.contracts.total}</div>
+                  <div className="text-[10px] sm:text-xs text-[color:var(--muted-foreground)] truncate">Összes szerződés</div>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-[color:var(--card)] border border-[color:var(--border)] rounded-xl p-3 sm:p-4 col-span-2 overflow-hidden">
+              <div className="flex items-center gap-2 sm:gap-3">
+                <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-purple-100 flex items-center justify-center flex-shrink-0">
+                  <Calendar className="w-4 h-4 sm:w-5 sm:h-5 text-purple-600" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="text-[10px] sm:text-sm font-medium text-[color:var(--foreground)] truncate">
+                    {new Date().toLocaleDateString("hu-HU", { year: "numeric", month: "short", day: "numeric" })}
                   </div>
-                  <div className="text-xs text-[color:var(--muted-foreground)]">Mai nap</div>
+                  <div className="text-[10px] sm:text-xs text-[color:var(--muted-foreground)]">Mai nap</div>
                 </div>
               </div>
             </div>
           </div>
-        </>
+        </div>
       )}
     </AdminLayout>
   );

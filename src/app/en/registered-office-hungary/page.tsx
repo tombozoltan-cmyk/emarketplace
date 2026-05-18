@@ -77,7 +77,7 @@ export default function RegisteredOfficeHungaryPage() {
 
           <h1 className="text-balance text-2xl font-bold text-[color:var(--foreground)] md:text-3xl lg:text-6xl">
             <span>Registered office service+</span>{" "}
-            <span className="text-[color:var(--primary)]">in Budapest</span>
+            <span className="text-[color:var(--link)]">in Budapest</span>
           </h1>
 
           <p className="text-pretty text-base text-[color:var(--muted-foreground)] md:text-lg lg:text-2xl">
@@ -86,7 +86,7 @@ export default function RegisteredOfficeHungaryPage() {
 
           <p className="text-sm text-[color:var(--muted-foreground)] md:text-base lg:text-lg">
             <span className="font-medium">Prestige Budapest business address from</span>{" "}
-            <span className="font-bold text-[color:var(--primary)]">8,000 HUF/month + VAT</span>{" "}
+            <span className="font-bold text-[color:var(--link)]">8,000 HUF/month + VAT</span>{" "}
             <span className="hidden md:inline">— PMT compliant | For new companies too</span>
           </p>
 
@@ -342,7 +342,7 @@ export default function RegisteredOfficeHungaryPage() {
             </p>
             <QuoteButton
               packageId="kezbesitesi"
-              className="w-full rounded-full bg-[color:var(--primary)] px-4 py-2 text-sm text-[color:var(--background)] hover:bg-[color:var(--primary)]/90 md:w-auto md:px-6 md:py-3 md:text-base"
+              className="w-full rounded-full bg-[color:var(--primary)] px-4 py-2 text-sm text-[color:var(--primary-foreground)] hover:bg-[color:var(--primary)]/90 md:w-auto md:px-6 md:py-3 md:text-base"
             >
               Request a delivery agent
             </QuoteButton>
@@ -603,7 +603,7 @@ export default function RegisteredOfficeHungaryPage() {
               We can recommend an accounting partner familiar with registered office specifics and international client needs.
             </p>
             <Link href="/en/contact#konyveles" className="inline-block">
-              <Button className="rounded-full bg-[color:var(--primary)] px-4 py-2 text-sm text-[color:var(--background)] hover:bg-[color:var(--primary)]/90 md:px-6 md:py-4 md:text-base lg:px-8 lg:py-6 lg:text-lg">
+              <Button className="rounded-full bg-[color:var(--primary)] px-4 py-2 text-sm text-[color:var(--primary-foreground)] hover:bg-[color:var(--primary)]/90 md:px-6 md:py-4 md:text-base lg:px-8 lg:py-6 lg:text-lg">
                 Request accounting assistance
               </Button>
             </Link>

@@ -208,7 +208,7 @@ export function PricingCardsGrid({ group, language }: PricingCardsGridProps) {
         return (
           <Card key={card.id} className={cardClassByStyle[card.style]}>
             {isPremium && hasCornerBadge ? (
-              <span className="absolute right-4 top-4 rounded-full bg-[color:var(--primary)] px-3 py-1 text-xs font-bold text-[color:var(--background)]">
+              <span className="absolute right-4 top-4 rounded-full bg-[color:var(--primary)] px-3 py-1 text-xs font-bold text-[color:var(--primary-foreground)]">
                 {cornerBadge}
               </span>
             ) : null}
@@ -264,11 +264,11 @@ export function PricingCardsGrid({ group, language }: PricingCardsGridProps) {
                   packageId={card.packageId}
                   className={
                     isPremium
-                      ? "mt-auto w-full rounded-full bg-[color:var(--primary)] text-[color:var(--background)] hover:bg-[color:var(--primary)]/90"
+                      ? "mt-auto w-full rounded-full bg-[color:var(--primary)] text-[color:var(--primary-foreground)] hover:bg-[color:var(--primary)]/90"
                       : "mt-auto w-full rounded-full font-semibold"
                   }
                 >
-                  {language === "en" ? "Quote" : "Árajánlat"}
+                  {language === "hu" ? "Ajánlatot kérek" : "Request quote"}
                 </QuoteButton>
               ) : null}
             </CardContent>

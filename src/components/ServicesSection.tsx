@@ -100,7 +100,7 @@ export function ServicesSection() {
     <section className="w-full bg-muted py-16 text-foreground">
       <div className="mx-auto flex max-w-6xl flex-col gap-10 px-4 lg:px-0">
         <div className="text-center">
-          <h2 className="text-3xl font-semibold text-[color:var(--primary)] md:text-4xl">
+          <h2 className="text-3xl font-semibold text-[color:var(--link)] md:text-4xl">
             {sectionTitle}
           </h2>
           <p className="mt-3 text-sm font-medium text-muted-foreground md:text-base">

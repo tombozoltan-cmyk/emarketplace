@@ -40,8 +40,10 @@ export function Step3CompanyData({
     let updatedName = data.name;
     
     // Távolítjuk a korábbi cégforma rövidítést a név végéről
+    // Variációk kezelése: Kft, kft, KFT, Kft. mind működik
     Object.values(LEGAL_FORM_SUFFIXES).forEach((suffix) => {
-      const regex = new RegExp(`\\s*${suffix.replace('.', '\\.')}\\s*$`, 'i');
+      const suffixBase = suffix.replace('.', ''); // "Kft." -> "Kft"
+      const regex = new RegExp(`\\s*${suffixBase}\\.?\\s*$`, 'i');
       updatedName = updatedName.replace(regex, '').trim();
     });
     
