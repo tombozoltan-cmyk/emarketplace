@@ -33,21 +33,14 @@ import {
   Eye,
   X,
   Plus,
+  Pencil,
+  Check,
 } from "lucide-react";
 import { firestoreDb } from "@/lib/firebase";
+import { firebaseAuth } from "@/lib/firebase-auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import type { ContractData, ContractStatus } from "@/lib/contract-types";
-import {
-  generatePostalAuthorizationPDF,
-  downloadPDF,
-  type PostalAuthorizationData,
-} from "@/lib/pdf-generators/postal-authorization";
-import {
-  generateContractPDF,
-  generateKycFormPDF,
-  generatePepDeclarationPDF,
-} from "@/lib/pdf-generators/contract-documents";
 import Link from "next/link";
 import {
   AdminLayout,
@@ -63,6 +56,9 @@ import {
   useAdminAuth,
 } from "@/components/admin";
 import { buildConditionalContext, replaceShortcodes } from "@/lib/contract-shortcodes";
+import { fillOfficialPostalAuthPDF, type OfficialPostalAuthData } from "@/lib/pdf-generators/postal-authorization";
+
+const FUNCTIONS_BASE_URL = process.env.NEXT_PUBLIC_FUNCTIONS_URL || "https://us-central1-emarketplace-8aab1.cloudfunctions.net";
 
 type ContractDoc = ContractData & {
   id: string;
@@ -111,6 +107,38 @@ export default function ContractsPage() {
   const [previewPdf, setPreviewPdf] = useState<{ url: string; title: string } | null>(null);
   const [templatePreviewHtml, setTemplatePreviewHtml] = useState<string | null>(null);
   const [templatePreviewTitle, setTemplatePreviewTitle] = useState<string>("");
+  const [docxTemplates, setDocxTemplates] = useState<{ id: string; name: string; category: string }[]>([]);
+  
+  // Inline editing state
+  const [editingSection, setEditingSection] = useState<string | null>(null);
+  const [editedCompany, setEditedCompany] = useState<ContractDoc["company"]>({} as ContractDoc["company"]);
+  const [editedRepresentative, setEditedRepresentative] = useState<ContractDoc["representative"]>({} as ContractDoc["representative"]);
+  const [editedContact, setEditedContact] = useState<ContractDoc["contact"]>({} as ContractDoc["contact"]);
+  const [isSavingSection, setIsSavingSection] = useState(false);
+
+  // Get auth token for Cloud Functions
+  const getAuthToken = async () => {
+    const currentUser = firebaseAuth.currentUser;
+    if (!currentUser) throw new Error("Nincs bejelentkezve");
+    return currentUser.getIdToken();
+  };
+
+  // Fetch DOCX templates
+  useEffect(() => {
+    if (!user) return;
+    const unsubscribe = onSnapshot(
+      collection(firestoreDb, "docxTemplates"),
+      (snapshot) => {
+        const docs = snapshot.docs.map((d) => ({
+          id: d.id,
+          name: d.data().name as string,
+          category: d.data().category as string,
+        }));
+        setDocxTemplates(docs);
+      }
+    );
+    return () => unsubscribe();
+  }, [user]);
 
   // Fetch contracts - only when authenticated
   useEffect(() => {
@@ -166,6 +194,56 @@ export default function ContractsPage() {
       console.error("Status update error:", error);
     } finally {
       setIsUpdating(false);
+    }
+  };
+
+  // Start editing a section
+  const startEditing = (section: string) => {
+    if (!selectedContract) return;
+    setEditingSection(section);
+    if (section === "company") {
+      setEditedCompany({ ...selectedContract.company });
+    } else if (section === "representative") {
+      setEditedRepresentative({ ...selectedContract.representative });
+    } else if (section === "contact") {
+      setEditedContact({ ...selectedContract.contact });
+    }
+  };
+
+  // Cancel editing
+  const cancelEditing = () => {
+    setEditingSection(null);
+  };
+
+  // Save section
+  const saveSection = async (section: string) => {
+    if (!selectedContract) return;
+    setIsSavingSection(true);
+    try {
+      let updateData: Record<string, unknown> = { updatedAt: Timestamp.now() };
+      if (section === "company") {
+        updateData.company = editedCompany;
+      } else if (section === "representative") {
+        updateData.representative = editedRepresentative;
+      } else if (section === "contact") {
+        updateData.contact = editedContact;
+      }
+      
+      await updateDoc(doc(firestoreDb, "contracts", selectedContract.id), updateData);
+      
+      // Update local state
+      setSelectedContract({
+        ...selectedContract,
+        ...(section === "company" ? { company: editedCompany } : {}),
+        ...(section === "representative" ? { representative: editedRepresentative } : {}),
+        ...(section === "contact" ? { contact: editedContact } : {}),
+      });
+      setEditingSection(null);
+    } catch (error) {
+      console.error("Save section error:", error);
+      alert("Hiba a mentés során!");
+    } finally {
+      setIsSavingSection(false);
     }
   };
 
@@ -255,6 +333,7 @@ export default function ContractsPage() {
     const representative = contract.representative || ({} as ContractDoc["representative"]);
     const contact = contract.contact || {};
     const date = new Date();
+    const pep = contract.pepDeclaration || {};
 
     const monthlyFee = contract.monthlyPrice || 0;
     const annualFee = contract.annualPrice || 0;
@@ -263,7 +342,14 @@ export default function ContractsPage() {
       ? firstNaturalOwner?.fullName || ""
       : contact.fullName || "";
 
-    return {
+    const idTypeLabels: Record<string, string> = {
+      personal_id: "Személyi igazolvány",
+      passport: "Útlevél",
+      drivers_license: "Vezetői engedély",
+    };
+
+    const data: Record<string, string> = {
+      // Cég adatok
       "{{CEG_NEV}}": company.name || "",
       "{{CEG_ROVID_NEV}}": company.shortName || "",
       "{{CEG_FORMA}}": company.legalForm || "",
@@ -271,166 +357,162 @@ export default function ContractsPage() {
       "{{ADOSZAM}}": company.taxNumber || "",
       "{{FOTEV}}": company.mainActivity || "",
       "{{SZEKHELY}}": "1052 Budapest, Váci utca 8. 1. em.",
+      // Legacy tulajdonos mezők (első természetes személy)
       "{{TULAJDONOS_NEV}}": firstNaturalOwner?.fullName || "",
       "{{TULAJDONOS_SZUL_NEV}}": firstNaturalOwner?.birthName || "",
       "{{TULAJDONOS_SZUL_HELY}}": firstNaturalOwner?.birthPlace || "",
       "{{TULAJDONOS_SZUL_DATUM}}": firstNaturalOwner?.birthDate || "",
       "{{TULAJDONOS_ANYJA_NEVE}}": firstNaturalOwner?.motherName || "",
       "{{TULAJDONOS_LAKCIM}}": firstNaturalOwner?.address || "",
-      "{{TULAJDONOS_OKMANY_TIPUS}}": firstNaturalOwner?.idType || "",
+      "{{TULAJDONOS_OKMANY_TIPUS}}": idTypeLabels[firstNaturalOwner?.idType || ""] || firstNaturalOwner?.idType || "",
       "{{TULAJDONOS_OKMANY_SZAM}}": firstNaturalOwner?.idNumber || "",
       "{{TULAJDONOS_ALLAMPOLGARSAG}}": firstNaturalOwner?.nationality || "",
       "{{TULAJDONOS_ARANY}}": (owners?.[0]?.ownershipPercent ?? 100).toString(),
-
+      // Legacy jogi személy tulajdonos
       "{{TULAJ_CEG_NEV}}": firstLegalOwner?.companyName || "",
       "{{TULAJ_CEG_SZEKHELY}}": firstLegalOwner?.address || "",
       "{{TULAJ_CEG_CEGJSZ}}": firstLegalOwner?.registrationNumber || "",
       "{{TULAJ_CEG_KEPVISELO}}": firstLegalOwner?.representativeName || "",
       "{{TULAJ_CEG_KEPV_BEOSZTAS}}": firstLegalOwner?.representativePosition || "",
+      // Képviselő
       "{{KEPVISELO_NEV}}": representative.fullName || "",
       "{{KEPVISELO_SZUL_NEV}}": representative.birthName || "",
       "{{KEPVISELO_SZUL_HELY}}": representative.birthPlace || "",
       "{{KEPVISELO_SZUL_DATUM}}": representative.birthDate || "",
       "{{KEPVISELO_ANYJA_NEVE}}": representative.motherName || "",
       "{{KEPVISELO_LAKCIM}}": representative.address || "",
+      "{{KEPVISELO_OKMANY_TIPUS}}": idTypeLabels[representative.idType || ""] || representative.idType || "",
       "{{KEPVISELO_OKMANY_SZAM}}": representative.idNumber || "",
       "{{KEPVISELO_BEOSZTAS}}": representative.position || "",
       "{{KEPVISELO_ALLAMPOLGARSAG}}": representative.nationality || "",
+      // Kapcsolattartó
       "{{KAPCSOLAT_NEV}}": contactName,
       "{{KAPCSOLAT_EMAIL}}": contact.email || "",
       "{{KAPCSOLAT_TELEFON}}": contact.phone || "",
       "{{KAPCSOLAT_CIM}}": contact.address || "",
+      // Szolgáltatás
       "{{CSOMAG_NEV}}": PACKAGE_NAMES[contract.packageId || ""] || contract.packageId || "",
       "{{HAVI_DIJ}}": monthlyFee.toLocaleString("hu-HU"),
       "{{HAVI_DIJ_SZOVEG}}": monthlyFee.toLocaleString("hu-HU"),
       "{{EVES_DIJ}}": annualFee.toLocaleString("hu-HU"),
       "{{EVES_DIJ_SZOVEG}}": annualFee.toLocaleString("hu-HU"),
+      "{{SZOLGALTATAS_TIPUS}}": PACKAGE_NAMES[contract.packageId || ""] || contract.packageId || "",
+      // Szolgáltató
       "{{SZOLGALTATO_NEV}}": "E-Marketplace Kft.",
       "{{SZOLGALTATO_CIM}}": "1064 Budapest, Izabella utca 68/b.",
+      // Dátumok
       "{{DATUM}}": date.toLocaleDateString("hu-HU"),
       "{{DATUM_SZO}}": date.toLocaleDateString("hu-HU", { year: "numeric", month: "long", day: "numeric" }),
       "{{EV}}": date.getFullYear().toString(),
       "{{HONAP}}": (date.getMonth() + 1).toString(),
       "{{NAP}}": date.getDate().toString(),
+      // Meta
       "{{SZERZODES_ID}}": contract.id,
       "{{KEZBESITESI_CIM}}": "1052 Budapest, Váci utca 8. 1. em.",
+      "{{TULAJDONOS_SZAM}}": owners.length.toString(),
+      // PEP
+      "{{PEP_STATUS}}": (pep.isPep || pep.isPepRelative || pep.isPepAssociate) ? "Igen" : "Nem",
+      "{{PEP_NYILATKOZAT}}": (pep.isPep || pep.isPepRelative || pep.isPepAssociate) ? "minősül" : "nem minősül",
+      "{{PEP_RESZLETEK}}": pep.pepDetails || "",
+      // Üzleti kapcsolat
+      "{{KOCKAZAT_SZINT}}": "Átlagos",
+      "{{TELJESITES_HELY}}": "1052 Budapest, Váci utca 8. 1. em.",
+      "{{UZLETI_CEL}}": "Székhely biztosítása határozatlan időtartamra, küldemények átvétele és az ügyfél értesítése",
     };
-  };
 
-  // Individual PDF generators
-  const generateContract = async () => {
-    if (!selectedContract) return;
-    setIsGeneratingPdf(true);
-    try {
-      const pdfData = prepareContractPdfData(selectedContract);
-      const slug = selectedContract.company?.name?.replace(/\s+/g, "_") || "ceg";
-      downloadPDF(await generateContractPDF(pdfData), `szerzodes_${slug}_${new Date().toISOString().slice(0, 10)}.pdf`);
-    } catch (error) {
-      console.error("PDF error:", error);
-      alert("Hiba a PDF generálás során!");
-    } finally {
-      setIsGeneratingPdf(false);
-    }
-  };
-
-  const generateKyc = async () => {
-    if (!selectedContract) return;
-    setIsGeneratingPdf(true);
-    try {
-      const pdfData = prepareContractPdfData(selectedContract);
-      const slug = selectedContract.company?.name?.replace(/\s+/g, "_") || "ceg";
-      downloadPDF(await generateKycFormPDF(pdfData), `atvilagitas_${slug}_${new Date().toISOString().slice(0, 10)}.pdf`);
-    } catch (error) {
-      console.error("PDF error:", error);
-      alert("Hiba a PDF generálás során!");
-    } finally {
-      setIsGeneratingPdf(false);
-    }
-  };
-
-  const generatePep = async () => {
-    if (!selectedContract) return;
-    setIsGeneratingPdf(true);
-    try {
-      const pdfData = prepareContractPdfData(selectedContract);
-      const slug = selectedContract.company?.name?.replace(/\s+/g, "_") || "ceg";
-      downloadPDF(await generatePepDeclarationPDF(pdfData), `pep_${slug}_${new Date().toISOString().slice(0, 10)}.pdf`);
-    } catch (error) {
-      console.error("PDF error:", error);
-      alert("Hiba a PDF generálás során!");
-    } finally {
-      setIsGeneratingPdf(false);
-    }
-  };
-
-  const generatePostalAuth = async () => {
-    if (!selectedContract) return;
-    setIsGeneratingPdf(true);
-    try {
-      const pdfData = prepareContractPdfData(selectedContract);
-      const slug = selectedContract.company?.name?.replace(/\s+/g, "_") || "ceg";
-      for (const owner of selectedContract.owners || []) {
-        const postalData: PostalAuthorizationData = {
-          companyName: selectedContract.company?.name || "",
-          companyAddress: `${selectedContract.company?.name} székhelye`,
-          companyRegistrationNumber: selectedContract.company?.registrationNumber || "",
-          authorizedPersonName: owner?.natural?.fullName || "",
-          authorizedPersonIdNumber: owner?.natural?.idNumber || "",
-          authorizedPersonAddress: owner?.natural?.address || "",
-          representativeName: selectedContract.representative?.fullName || "",
-          representativePosition: selectedContract.representative?.position || "ügyvezető",
-          deliveryAddress: "1052 Budapest, Váci utca 8. 1. em.",
-          date: pdfData.date,
-          city: "Budapest",
-        };
-        const ownerSlug = owner?.natural?.fullName?.replace(/\s+/g, "_") || "tulajdonos";
-        downloadPDF(await generatePostalAuthorizationPDF(postalData), `meghatalmazas_${slug}_${ownerSlug}_${new Date().toISOString().slice(0, 10)}.pdf`);
-        await new Promise((r) => setTimeout(r, 300));
+    // Számozott tulajdonosok (max 3)
+    for (let i = 0; i < 3; i++) {
+      const num = i + 1;
+      const owner = owners[i];
+      
+      if (owner && owner.type !== "legal" && owner.natural) {
+        const n = owner.natural;
+        data[`{{TULAJDONOS_${num}_NEV}}`] = n.fullName || "";
+        data[`{{TULAJDONOS_${num}_SZUL_NEV}}`] = n.birthName || "";
+        data[`{{TULAJDONOS_${num}_SZUL_HELY}}`] = n.birthPlace || "";
+        data[`{{TULAJDONOS_${num}_SZUL_DATUM}}`] = n.birthDate || "";
+        data[`{{TULAJDONOS_${num}_SZUL_HELY_IDO}}`] = `${n.birthPlace || ""}, ${n.birthDate || ""}`;
+        data[`{{TULAJDONOS_${num}_ANYJA_NEVE}}`] = n.motherName || "";
+        data[`{{TULAJDONOS_${num}_LAKCIM}}`] = n.address || "";
+        data[`{{TULAJDONOS_${num}_OKMANY_TIPUS}}`] = idTypeLabels[n.idType || ""] || n.idType || "";
+        data[`{{TULAJDONOS_${num}_OKMANY_SZAM}}`] = n.idNumber || "";
+        data[`{{TULAJDONOS_${num}_ALLAMPOLGARSAG}}`] = n.nationality || "";
+        data[`{{TULAJDONOS_${num}_ARANY}}`] = (owner.ownershipPercent || 0).toString();
+        data[`{{TULAJDONOS_${num}_TIPUS}}`] = "természetes személy";
+        // Jogi személy mezők üresen
+        data[`{{TULAJDONOS_${num}_CEG_NEV}}`] = "";
+        data[`{{TULAJDONOS_${num}_CEG_ROVID}}`] = "";
+        data[`{{TULAJDONOS_${num}_CEG_SZEKHELY}}`] = "";
+        data[`{{TULAJDONOS_${num}_CEG_CEGJSZ}}`] = "";
+        data[`{{TULAJDONOS_${num}_CEG_FOTEV}}`] = "";
+        data[`{{TULAJDONOS_${num}_CEG_KEPVISELO}}`] = "";
+        data[`{{TULAJDONOS_${num}_CEG_KEPV_BEOSZTAS}}`] = "";
+      } else if (owner && owner.type === "legal" && owner.legal) {
+        const l = owner.legal;
+        // Természetes személy mezők üresen
+        data[`{{TULAJDONOS_${num}_NEV}}`] = "";
+        data[`{{TULAJDONOS_${num}_SZUL_NEV}}`] = "";
+        data[`{{TULAJDONOS_${num}_SZUL_HELY}}`] = "";
+        data[`{{TULAJDONOS_${num}_SZUL_DATUM}}`] = "";
+        data[`{{TULAJDONOS_${num}_SZUL_HELY_IDO}}`] = "";
+        data[`{{TULAJDONOS_${num}_ANYJA_NEVE}}`] = "";
+        data[`{{TULAJDONOS_${num}_LAKCIM}}`] = "";
+        data[`{{TULAJDONOS_${num}_OKMANY_TIPUS}}`] = "";
+        data[`{{TULAJDONOS_${num}_OKMANY_SZAM}}`] = "";
+        data[`{{TULAJDONOS_${num}_ALLAMPOLGARSAG}}`] = "";
+        data[`{{TULAJDONOS_${num}_ARANY}}`] = (owner.ownershipPercent || 0).toString();
+        data[`{{TULAJDONOS_${num}_TIPUS}}`] = "jogi személy";
+        // Jogi személy mezők
+        data[`{{TULAJDONOS_${num}_CEG_NEV}}`] = l.companyName || "";
+        data[`{{TULAJDONOS_${num}_CEG_ROVID}}`] = l.shortName || "";
+        data[`{{TULAJDONOS_${num}_CEG_SZEKHELY}}`] = l.address || "";
+        data[`{{TULAJDONOS_${num}_CEG_CEGJSZ}}`] = l.registrationNumber || "";
+        data[`{{TULAJDONOS_${num}_CEG_FOTEV}}`] = l.mainActivity || "";
+        data[`{{TULAJDONOS_${num}_CEG_KEPVISELO}}`] = l.representativeName || "";
+        data[`{{TULAJDONOS_${num}_CEG_KEPV_BEOSZTAS}}`] = l.representativePosition || "";
+      } else {
+        // Üres tulajdonos - minden mező üres
+        data[`{{TULAJDONOS_${num}_NEV}}`] = "";
+        data[`{{TULAJDONOS_${num}_SZUL_NEV}}`] = "";
+        data[`{{TULAJDONOS_${num}_SZUL_HELY}}`] = "";
+        data[`{{TULAJDONOS_${num}_SZUL_DATUM}}`] = "";
+        data[`{{TULAJDONOS_${num}_SZUL_HELY_IDO}}`] = "";
+        data[`{{TULAJDONOS_${num}_ANYJA_NEVE}}`] = "";
+        data[`{{TULAJDONOS_${num}_LAKCIM}}`] = "";
+        data[`{{TULAJDONOS_${num}_OKMANY_TIPUS}}`] = "";
+        data[`{{TULAJDONOS_${num}_OKMANY_SZAM}}`] = "";
+        data[`{{TULAJDONOS_${num}_ALLAMPOLGARSAG}}`] = "";
+        data[`{{TULAJDONOS_${num}_ARANY}}`] = "";
+        data[`{{TULAJDONOS_${num}_TIPUS}}`] = "";
+        data[`{{TULAJDONOS_${num}_CEG_NEV}}`] = "";
+        data[`{{TULAJDONOS_${num}_CEG_ROVID}}`] = "";
+        data[`{{TULAJDONOS_${num}_CEG_SZEKHELY}}`] = "";
+        data[`{{TULAJDONOS_${num}_CEG_CEGJSZ}}`] = "";
+        data[`{{TULAJDONOS_${num}_CEG_FOTEV}}`] = "";
+        data[`{{TULAJDONOS_${num}_CEG_KEPVISELO}}`] = "";
+        data[`{{TULAJDONOS_${num}_CEG_KEPV_BEOSZTAS}}`] = "";
       }
-    } catch (error) {
-      console.error("PDF error:", error);
-      alert("Hiba a PDF generálás során!");
-    } finally {
-      setIsGeneratingPdf(false);
     }
+
+    return data;
   };
+
 
   const handleGenerateAll = async () => {
     if (!selectedContract) return;
     setIsGeneratingPdf(true);
     try {
-      const pdfData = prepareContractPdfData(selectedContract);
-      const slug = selectedContract.company?.name?.replace(/\s+/g, "_") || "ceg";
-      const dateStr = new Date().toISOString().slice(0, 10);
-
-      downloadPDF(await generateContractPDF(pdfData), `szerzodes_${slug}_${dateStr}.pdf`);
-      await new Promise((r) => setTimeout(r, 400));
-      downloadPDF(await generateKycFormPDF(pdfData), `atvilagitas_${slug}_${dateStr}.pdf`);
-      await new Promise((r) => setTimeout(r, 400));
-      downloadPDF(await generatePepDeclarationPDF(pdfData), `pep_${slug}_${dateStr}.pdf`);
-      await new Promise((r) => setTimeout(r, 400));
-
-      for (const owner of selectedContract.owners || []) {
-        const postalData: PostalAuthorizationData = {
-          companyName: selectedContract.company?.name || "",
-          companyAddress: `${selectedContract.company?.name} székhelye`,
-          companyRegistrationNumber: selectedContract.company?.registrationNumber || "",
-          authorizedPersonName: owner?.natural?.fullName || "",
-          authorizedPersonIdNumber: owner?.natural?.idNumber || "",
-          authorizedPersonAddress: owner?.natural?.address || "",
-          representativeName: selectedContract.representative?.fullName || "",
-          representativePosition: selectedContract.representative?.position || "ügyvezető",
-          deliveryAddress: "1052 Budapest, Váci utca 8. 1. em.",
-          date: pdfData.date,
-          city: "Budapest",
-        };
-        const ownerSlug = owner?.natural?.fullName?.replace(/\s+/g, "_") || "tulajdonos";
-        downloadPDF(await generatePostalAuthorizationPDF(postalData), `meghatalmazas_${slug}_${ownerSlug}_${dateStr}.pdf`);
-        await new Promise((r) => setTimeout(r, 400));
-      }
+      // Generate all documents using DOCX templates
+      await generateDocxByCategory("Szerződés", "Szerzodes");
+      await new Promise((r) => setTimeout(r, 500));
+      await generateDocxByCategory("Adatlap", "Atvilagitas");
+      await new Promise((r) => setTimeout(r, 500));
+      await generateDocxByCategory("Nyilatkozat", "PEP_nyilatkozat");
+      await new Promise((r) => setTimeout(r, 500));
+      await generateDocxByCategory("Egyéb", "Meghatalmazas");
     } catch (error) {
-      console.error("PDF generation error:", error);
-      alert("Hiba a PDF generálás során!");
+      console.error("DOCX generation error:", error);
+      alert("Hiba a dokumentum generálás során!");
     } finally {
       setIsGeneratingPdf(false);
     }
@@ -446,22 +528,173 @@ export default function ContractsPage() {
     return URL.createObjectURL(blob);
   };
 
+  // Helper: Extract owner number from template name (e.g., "{TULAJDONOS_2_NEV}" -> 2)
+  const getOwnerNumberFromTemplateName = (templateName: string): number | null => {
+    const match = templateName.match(/\{TULAJDONOS_(\d)_NEV\}/);
+    return match ? parseInt(match[1], 10) : null;
+  };
+
+  // Generate single DOCX document from a specific template
+  const generateSingleDocx = async (
+    template: { id: string; name: string },
+    data: Record<string, string>,
+    filename: string
+  ) => {
+    const token = await getAuthToken();
+    const res = await fetch(`${FUNCTIONS_BASE_URL}/generateDocument`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        templateId: template.id,
+        format: "docx",
+        data,
+        useSampleData: false,
+      }),
+    });
+
+    if (!res.ok) {
+      const errorData = await res.json();
+      throw new Error(errorData.error || "Generálási hiba");
+    }
+
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  // Generate DOCX documents for all owners (finds matching templates by owner number in name)
+  const generateDocxForAllOwners = async (category: string, fallbackTitle: string) => {
+    if (!selectedContract) return;
+    setIsGeneratingPdf(true);
+    try {
+      const owners = selectedContract.owners || [];
+      const ownerCount = owners.length;
+
+      if (ownerCount === 0) {
+        alert("Nincs tulajdonos megadva a szerződésben!");
+        return;
+      }
+
+      // Find all templates in this category
+      const templatesInCategory = docxTemplates.filter((t) => t.category === category);
+      if (templatesInCategory.length === 0) {
+        alert(`Nincs '${category}' kategóriájú DOCX sablon feltöltve.\n\nMenj a Sablonok menüpontra és tölts fel egy .docx fájlt ezzel a kategóriával!`);
+        return;
+      }
+
+      const shortcodeData = buildShortcodeDataFromContract(selectedContract);
+      const data: Record<string, string> = {};
+      Object.entries(shortcodeData).forEach(([key, value]) => {
+        const cleanKey = key.replace(/^\{\{|\}\}$/g, "");
+        data[cleanKey] = value;
+      });
+
+      const slug = selectedContract.company?.name?.replace(/\s+/g, "_") || "ceg";
+      let generatedCount = 0;
+
+      // Generate document for each owner that has a matching template
+      for (let ownerNum = 1; ownerNum <= ownerCount; ownerNum++) {
+        // Find template for this owner number
+        const template = templatesInCategory.find((t) => {
+          const templateOwnerNum = getOwnerNumberFromTemplateName(t.name);
+          return templateOwnerNum === ownerNum;
+        });
+
+        if (template) {
+          const ownerName = owners[ownerNum - 1]?.natural?.fullName || 
+                           owners[ownerNum - 1]?.legal?.companyName || 
+                           `tulajdonos_${ownerNum}`;
+          const safeOwnerName = ownerName.replace(/\s+/g, "_").replace(/[^a-zA-Z0-9_áéíóöőúüűÁÉÍÓÖŐÚÜŰ]/g, "");
+          const filename = `${fallbackTitle.toLowerCase()}_${ownerNum}_${safeOwnerName}_${new Date().toISOString().slice(0, 10)}.docx`;
+          
+          await generateSingleDocx(template, data, filename);
+          generatedCount++;
+        }
+      }
+
+      if (generatedCount === 0) {
+        // Fallback: try to find any template without owner number pattern
+        const genericTemplate = templatesInCategory.find((t) => !getOwnerNumberFromTemplateName(t.name));
+        if (genericTemplate) {
+          const filename = `${fallbackTitle.toLowerCase()}_${slug}_${new Date().toISOString().slice(0, 10)}.docx`;
+          await generateSingleDocx(genericTemplate, data, filename);
+          generatedCount = 1;
+        }
+      }
+
+      if (generatedCount === 0) {
+        alert(`Nem található megfelelő sablon a(z) ${ownerCount} tulajdonoshoz.\n\nEllenőrizd, hogy a sablon nevében szerepel-e a {TULAJDONOS_X_NEV} minta!`);
+      } else if (generatedCount < ownerCount) {
+        alert(`${generatedCount} dokumentum generálva ${ownerCount} tulajdonosból.\n\nHiányzó sablonok lehetnek!`);
+      }
+    } catch (error) {
+      console.error("DOCX generation error:", error);
+      alert(`Hiba a dokumentum generálásakor: ${error instanceof Error ? error.message : "Ismeretlen hiba"}`);
+    } finally {
+      setIsGeneratingPdf(false);
+    }
+  };
+
+  // Generate DOCX document from template by category (for single-owner docs like contract)
+  const generateDocxByCategory = async (category: string, fallbackTitle: string) => {
+    if (!selectedContract) return;
+    setIsGeneratingPdf(true);
+    try {
+      // Find template by category (use first one, or one without owner pattern)
+      console.log("Looking for category:", category);
+      console.log("Available templates:", docxTemplates.map(t => ({ name: t.name, category: t.category })));
+      const templatesInCategory = docxTemplates.filter((t) => t.category === category);
+      console.log("Found templates:", templatesInCategory);
+      const template = templatesInCategory.find((t) => !getOwnerNumberFromTemplateName(t.name)) || templatesInCategory[0];
+      
+      if (!template) {
+        alert(`Nincs '${category}' kategóriájú DOCX sablon feltöltve.\n\nMenj a Sablonok menüpontra és tölts fel egy .docx fájlt ezzel a kategóriával!\n\nElérhető kategóriák: ${[...new Set(docxTemplates.map(t => t.category))].join(", ")}`);
+        return;
+      }
+
+      const shortcodeData = buildShortcodeDataFromContract(selectedContract);
+      const data: Record<string, string> = {};
+      Object.entries(shortcodeData).forEach(([key, value]) => {
+        const cleanKey = key.replace(/^\{\{|\}\}$/g, "");
+        data[cleanKey] = value;
+      });
+
+      const slug = selectedContract.company?.name?.replace(/\s+/g, "_") || "ceg";
+      const filename = `${fallbackTitle.toLowerCase().replace(/\s+/g, "_")}_${slug}_${new Date().toISOString().slice(0, 10)}.docx`;
+
+      await generateSingleDocx(template, data, filename);
+    } catch (error) {
+      console.error("DOCX generation error:", error);
+      alert(`Hiba a dokumentum generálásakor: ${error instanceof Error ? error.message : "Ismeretlen hiba"}`);
+    } finally {
+      setIsGeneratingPdf(false);
+    }
+  };
+
+  // Legacy HTML preview (fallback if no DOCX template)
   const previewTemplateByType = async (templateType: string, fallbackTitle: string) => {
     if (!selectedContract) return;
     setIsGeneratingPdf(true);
     try {
-      // Egyszerű lekérdezés - csak típusra szűrünk, az active-ot kódban ellenőrizzük
       const templatesRef = collection(firestoreDb, "documentTemplates");
       const snapshot = await getDocs(templatesRef);
       
-      // Keresünk aktív sablont a megadott típussal
       const matchingTemplate = snapshot.docs.find((d) => {
         const data = d.data();
         return data.type === templateType && data.active === true;
       });
 
       if (!matchingTemplate) {
-        alert(`Nincs aktív '${templateType}' típusú sablon beállítva.\n\nKérlek ellenőrizd a Sablon szerkesztőben, hogy a megfelelő típust állítottad-e be!`);
+        alert(`Nincs aktív '${templateType}' típusú sablon beállítva.`);
         return;
       }
 
@@ -492,20 +725,134 @@ export default function ContractsPage() {
     }
   };
 
-  const previewContract = async () => {
-    await previewTemplateByType("contract", "Szerződés");
+  const generateContract = async () => {
+    await generateDocxByCategory("Szerződés", "Szerzodes");
   };
 
-  const previewKyc = async () => {
-    await previewTemplateByType("kyc", "Átvilágítási adatlap");
+  const generateKyc = async () => {
+    await generateDocxForAllOwners("Adatlap", "atvilagitas");
   };
 
-  const previewPep = async () => {
-    await previewTemplateByType("pep", "PEP nyilatkozat");
+  const generatePepDoc = async () => {
+    await generateDocxForAllOwners("Nyilatkozat", "pep_nyilatkozat");
   };
 
-  const previewPostalAuth = async () => {
-    await previewTemplateByType("postal_auth", "Postai meghatalmazás");
+  const generateConsentDoc = async () => {
+    // Try exact category match first, then fallback to name-based search
+    const exactMatch = docxTemplates.find((t) => t.category === "Hozzájáruló nyilatkozat");
+    const nameMatch = docxTemplates.find((t) => t.name.toLowerCase().includes("hozzájárul"));
+    const template = exactMatch || nameMatch;
+    
+    if (!template) {
+      alert(`Nincs 'Hozzájáruló nyilatkozat' sablon feltöltve.\n\nMenj a Sablonok menüpontra és tölts fel egy .docx fájlt ezzel a kategóriával!`);
+      return;
+    }
+    
+    // Use the found template's category for generation
+    await generateDocxByCategory(template.category, "Hozzajarulo_nyilatkozat");
+  };
+
+  const generatePostalAuthDoc = async () => {
+    if (!selectedContract) return;
+    setIsGeneratingPdf(true);
+    try {
+      const owners = selectedContract.owners || [];
+      const ownerCount = owners.length;
+
+      if (ownerCount === 0) {
+        alert("Nincs tulajdonos megadva a szerződésben!");
+        return;
+      }
+
+      const deliveryAddress = "1064 Budapest, Izabella utca 68/b.";
+      
+      // E-Marketplace Kft. adatai (meghatalmazott)
+      const emarketplaceData = {
+        name: "E-Marketplace Kft.",
+        address: "1064 Budapest, Izabella utca 68/b.",
+        registrationNumber: "01-09-296567",
+      };
+
+      // Szerződés cég adatai (meghatalmazó szervezet)
+      const company = selectedContract.company || {};
+      const authorizerOrgData = {
+        name: company.name || "",
+        address: "", // Üres - nem kell kitölteni
+        registrationNumber: company.registrationNumber || "",
+      };
+
+      // Generate PDF for each owner
+      for (let i = 0; i < ownerCount; i++) {
+        const owner = owners[i];
+        const ownerNum = i + 1;
+        
+        let authorizerName = "";
+        let birthName = "";
+        let motherName = "";
+        let birthPlace = "";
+        let birthDate = "";
+
+        if (owner.type !== "legal" && owner.natural) {
+          authorizerName = owner.natural.fullName || "";
+          birthName = owner.natural.birthName || "";
+          motherName = owner.natural.motherName || "";
+          birthPlace = owner.natural.birthPlace || "";
+          birthDate = owner.natural.birthDate || "";
+        } else if (owner.type === "legal" && owner.legal) {
+          authorizerName = owner.legal.representativeName || "";
+        }
+
+        const pdfData: OfficialPostalAuthData = {
+          authorizer: {
+            name: authorizerName,
+            birthName: birthName,
+            motherName: motherName,
+            birthPlace: birthPlace,
+            birthDate: birthDate,
+          },
+          // Mindig kitöltjük a meghatalmazó szervezet adatait a szerződés cégével
+          authorizerOrg: authorizerOrgData,
+          deliveryAddress: deliveryAddress,
+          authorized: {
+            name: "", // E-Marketplace is org, not individual
+          },
+          authorizedOrg: emarketplaceData,
+          // authorizedDeliveryAddress nem kell - csak a székhely cím szükséges
+          authType: {
+            indefinite: true,
+            allPackages: true,
+            letter: true,
+            package: true,
+            official: true,
+          },
+        };
+
+        const pdfBytes = await fillOfficialPostalAuthPDF(pdfData);
+        
+        // Download the PDF
+        const safeOwnerName = authorizerName.replace(/\s+/g, "_").replace(/[^a-zA-Z0-9_áéíóöőúüűÁÉÍÓÖŐÚÜŰ]/g, "") || `tulajdonos_${ownerNum}`;
+        const filename = `meghatalmazas_${ownerNum}_${safeOwnerName}_${new Date().toISOString().slice(0, 10)}.pdf`;
+        
+        const blob = new Blob([new Uint8Array(pdfBytes)], { type: "application/pdf" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      }
+
+      if (ownerCount > 1) {
+        alert(`${ownerCount} meghatalmazás generálva (minden tulajdonoshoz külön).`);
+      }
+    } catch (error) {
+      console.error("Postal auth PDF generation error:", error);
+      alert(`Hiba a meghatalmazás generálásakor: ${error instanceof Error ? error.message : "Ismeretlen hiba"}`);
+    } finally {
+      setIsGeneratingPdf(false);
+    }
   };
 
   const closePreview = () => {
@@ -690,22 +1037,31 @@ export default function ContractsPage() {
         {selectedContract && (
           <div className="space-y-5">
             {/* Status Row */}
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="text-sm font-medium text-[color:var(--foreground)] mr-2">Státusz:</span>
-              {STATUS_OPTIONS.map((status) => (
-                <button
-                  key={status}
-                  onClick={() => updateStatus(status)}
-                  disabled={isUpdating}
-                  className={`px-3 py-1.5 text-sm font-medium rounded-md transition-all ${
-                    selectedContract.status === status
-                      ? "bg-[color:var(--primary)] text-white shadow-sm"
-                      : "bg-[color:var(--muted)] text-[color:var(--muted-foreground)] hover:bg-[color:var(--muted)]/80"
-                  }`}
-                >
-                  {STATUS_CONFIG[status].label}
-                </button>
-              ))}
+            <div className="flex items-center gap-3 p-3 bg-[color:var(--muted)]/30 rounded-lg">
+              <span className="text-sm font-medium text-[color:var(--foreground)]">Státusz:</span>
+              <select
+                value={selectedContract.status}
+                onChange={(e) => updateStatus(e.target.value as ContractStatus)}
+                disabled={isUpdating}
+                className="h-9 px-3 rounded-md border border-[color:var(--border)] bg-[color:var(--background)] text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[color:var(--primary)]"
+              >
+                {STATUS_OPTIONS.map((status) => (
+                  <option key={status} value={status}>
+                    {STATUS_CONFIG[status].label}
+                  </option>
+                ))}
+              </select>
+              <span className={`ml-auto px-3 py-1 rounded-full text-xs font-semibold ${
+                selectedContract.status === "approved" || selectedContract.status === "active" 
+                  ? "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300" 
+                  : selectedContract.status === "pending_review" || selectedContract.status === "documents_needed"
+                  ? "bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300"
+                  : selectedContract.status === "rejected"
+                  ? "bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300"
+                  : "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300"
+              }`}>
+                {STATUS_CONFIG[selectedContract.status || "pending_review"].label}
+              </span>
             </div>
 
             {/* Documents */}
@@ -717,21 +1073,25 @@ export default function ContractsPage() {
                   Összes letöltése
                 </Button>
               </div>
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
-                <Button variant="outline" size="sm" className="justify-start" onClick={previewContract} disabled={isGeneratingPdf}>
-                  <Eye className="w-4 h-4 mr-2" />
+              <div className="grid grid-cols-2 lg:grid-cols-3 gap-2">
+                <Button variant="outline" size="sm" className="justify-start" onClick={generateContract} disabled={isGeneratingPdf}>
+                  <Download className="w-4 h-4 mr-2" />
                   Szerződés
                 </Button>
-                <Button variant="outline" size="sm" className="justify-start" onClick={previewKyc} disabled={isGeneratingPdf}>
-                  <Eye className="w-4 h-4 mr-2" />
+                <Button variant="outline" size="sm" className="justify-start" onClick={generateKyc} disabled={isGeneratingPdf}>
+                  <Download className="w-4 h-4 mr-2" />
                   KYC adatlap
                 </Button>
-                <Button variant="outline" size="sm" className="justify-start" onClick={previewPep} disabled={isGeneratingPdf}>
-                  <Eye className="w-4 h-4 mr-2" />
+                <Button variant="outline" size="sm" className="justify-start" onClick={generatePepDoc} disabled={isGeneratingPdf}>
+                  <Download className="w-4 h-4 mr-2" />
                   PEP nyilatkozat
                 </Button>
-                <Button variant="outline" size="sm" className="justify-start" onClick={previewPostalAuth} disabled={isGeneratingPdf}>
-                  <Eye className="w-4 h-4 mr-2" />
+                <Button variant="outline" size="sm" className="justify-start" onClick={generateConsentDoc} disabled={isGeneratingPdf}>
+                  <Download className="w-4 h-4 mr-2" />
+                  Hozzájáruló nyil.
+                </Button>
+                <Button variant="outline" size="sm" className="justify-start" onClick={generatePostalAuthDoc} disabled={isGeneratingPdf}>
+                  <Download className="w-4 h-4 mr-2" />
                   Meghatalmazás
                 </Button>
               </div>
@@ -743,87 +1103,214 @@ export default function ContractsPage() {
               <div className="space-y-5">
                 {/* Company */}
                 <div>
-                  <h4 className="text-sm font-semibold text-[color:var(--foreground)] mb-3 pb-1 border-b border-[color:var(--border)]">Cégadatok</h4>
-                  <dl className="space-y-2 text-sm">
-                    <div>
-                      <dt className="text-[color:var(--muted-foreground)]">Cégnév</dt>
-                      <dd className="font-medium">{selectedContract.company?.name || "-"}</dd>
-                    </div>
-                    <div>
-                      <dt className="text-[color:var(--muted-foreground)]">Rövidített név</dt>
-                      <dd>{selectedContract.company?.shortName || "-"}</dd>
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
+                  <div className="flex items-center justify-between mb-3 pb-1 border-b border-[color:var(--border)]">
+                    <h4 className="text-sm font-semibold text-[color:var(--foreground)]">Cégadatok</h4>
+                    {editingSection === "company" ? (
+                      <div className="flex gap-1">
+                        <button onClick={() => saveSection("company")} disabled={isSavingSection} className="p-1 text-green-600 hover:bg-green-100 rounded" title="Mentés">
+                          <Check className="w-4 h-4" />
+                        </button>
+                        <button onClick={cancelEditing} className="p-1 text-red-600 hover:bg-red-100 rounded" title="Mégse">
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+                    ) : (
+                      <button onClick={() => startEditing("company")} className="p-1 text-[color:var(--muted-foreground)] hover:text-[color:var(--primary)] hover:bg-[color:var(--muted)] rounded" title="Szerkesztés">
+                        <Pencil className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
+                  {editingSection === "company" ? (
+                    <div className="space-y-3 text-sm">
                       <div>
-                        <dt className="text-[color:var(--muted-foreground)]">Cégjegyzékszám</dt>
-                        <dd>{selectedContract.company?.registrationNumber || "-"}</dd>
+                        <label className="text-[color:var(--muted-foreground)] text-xs">Cégnév</label>
+                        <Input value={editedCompany?.name || ""} onChange={(e) => setEditedCompany({ ...editedCompany, name: e.target.value })} className="h-8 text-sm" />
                       </div>
                       <div>
-                        <dt className="text-[color:var(--muted-foreground)]">Adószám</dt>
-                        <dd>{selectedContract.company?.taxNumber || "-"}</dd>
+                        <label className="text-[color:var(--muted-foreground)] text-xs">Rövidített név</label>
+                        <Input value={editedCompany?.shortName || ""} onChange={(e) => setEditedCompany({ ...editedCompany, shortName: e.target.value })} className="h-8 text-sm" />
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="text-[color:var(--muted-foreground)] text-xs">Cégjegyzékszám</label>
+                          <Input value={editedCompany?.registrationNumber || ""} onChange={(e) => setEditedCompany({ ...editedCompany, registrationNumber: e.target.value })} className="h-8 text-sm" />
+                        </div>
+                        <div>
+                          <label className="text-[color:var(--muted-foreground)] text-xs">Adószám</label>
+                          <Input value={editedCompany?.taxNumber || ""} onChange={(e) => setEditedCompany({ ...editedCompany, taxNumber: e.target.value })} className="h-8 text-sm" />
+                        </div>
+                      </div>
+                      <div>
+                        <label className="text-[color:var(--muted-foreground)] text-xs">Főtevékenység</label>
+                        <Input value={editedCompany?.mainActivity || ""} onChange={(e) => setEditedCompany({ ...editedCompany, mainActivity: e.target.value })} className="h-8 text-sm" />
                       </div>
                     </div>
-                    <div>
-                      <dt className="text-[color:var(--muted-foreground)]">Főtevékenység</dt>
-                      <dd>{selectedContract.company?.mainActivity || "-"}</dd>
-                    </div>
-                  </dl>
+                  ) : (
+                    <dl className="space-y-2 text-sm">
+                      <div>
+                        <dt className="text-[color:var(--muted-foreground)]">Cégnév</dt>
+                        <dd className="font-medium">{selectedContract.company?.name || "-"}</dd>
+                      </div>
+                      <div>
+                        <dt className="text-[color:var(--muted-foreground)]">Rövidített név</dt>
+                        <dd>{selectedContract.company?.shortName || "-"}</dd>
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <dt className="text-[color:var(--muted-foreground)]">Cégjegyzékszám</dt>
+                          <dd>{selectedContract.company?.registrationNumber || "-"}</dd>
+                        </div>
+                        <div>
+                          <dt className="text-[color:var(--muted-foreground)]">Adószám</dt>
+                          <dd>{selectedContract.company?.taxNumber || "-"}</dd>
+                        </div>
+                      </div>
+                      <div>
+                        <dt className="text-[color:var(--muted-foreground)]">Főtevékenység</dt>
+                        <dd>{selectedContract.company?.mainActivity || "-"}</dd>
+                      </div>
+                    </dl>
+                  )}
                 </div>
 
                 {/* Representative */}
                 <div>
-                  <h4 className="text-sm font-semibold text-[color:var(--foreground)] mb-3 pb-1 border-b border-[color:var(--border)]">Képviselő</h4>
-                  <dl className="space-y-2 text-sm">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <dt className="text-[color:var(--muted-foreground)]">Név</dt>
-                        <dd className="font-medium">{selectedContract.representative?.fullName || "-"}</dd>
+                  <div className="flex items-center justify-between mb-3 pb-1 border-b border-[color:var(--border)]">
+                    <h4 className="text-sm font-semibold text-[color:var(--foreground)]">Képviselő</h4>
+                    {editingSection === "representative" ? (
+                      <div className="flex gap-1">
+                        <button onClick={() => saveSection("representative")} disabled={isSavingSection} className="p-1 text-green-600 hover:bg-green-100 rounded" title="Mentés">
+                          <Check className="w-4 h-4" />
+                        </button>
+                        <button onClick={cancelEditing} className="p-1 text-red-600 hover:bg-red-100 rounded" title="Mégse">
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+                    ) : (
+                      <button onClick={() => startEditing("representative")} className="p-1 text-[color:var(--muted-foreground)] hover:text-[color:var(--primary)] hover:bg-[color:var(--muted)] rounded" title="Szerkesztés">
+                        <Pencil className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
+                  {editingSection === "representative" ? (
+                    <div className="space-y-3 text-sm">
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="text-[color:var(--muted-foreground)] text-xs">Név</label>
+                          <Input value={editedRepresentative?.fullName || ""} onChange={(e) => setEditedRepresentative({ ...editedRepresentative, fullName: e.target.value })} className="h-8 text-sm" />
+                        </div>
+                        <div>
+                          <label className="text-[color:var(--muted-foreground)] text-xs">Beosztás</label>
+                          <Input value={editedRepresentative?.position || ""} onChange={(e) => setEditedRepresentative({ ...editedRepresentative, position: e.target.value })} className="h-8 text-sm" />
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="text-[color:var(--muted-foreground)] text-xs">Születési hely</label>
+                          <Input value={editedRepresentative?.birthPlace || ""} onChange={(e) => setEditedRepresentative({ ...editedRepresentative, birthPlace: e.target.value })} className="h-8 text-sm" />
+                        </div>
+                        <div>
+                          <label className="text-[color:var(--muted-foreground)] text-xs">Születési idő</label>
+                          <Input value={editedRepresentative?.birthDate || ""} onChange={(e) => setEditedRepresentative({ ...editedRepresentative, birthDate: e.target.value })} className="h-8 text-sm" />
+                        </div>
                       </div>
                       <div>
-                        <dt className="text-[color:var(--muted-foreground)]">Beosztás</dt>
-                        <dd>{selectedContract.representative?.position || "-"}</dd>
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <dt className="text-[color:var(--muted-foreground)]">Születési hely</dt>
-                        <dd>{selectedContract.representative?.birthPlace || "-"}</dd>
+                        <label className="text-[color:var(--muted-foreground)] text-xs">Anyja neve</label>
+                        <Input value={editedRepresentative?.motherName || ""} onChange={(e) => setEditedRepresentative({ ...editedRepresentative, motherName: e.target.value })} className="h-8 text-sm" />
                       </div>
                       <div>
-                        <dt className="text-[color:var(--muted-foreground)]">Születési idő</dt>
-                        <dd>{selectedContract.representative?.birthDate || "-"}</dd>
+                        <label className="text-[color:var(--muted-foreground)] text-xs">Lakcím</label>
+                        <Input value={editedRepresentative?.address || ""} onChange={(e) => setEditedRepresentative({ ...editedRepresentative, address: e.target.value })} className="h-8 text-sm" />
                       </div>
                     </div>
-                    <div>
-                      <dt className="text-[color:var(--muted-foreground)]">Anyja neve</dt>
-                      <dd>{selectedContract.representative?.motherName || "-"}</dd>
-                    </div>
-                    <div>
-                      <dt className="text-[color:var(--muted-foreground)]">Lakcím</dt>
-                      <dd>{selectedContract.representative?.address || "-"}</dd>
-                    </div>
-                  </dl>
+                  ) : (
+                    <dl className="space-y-2 text-sm">
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <dt className="text-[color:var(--muted-foreground)]">Név</dt>
+                          <dd className="font-medium">{selectedContract.representative?.fullName || "-"}</dd>
+                        </div>
+                        <div>
+                          <dt className="text-[color:var(--muted-foreground)]">Beosztás</dt>
+                          <dd>{selectedContract.representative?.position || "-"}</dd>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <dt className="text-[color:var(--muted-foreground)]">Születési hely</dt>
+                          <dd>{selectedContract.representative?.birthPlace || "-"}</dd>
+                        </div>
+                        <div>
+                          <dt className="text-[color:var(--muted-foreground)]">Születési idő</dt>
+                          <dd>{selectedContract.representative?.birthDate || "-"}</dd>
+                        </div>
+                      </div>
+                      <div>
+                        <dt className="text-[color:var(--muted-foreground)]">Anyja neve</dt>
+                        <dd>{selectedContract.representative?.motherName || "-"}</dd>
+                      </div>
+                      <div>
+                        <dt className="text-[color:var(--muted-foreground)]">Lakcím</dt>
+                        <dd>{selectedContract.representative?.address || "-"}</dd>
+                      </div>
+                    </dl>
+                  )}
                 </div>
 
                 {/* Contact */}
                 <div>
-                  <h4 className="text-sm font-semibold text-[color:var(--foreground)] mb-3 pb-1 border-b border-[color:var(--border)]">Kapcsolattartó</h4>
-                  <dl className="space-y-2 text-sm">
-                    <div>
-                      <dt className="text-[color:var(--muted-foreground)]">Név</dt>
-                      <dd className="font-medium">{selectedContract.contact?.fullName || (selectedContract.contact?.isSameAsOwner ? selectedContract.owners?.[0]?.natural?.fullName : "-") || "-"}</dd>
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <dt className="text-[color:var(--muted-foreground)]">Email</dt>
-                        <dd>{selectedContract.contact?.email || "-"}</dd>
+                  <div className="flex items-center justify-between mb-3 pb-1 border-b border-[color:var(--border)]">
+                    <h4 className="text-sm font-semibold text-[color:var(--foreground)]">Kapcsolattartó</h4>
+                    {editingSection === "contact" ? (
+                      <div className="flex gap-1">
+                        <button onClick={() => saveSection("contact")} disabled={isSavingSection} className="p-1 text-green-600 hover:bg-green-100 rounded" title="Mentés">
+                          <Check className="w-4 h-4" />
+                        </button>
+                        <button onClick={cancelEditing} className="p-1 text-red-600 hover:bg-red-100 rounded" title="Mégse">
+                          <X className="w-4 h-4" />
+                        </button>
                       </div>
+                    ) : (
+                      <button onClick={() => startEditing("contact")} className="p-1 text-[color:var(--muted-foreground)] hover:text-[color:var(--primary)] hover:bg-[color:var(--muted)] rounded" title="Szerkesztés">
+                        <Pencil className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
+                  {editingSection === "contact" ? (
+                    <div className="space-y-3 text-sm">
                       <div>
-                        <dt className="text-[color:var(--muted-foreground)]">Telefon</dt>
-                        <dd>{selectedContract.contact?.phone || "-"}</dd>
+                        <label className="text-[color:var(--muted-foreground)] text-xs">Név</label>
+                        <Input value={editedContact?.fullName || ""} onChange={(e) => setEditedContact({ ...editedContact, fullName: e.target.value })} className="h-8 text-sm" />
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="text-[color:var(--muted-foreground)] text-xs">Email</label>
+                          <Input value={editedContact?.email || ""} onChange={(e) => setEditedContact({ ...editedContact, email: e.target.value })} className="h-8 text-sm" />
+                        </div>
+                        <div>
+                          <label className="text-[color:var(--muted-foreground)] text-xs">Telefon</label>
+                          <Input value={editedContact?.phone || ""} onChange={(e) => setEditedContact({ ...editedContact, phone: e.target.value })} className="h-8 text-sm" />
+                        </div>
                       </div>
                     </div>
-                  </dl>
+                  ) : (
+                    <dl className="space-y-2 text-sm">
+                      <div>
+                        <dt className="text-[color:var(--muted-foreground)]">Név</dt>
+                        <dd className="font-medium">{selectedContract.contact?.fullName || (selectedContract.contact?.isSameAsOwner ? selectedContract.owners?.[0]?.natural?.fullName : "-") || "-"}</dd>
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <dt className="text-[color:var(--muted-foreground)]">Email</dt>
+                          <dd>{selectedContract.contact?.email || "-"}</dd>
+                        </div>
+                        <div>
+                          <dt className="text-[color:var(--muted-foreground)]">Telefon</dt>
+                          <dd>{selectedContract.contact?.phone || "-"}</dd>
+                        </div>
+                      </div>
+                    </dl>
+                  )}
                 </div>
               </div>
 
@@ -832,15 +1319,21 @@ export default function ContractsPage() {
                 {/* Owners */}
                 <div>
                   <h4 className="text-sm font-semibold text-[color:var(--foreground)] mb-3 pb-1 border-b border-[color:var(--border)]">Tulajdonosok ({selectedContract.owners?.length || 0})</h4>
-                  <div className="space-y-3">
+                  <div className="space-y-4">
                     {selectedContract.owners?.map((owner, idx) => (
-                      <div key={idx} className="p-3 bg-[color:var(--muted)]/30 rounded-lg text-sm">
-                        <div className="font-medium mb-2 flex items-center justify-between">
-                          <span>{owner.type === "legal" ? owner.legal?.companyName : owner.natural?.fullName}</span>
-                          <span className="text-[color:var(--primary)] font-semibold">{owner.ownershipPercent}%</span>
+                      <div key={idx} className="p-4 bg-[color:var(--muted)]/30 rounded-lg text-sm">
+                        <div className="font-medium mb-3 flex items-center justify-between border-b border-[color:var(--border)] pb-2">
+                          <span className="text-base">{owner.type === "legal" ? owner.legal?.companyName : owner.natural?.fullName}</span>
+                          <span className="text-[color:var(--primary)] font-semibold text-lg">{owner.ownershipPercent}%</span>
                         </div>
                         {owner.type === "legal" ? (
-                          <dl className="space-y-1 text-xs">
+                          <dl className="space-y-2 text-xs">
+                            {owner.legal?.shortName && (
+                              <div>
+                                <dt className="text-[color:var(--muted-foreground)]">Rövidített név</dt>
+                                <dd>{owner.legal.shortName}</dd>
+                              </div>
+                            )}
                             <div className="grid grid-cols-2 gap-2">
                               <div>
                                 <dt className="text-[color:var(--muted-foreground)]">Cégjegyzékszám</dt>
@@ -851,17 +1344,67 @@ export default function ContractsPage() {
                                 <dd>{owner.legal?.taxNumber || "-"}</dd>
                               </div>
                             </div>
-                          </dl>
-                        ) : (
-                          <dl className="space-y-1 text-xs">
+                            <div>
+                              <dt className="text-[color:var(--muted-foreground)]">Székhely</dt>
+                              <dd>{owner.legal?.address || "-"}</dd>
+                            </div>
+                            {owner.legal?.mainActivity && (
+                              <div>
+                                <dt className="text-[color:var(--muted-foreground)]">Főtevékenység</dt>
+                                <dd>{owner.legal.mainActivity}</dd>
+                              </div>
+                            )}
                             <div className="grid grid-cols-2 gap-2">
                               <div>
-                                <dt className="text-[color:var(--muted-foreground)]">Születési hely, idő</dt>
-                                <dd>{owner.natural?.birthPlace || "-"}, {owner.natural?.birthDate || "-"}</dd>
+                                <dt className="text-[color:var(--muted-foreground)]">Képviselő neve</dt>
+                                <dd>{owner.legal?.representativeName || "-"}</dd>
                               </div>
                               <div>
-                                <dt className="text-[color:var(--muted-foreground)]">Okmány</dt>
-                                <dd>{owner.natural?.idType}: {owner.natural?.idNumber || "-"}</dd>
+                                <dt className="text-[color:var(--muted-foreground)]">Beosztás</dt>
+                                <dd>{owner.legal?.representativePosition || "-"}</dd>
+                              </div>
+                            </div>
+                          </dl>
+                        ) : (
+                          <dl className="space-y-2 text-xs">
+                            {owner.natural?.birthName && (
+                              <div>
+                                <dt className="text-[color:var(--muted-foreground)]">Születési név</dt>
+                                <dd>{owner.natural.birthName}</dd>
+                              </div>
+                            )}
+                            <div className="grid grid-cols-2 gap-2">
+                              <div>
+                                <dt className="text-[color:var(--muted-foreground)]">Állampolgárság</dt>
+                                <dd>{owner.natural?.nationality || "-"}</dd>
+                              </div>
+                              <div>
+                                <dt className="text-[color:var(--muted-foreground)]">Anyja neve</dt>
+                                <dd>{owner.natural?.motherName || "-"}</dd>
+                              </div>
+                            </div>
+                            <div className="grid grid-cols-2 gap-2">
+                              <div>
+                                <dt className="text-[color:var(--muted-foreground)]">Születési hely</dt>
+                                <dd>{owner.natural?.birthPlace || "-"}</dd>
+                              </div>
+                              <div>
+                                <dt className="text-[color:var(--muted-foreground)]">Születési idő</dt>
+                                <dd>{owner.natural?.birthDate || "-"}</dd>
+                              </div>
+                            </div>
+                            <div>
+                              <dt className="text-[color:var(--muted-foreground)]">Lakcím</dt>
+                              <dd>{owner.natural?.address || "-"}</dd>
+                            </div>
+                            <div className="grid grid-cols-2 gap-2">
+                              <div>
+                                <dt className="text-[color:var(--muted-foreground)]">Okmány típusa</dt>
+                                <dd>{owner.natural?.idType === "passport" ? "Útlevél" : "Személyi igazolvány"}</dd>
+                              </div>
+                              <div>
+                                <dt className="text-[color:var(--muted-foreground)]">Okmányszám</dt>
+                                <dd>{owner.natural?.idNumber || "-"}</dd>
                               </div>
                             </div>
                           </dl>
@@ -911,32 +1454,51 @@ export default function ContractsPage() {
 
             {/* Uploaded Documents */}
             {selectedContract.uploadedDocuments && Object.keys(selectedContract.uploadedDocuments).length > 0 && (
-              <AdminModalSection title="Feltöltött dokumentumok">
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+              <div className="border-t border-[color:var(--border)] pt-5">
+                <h4 className="text-sm font-semibold text-[color:var(--foreground)] mb-3">Feltöltött dokumentumok</h4>
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
                   {Object.entries(selectedContract.uploadedDocuments).map(([key, url]) => {
-                    if (!url || key === "otherDocuments") return null;
+                    if (!url || key === "otherDocuments") return null
                     const labels: Record<string, string> = {
                       idFront: "Személyi elő",
                       idBack: "Személyi hát",
                       addressCard: "Lakcímkártya",
                       passport: "Útlevél",
                       companyExtract: "Cégkivonat",
-                    };
+                    }
+                    const isImage = typeof url === "string" && (url.includes("image") || url.match(/\.(jpg|jpeg|png|gif|webp)/i))
                     return (
                       <a
                         key={key}
                         href={url as string}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="flex items-center gap-2 p-2 text-sm bg-[color:var(--muted)]/30 rounded-lg hover:bg-[color:var(--muted)] transition-colors"
+                        className="group block bg-[color:var(--muted)]/30 rounded-lg overflow-hidden hover:ring-2 hover:ring-[color:var(--primary)] transition-all"
                       >
-                        <ExternalLink className="w-4 h-4 text-[color:var(--primary)]" />
-                        {labels[key] || key}
+                        {isImage ? (
+                          <div className="aspect-[4/3] relative bg-[color:var(--muted)]">
+                            <img
+                              src={url as string}
+                              alt={labels[key] || key}
+                              className="w-full h-full object-cover"
+                            />
+                            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
+                              <ExternalLink className="w-6 h-6 text-white opacity-0 group-hover:opacity-100 transition-opacity drop-shadow-lg" />
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="aspect-[4/3] flex items-center justify-center bg-[color:var(--muted)]">
+                            <FileText className="w-10 h-10 text-[color:var(--muted-foreground)]" />
+                          </div>
+                        )}
+                        <div className="p-2 text-center">
+                          <span className="text-xs font-medium text-[color:var(--foreground)]">{labels[key] || key}</span>
+                        </div>
                       </a>
-                    );
+                    )
                   })}
                 </div>
-              </AdminModalSection>
+              </div>
             )}
 
             {/* Dates */}

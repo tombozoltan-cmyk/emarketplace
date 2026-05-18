@@ -11,12 +11,13 @@ import {
   type DocumentData,
 } from "firebase/firestore";
 import { Loader2, Save, Mail, ToggleLeft, ToggleRight, Eye, Send } from "lucide-react";
-import { firestoreDb, firebaseAuth } from "@/lib/firebase";
+import { firestoreDb } from "@/lib/firebase";
+import { firebaseAuth } from "@/lib/firebase-auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { AdminLayout, AdminModal } from "@/components/admin";
+import { AdminLayout, AdminModal, CollapsibleSection } from "@/components/admin";
 
 type LanguageTemplate = {
   subject: string;
@@ -37,6 +38,8 @@ type EmailSettings = {
   adminTemplate: AdminTemplate;
   customerAutoReplyEnabled: boolean;
   customerTemplateHu: LanguageTemplate;
+  contractAutoReplyEnabled: boolean;
+  contractTemplateHu: LanguageTemplate;
 };
 
 const DEFAULT_SETTINGS: EmailSettings = {
@@ -54,6 +57,38 @@ const DEFAULT_SETTINGS: EmailSettings = {
     subject: "Köszönjük megkeresését!",
     mjml: "<mjml>\n  <mj-body>\n    <mj-section>\n      <mj-column>\n        <mj-text font-size=\"16px\">Kedves {{name}}!</mj-text>\n        <mj-text font-size=\"16px\">Köszönjük megkeresését, hamarosan jelentkezünk.</mj-text>\n      </mj-column>\n    </mj-section>\n  </mj-body>\n</mjml>",
   },
+  contractAutoReplyEnabled: false,
+  contractTemplateHu: {
+    subject: "Szerződés beadvány visszaigazolás",
+    mjml: `<mjml>
+  <mj-body background-color="#f4f4f5">
+    <mj-section padding="40px 20px">
+      <mj-column background-color="#ffffff" border-radius="12px" padding="32px">
+        <mj-text font-size="24px" font-weight="700" color="#18181b" align="center" padding-bottom="16px">
+          Köszönjük beadványát!
+        </mj-text>
+        <mj-divider border-color="#e4e4e7" border-width="1px" padding="0 0 24px 0" />
+        <mj-text font-size="16px" color="#3f3f46" line-height="1.6">
+          Kedves {{name}}!
+        </mj-text>
+        <mj-text font-size="16px" color="#3f3f46" line-height="1.6">
+          Köszönjük, hogy kitöltötte szerződés beadványát. Cége: <strong>{{companyName}}</strong>
+        </mj-text>
+        <mj-text font-size="16px" color="#3f3f46" line-height="1.6">
+          Szolgáltatás: {{serviceType}} ({{packageId}})
+        </mj-text>
+        <mj-text font-size="16px" color="#3f3f46" line-height="1.6">
+          Munkatársunk hamarosan felveszi Önnel a kapcsolatot a részletekkel kapcsolatban.
+        </mj-text>
+        <mj-divider border-color="#e4e4e7" border-width="1px" padding="24px 0 16px 0" />
+        <mj-text font-size="14px" color="#a1a1aa" align="center">
+          E-Marketplace • Székhelyszolgáltatás
+        </mj-text>
+      </mj-column>
+    </mj-section>
+  </mj-body>
+</mjml>`,
+  },
 };
 
 const normalizeSettings = (raw: DocumentData | undefined): EmailSettings => {
@@ -70,6 +105,16 @@ const normalizeSettings = (raw: DocumentData | undefined): EmailSettings => {
       ? rawCustomer.mjml.trim()
       : DEFAULT_SETTINGS.customerTemplateHu.mjml;
 
+  // Contract template
+  const rawContract = (raw.contractTemplateHu ?? {}) as {
+    subject?: unknown;
+    mjml?: unknown;
+  };
+  const contractMjmlContent =
+    typeof rawContract.mjml === "string" && rawContract.mjml.trim().startsWith("<mjml")
+      ? rawContract.mjml.trim()
+      : DEFAULT_SETTINGS.contractTemplateHu.mjml;
+
   return {
     adminToEmail: raw.adminToEmail || DEFAULT_SETTINGS.adminToEmail,
     adminSubjectPrefix: raw.adminSubjectPrefix || DEFAULT_SETTINGS.adminSubjectPrefix,
@@ -85,6 +130,13 @@ const normalizeSettings = (raw: DocumentData | undefined): EmailSettings => {
       subject: raw.customerTemplateHu?.subject || DEFAULT_SETTINGS.customerTemplateHu.subject,
       mjml: mjmlContent,
     },
+    contractAutoReplyEnabled: Boolean(raw.contractAutoReplyEnabled),
+    contractTemplateHu: {
+      subject: typeof rawContract.subject === "string" && rawContract.subject.trim()
+        ? rawContract.subject
+        : DEFAULT_SETTINGS.contractTemplateHu.subject,
+      mjml: contractMjmlContent,
+    },
   };
 };
 
@@ -99,6 +151,22 @@ const EMAIL_SHORTCODES = [
   { code: "{{sourcePath}}", label: "Forrás oldal", category: "Változók" },
 ];
 
+// Contract email shortcodes
+const CONTRACT_EMAIL_SHORTCODES = [
+  { code: "{{name}}", label: "Kapcsolattartó neve", category: "Kapcsolattartó" },
+  { code: "{{email}}", label: "Email cím", category: "Kapcsolattartó" },
+  { code: "{{phone}}", label: "Telefon", category: "Kapcsolattartó" },
+  { code: "{{companyName}}", label: "Cég neve", category: "Cég" },
+  { code: "{{shortName}}", label: "Rövidített név", category: "Cég" },
+  { code: "{{legalForm}}", label: "Jogi forma", category: "Cég" },
+  { code: "{{serviceType}}", label: "Szolgáltatás típusa", category: "Szolgáltatás" },
+  { code: "{{packageId}}", label: "Csomag", category: "Szolgáltatás" },
+  { code: "{{monthlyPrice}}", label: "Havi díj", category: "Árak" },
+  { code: "{{annualPrice}}", label: "Éves díj", category: "Árak" },
+  { code: "{{mainActivity}}", label: "Főtevékenység", category: "Cég" },
+  { code: "{{isNewCompany}}", label: "Cég típusa", category: "Cég" },
+];
+
 export default function EmailSettingsPage() {
   const [settings, setSettings] = useState<EmailSettings>(DEFAULT_SETTINGS);
   const [isLoading, setIsLoading] = useState(true);
@@ -111,6 +179,7 @@ export default function EmailSettingsPage() {
   const [isSendingTest, setIsSendingTest] = useState(false);
   const [testStatus, setTestStatus] = useState<string | null>(null);
   const [customerEditorTab, setCustomerEditorTab] = useState<"mjml" | "preview">("mjml");
+  const [contractEditorTab, setContractEditorTab] = useState<"mjml" | "preview">("mjml");
   const [isCompilingPreview, setIsCompilingPreview] = useState(false);
 
   const previewVariables = useCallback((): Record<string, string> => {
@@ -127,7 +196,7 @@ export default function EmailSettingsPage() {
   }, []);
 
   const compileMjmlPreview = useCallback(
-    async ({ subject, mjml }: { subject: string; mjml: string }) => {
+    async ({ subject, mjml, variables }: { subject: string; mjml: string; variables?: Record<string, string> }) => {
       const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
       if (!projectId) {
         throw new Error("Missing NEXT_PUBLIC_FIREBASE_PROJECT_ID");
@@ -154,7 +223,7 @@ export default function EmailSettingsPage() {
           body: JSON.stringify({
             subject,
             mjml,
-            variables: previewVariables(),
+            variables: variables || previewVariables(),
           }),
         });
       } catch (error) {
@@ -212,6 +281,49 @@ export default function EmailSettingsPage() {
       setIsCompilingPreview(false);
     }
   }, [compileMjmlPreview, settings.customerTemplateHu.mjml, settings.customerTemplateHu.subject]);
+
+  const openContractPreview = useCallback(async () => {
+    setIsCompilingPreview(true);
+    setPreviewErrors([]);
+    setPreviewHtml("");
+    setPreviewSubject("");
+    try {
+      const contractVars = {
+        name: "Teszt Elek",
+        email: "teszt@pelda.hu",
+        phone: "+36 30 123 4567",
+        companyName: "Teszt Kft.",
+        shortName: "Teszt",
+        legalForm: "kft",
+        serviceType: "Magyarországi székhelyszolgáltatás",
+        packageId: "basic",
+        monthlyPrice: "29000",
+        annualPrice: "348000",
+        mainActivity: "Számítástechnikai szolgáltatás",
+        isNewCompany: "Új cég alapítása",
+      };
+
+      const result = await compileMjmlPreview({
+        subject: settings.contractTemplateHu.subject,
+        mjml: settings.contractTemplateHu.mjml,
+        variables: contractVars,
+      });
+
+      setPreviewHtml(result.html);
+      setPreviewSubject(result.subject);
+      setPreviewErrors(result.errors);
+      setIsPreviewOpen(true);
+      setContractEditorTab("preview");
+    } catch (error) {
+      console.error("Contract preview compile error:", error);
+      setPreviewErrors([
+        error instanceof Error ? error.message : "Ismeretlen hiba a preview generálásakor.",
+      ]);
+      setIsPreviewOpen(true);
+    } finally {
+      setIsCompilingPreview(false);
+    }
+  }, [compileMjmlPreview, settings.contractTemplateHu.mjml, settings.contractTemplateHu.subject]);
 
   // Fetch settings
   useEffect(() => {
@@ -302,15 +414,11 @@ export default function EmailSettingsPage() {
         </Button>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        <div className="p-5 bg-[color:var(--card)] rounded-xl border border-[color:var(--border)]">
-          <div className="flex items-start justify-between gap-4 mb-4">
-            <div>
-              <h3 className="font-semibold">Admin értesítő email</h3>
-              <p className="text-sm text-[color:var(--muted-foreground)]">
-                Ezt a levelet te kapod, amikor új érdeklődés érkezik.
-              </p>
-            </div>
+      <div className="space-y-4">
+        {/* Admin email settings - basic fields always visible */}
+        <div className="p-4 bg-[color:var(--card)] rounded-xl border border-[color:var(--border)]">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+            <h3 className="font-semibold">Alapbeállítások</h3>
             <Button
               variant="outline"
               size="sm"
@@ -332,7 +440,7 @@ export default function EmailSettingsPage() {
             </div>
           )}
 
-          <div className="space-y-4">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             <div>
               <Label>Admin címzett email</Label>
               <Input
@@ -342,7 +450,6 @@ export default function EmailSettingsPage() {
                 className="mt-1"
               />
             </div>
-
             <div>
               <Label>Subject prefix</Label>
               <Input
@@ -352,9 +459,45 @@ export default function EmailSettingsPage() {
                 className="mt-1"
               />
             </div>
-
             <div>
-              <Label>Admin email subject (MJML sablon esetén)</Label>
+              <Label>Feladó név</Label>
+              <Input
+                value={settings.senderName}
+                onChange={(e) => updateField("senderName", e.target.value)}
+                placeholder="E-Marketplace"
+                className="mt-1"
+              />
+            </div>
+            <div>
+              <Label>Reply-to email</Label>
+              <Input
+                value={settings.replyToEmail}
+                onChange={(e) => updateField("replyToEmail", e.target.value)}
+                placeholder="emarketplacekft@gmail.com"
+                className="mt-1"
+              />
+            </div>
+            <div>
+              <Label>Reply-to név</Label>
+              <Input
+                value={settings.replyToName}
+                onChange={(e) => updateField("replyToName", e.target.value)}
+                placeholder="E-Marketplace"
+                className="mt-1"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Admin template - collapsible */}
+        <CollapsibleSection
+          title="Admin értesítő sablon"
+          description="MJML sablon az admin értesítő emailhez"
+          icon={<Mail className="w-5 h-5" />}
+        >
+          <div className="space-y-4">
+            <div>
+              <Label>Admin email subject</Label>
               <Input
                 value={settings.adminTemplate.subject}
                 onChange={(e) =>
@@ -378,16 +521,13 @@ export default function EmailSettingsPage() {
                     mjml: e.target.value,
                   })
                 }
-                className="mt-1 min-h-[320px] font-mono text-xs"
+                className="mt-1 min-h-[280px] font-mono text-xs"
                 placeholder="<mjml>...</mjml>"
               />
-              <div className="mt-2 text-xs text-[color:var(--muted-foreground)]">
-                MJML → HTML fordítás küldéskor történik (Cloud Function). Ha szeretnél itt helyben előnézetet, kell egy külön MJML-compile endpoint.
-              </div>
             </div>
 
             <div className="text-xs text-[color:var(--muted-foreground)] p-3 bg-[color:var(--muted)]/30 rounded-lg">
-              <strong>Használható változók:</strong>{" "}
+              <strong>Változók:</strong>{" "}
               {EMAIL_SHORTCODES.map((sc) => (
                 <code key={sc.code} className="mx-1 px-1 bg-[color:var(--muted)] rounded">
                   {sc.code}
@@ -395,111 +535,111 @@ export default function EmailSettingsPage() {
               ))}
             </div>
           </div>
-        </div>
+        </CollapsibleSection>
 
-        <div className="p-5 bg-[color:var(--card)] rounded-xl border border-[color:var(--border)]">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h3 className="font-semibold">Automatikus visszaigazoló email (ügyfélnek)</h3>
-              <p className="text-sm text-[color:var(--muted-foreground)]">
-                Ha be van kapcsolva, az érdeklődő automatikus visszaigazolást kap.
-              </p>
-            </div>
+        {/* Customer auto-reply - collapsible */}
+        <CollapsibleSection
+          title="Automatikus visszaigazoló"
+          description="Ügyfélnek küldött visszaigazoló email"
+          icon={<Mail className="w-5 h-5" />}
+          badge={
             <button
-              onClick={() => updateField("customerAutoReplyEnabled", !settings.customerAutoReplyEnabled)}
-              className="flex items-center gap-2"
+              onClick={(e) => {
+                e.stopPropagation()
+                updateField("customerAutoReplyEnabled", !settings.customerAutoReplyEnabled)
+              }}
+              className="ml-2"
               title={settings.customerAutoReplyEnabled ? "Bekapcsolva" : "Kikapcsolva"}
             >
               {settings.customerAutoReplyEnabled ? (
-                <ToggleRight className="w-10 h-10 text-green-500" />
+                <ToggleRight className="w-6 h-6 text-green-500" />
               ) : (
-                <ToggleLeft className="w-10 h-10 text-[color:var(--muted-foreground)]" />
+                <ToggleLeft className="w-6 h-6 text-[color:var(--muted-foreground)]" />
               )}
             </button>
-          </div>
-
-          <div className="flex items-center justify-end mb-3">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={openCustomerPreview}
-              disabled={isCompilingPreview}
-            >
-              {isCompilingPreview ? (
-                <Loader2 className="w-4 h-4 mr-1 animate-spin" />
-              ) : (
-                <Eye className="w-4 h-4 mr-1" />
-              )}
-              Előnézet (MJML)
-            </Button>
-          </div>
-
+          }
+        >
           <div className="space-y-4">
-            <div>
-              <Label>Tárgy</Label>
-              <Input
-                value={settings.customerTemplateHu.subject}
-                onChange={(e) =>
-                  updateField("customerTemplateHu", {
-                    ...settings.customerTemplateHu,
-                    subject: e.target.value,
-                  })
-                }
-                placeholder="Köszönjük megkeresését!"
-                className="mt-1"
-              />
+            <div className="flex flex-col sm:flex-row sm:items-end gap-3">
+              <div className="flex-1">
+                <Label>Tárgy</Label>
+                <Input
+                  value={settings.customerTemplateHu.subject}
+                  onChange={(e) =>
+                    updateField("customerTemplateHu", {
+                      ...settings.customerTemplateHu,
+                      subject: e.target.value,
+                    })
+                  }
+                  placeholder="Köszönjük megkeresését!"
+                  className="mt-1"
+                />
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={openCustomerPreview}
+                disabled={isCompilingPreview}
+              >
+                {isCompilingPreview ? (
+                  <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                ) : (
+                  <Eye className="w-4 h-4 mr-1" />
+                )}
+                Előnézet
+              </Button>
             </div>
 
             <div>
-              <Label>Tartalom</Label>
-              <div className="mt-2 flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => setCustomerEditorTab("mjml")}
-                  className={
-                    customerEditorTab === "mjml"
-                      ? "text-xs px-2 py-1 rounded bg-[color:var(--primary)] text-[color:var(--primary-foreground)]"
-                      : "text-xs px-2 py-1 rounded hover:bg-[color:var(--muted)] text-[color:var(--muted-foreground)]"
-                  }
-                >
-                  MJML
-                </button>
-                <button
-                  type="button"
-                  onClick={openCustomerPreview}
-                  className={
-                    customerEditorTab === "preview"
-                      ? "text-xs px-2 py-1 rounded bg-[color:var(--primary)] text-[color:var(--primary-foreground)]"
-                      : "text-xs px-2 py-1 rounded hover:bg-[color:var(--muted)] text-[color:var(--muted-foreground)]"
-                  }
-                >
-                  Preview
-                </button>
+              <div className="flex items-center gap-2 mb-2">
+                <Label>Tartalom (MJML)</Label>
+                <div className="flex gap-1">
+                  <button
+                    type="button"
+                    onClick={() => setCustomerEditorTab("mjml")}
+                    className={
+                      customerEditorTab === "mjml"
+                        ? "text-xs px-2 py-1 rounded bg-[color:var(--primary)] text-[color:var(--primary-foreground)]"
+                        : "text-xs px-2 py-1 rounded hover:bg-[color:var(--muted)] text-[color:var(--muted-foreground)]"
+                    }
+                  >
+                    MJML
+                  </button>
+                  <button
+                    type="button"
+                    onClick={openCustomerPreview}
+                    className={
+                      customerEditorTab === "preview"
+                        ? "text-xs px-2 py-1 rounded bg-[color:var(--primary)] text-[color:var(--primary-foreground)]"
+                        : "text-xs px-2 py-1 rounded hover:bg-[color:var(--muted)] text-[color:var(--muted-foreground)]"
+                    }
+                  >
+                    Preview
+                  </button>
+                </div>
               </div>
 
               {customerEditorTab === "mjml" ? (
-                <div className="mt-2">
-                  <Textarea
-                    value={settings.customerTemplateHu.mjml}
-                    onChange={(e) =>
-                      updateField("customerTemplateHu", {
-                        ...settings.customerTemplateHu,
-                        mjml: e.target.value,
-                      })
-                    }
-                    className="min-h-[260px] font-mono text-xs"
-                    placeholder="<mjml>...</mjml>"
-                  />
-                </div>
+                <Textarea
+                  value={settings.customerTemplateHu.mjml}
+                  onChange={(e) =>
+                    updateField("customerTemplateHu", {
+                      ...settings.customerTemplateHu,
+                      mjml: e.target.value,
+                    })
+                  }
+                  className="min-h-[220px] font-mono text-xs"
+                  placeholder="<mjml>...</mjml>"
+                />
               ) : (
-                <div className="mt-2 rounded-lg border border-[color:var(--border)] overflow-hidden bg-white">
-                  <iframe title="Customer MJML preview" className="w-full h-[320px]" srcDoc={previewHtml} />
+                <div className="rounded-lg border border-[color:var(--border)] overflow-hidden bg-white">
+                  <iframe title="Customer MJML preview" className="w-full h-[280px]" srcDoc={previewHtml} />
                 </div>
               )}
             </div>
 
             <div className="text-xs text-[color:var(--muted-foreground)] p-3 bg-[color:var(--muted)]/30 rounded-lg">
-              <strong>Használható változók:</strong>{" "}
+              <strong>Változók:</strong>{" "}
               {EMAIL_SHORTCODES.map((sc) => (
                 <code key={sc.code} className="mx-1 px-1 bg-[color:var(--muted)] rounded">
                   {sc.code}
@@ -507,42 +647,119 @@ export default function EmailSettingsPage() {
               ))}
             </div>
           </div>
-        </div>
-      </div>
+        </CollapsibleSection>
 
-      <div className="mt-6 p-5 bg-[color:var(--card)] rounded-xl border border-[color:var(--border)]">
-        <h3 className="font-semibold mb-4">Haladó beállítások</h3>
-        <div className="grid gap-4 md:grid-cols-2">
-          <div>
-            <Label>Feladó név</Label>
-            <Input
-              value={settings.senderName}
-              onChange={(e) => updateField("senderName", e.target.value)}
-              placeholder="E-Marketplace"
-              className="mt-1"
-            />
-          </div>
+        {/* Contract auto-reply - collapsible */}
+        <CollapsibleSection
+          title="Szerződés visszaigazoló"
+          description="Ügyfélnek küldött visszaigazoló a szerződés beadványokról"
+          icon={<Mail className="w-5 h-5" />}
+          badge={
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                updateField("contractAutoReplyEnabled", !settings.contractAutoReplyEnabled);
+              }}
+              className="ml-2"
+              title={settings.contractAutoReplyEnabled ? "Bekapcsolva" : "Kikapcsolva"}
+            >
+              {settings.contractAutoReplyEnabled ? (
+                <ToggleRight className="w-6 h-6 text-green-500" />
+              ) : (
+                <ToggleLeft className="w-6 h-6 text-[color:var(--muted-foreground)]" />
+              )}
+            </button>
+          }
+        >
+          <div className="space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-end gap-3">
+              <div className="flex-1">
+                <Label>Tárgy</Label>
+                <Input
+                  value={settings.contractTemplateHu.subject}
+                  onChange={(e) =>
+                    updateField("contractTemplateHu", {
+                      ...settings.contractTemplateHu,
+                      subject: e.target.value,
+                    })
+                  }
+                  placeholder="Szerződés beadvány visszaigazolás"
+                  className="mt-1"
+                />
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={openContractPreview}
+                disabled={isCompilingPreview}
+              >
+                {isCompilingPreview ? (
+                  <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                ) : (
+                  <Eye className="w-4 h-4 mr-1" />
+                )}
+                Előnézet
+              </Button>
+            </div>
 
-          <div>
-            <Label>Reply-to név</Label>
-            <Input
-              value={settings.replyToName}
-              onChange={(e) => updateField("replyToName", e.target.value)}
-              placeholder="E-Marketplace"
-              className="mt-1"
-            />
-          </div>
+            <div>
+              <div className="flex items-center gap-2 mb-2">
+                <Label>Tartalom (MJML)</Label>
+                <div className="flex gap-1">
+                  <button
+                    type="button"
+                    onClick={() => setContractEditorTab("mjml")}
+                    className={
+                      contractEditorTab === "mjml"
+                        ? "text-xs px-2 py-1 rounded bg-[color:var(--primary)] text-[color:var(--primary-foreground)]"
+                        : "text-xs px-2 py-1 rounded hover:bg-[color:var(--muted)] text-[color:var(--muted-foreground)]"
+                    }
+                  >
+                    MJML
+                  </button>
+                  <button
+                    type="button"
+                    onClick={openContractPreview}
+                    className={
+                      contractEditorTab === "preview"
+                        ? "text-xs px-2 py-1 rounded bg-[color:var(--primary)] text-[color:var(--primary-foreground)]"
+                        : "text-xs px-2 py-1 rounded hover:bg-[color:var(--muted)] text-[color:var(--muted-foreground)]"
+                    }
+                  >
+                    Preview
+                  </button>
+                </div>
+              </div>
 
-          <div>
-            <Label>Reply-to email</Label>
-            <Input
-              value={settings.replyToEmail}
-              onChange={(e) => updateField("replyToEmail", e.target.value)}
-              placeholder="emarketplacekft@gmail.com"
-              className="mt-1"
-            />
+              {contractEditorTab === "mjml" ? (
+                <Textarea
+                  value={settings.contractTemplateHu.mjml}
+                  onChange={(e) =>
+                    updateField("contractTemplateHu", {
+                      ...settings.contractTemplateHu,
+                      mjml: e.target.value,
+                    })
+                  }
+                  className="min-h-[220px] font-mono text-xs"
+                  placeholder="<mjml>...</mjml>"
+                />
+              ) : (
+                <div className="rounded-lg border border-[color:var(--border)] overflow-hidden bg-white">
+                  <iframe title="Contract MJML preview" className="w-full h-[280px]" srcDoc={previewHtml} />
+                </div>
+              )}
+            </div>
+
+            <div className="text-xs text-[color:var(--muted-foreground)] p-3 bg-[color:var(--muted)]/30 rounded-lg">
+              <strong>Változók:</strong>{" "}
+              {CONTRACT_EMAIL_SHORTCODES.map((sc) => (
+                <code key={sc.code} className="mx-1 px-1 bg-[color:var(--muted)] rounded">
+                  {sc.code}
+                </code>
+              ))}
+            </div>
           </div>
-        </div>
+        </CollapsibleSection>
       </div>
 
       <AdminModal
