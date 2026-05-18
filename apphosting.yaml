@@ -53,3 +53,8 @@ env:
     availability:
       - BUILD
       - RUNTIME
+  - variable: NEXT_PUBLIC_FUNCTIONS_URL
+    value: "https://us-central1-emarketplace-8aab1.cloudfunctions.net"
+    availability:
+      - BUILD
+      - RUNTIME
