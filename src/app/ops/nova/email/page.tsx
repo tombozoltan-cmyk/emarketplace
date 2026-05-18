@@ -11,6 +11,7 @@ import {
   type DocumentData,
 } from "firebase/firestore";
 import { Loader2, Save, Mail, ToggleLeft, ToggleRight, Eye, Send } from "lucide-react";
+import { toast } from "sonner";
 import { firestoreDb } from "@/lib/firebase";
 import { firebaseAuth } from "@/lib/firebase-auth";
 import { Button } from "@/components/ui/button";
@@ -470,12 +471,58 @@ export default function EmailSettingsPage() {
         isTest: true,
         testerEmail: testerEmail,
       });
+      toast.success("Teszt elküldve!", {
+        description: `Az értesítés a beállított admin email címre (${testerEmail || "admin"}) érkezik pár másodpercen belül.`,
+      });
       setTestStatus(`Teszt elküldve. Az értesítés a beállított admin email címre (${testerEmail || "admin"}) érkezik pár másodpercen belül.`);
     } catch (error) {
       console.error("Test send error:", error);
+      toast.error("Teszt küldés sikertelen!");
       setTestStatus("Teszt küldés sikertelen (lásd konzol).");
     } finally {
       setIsSendingTest(false);
+    }
+  }, []);
+
+  // Contract test states
+  const [isSendingContractTest, setIsSendingContractTest] = useState(false);
+
+  const sendTestContractNotification = useCallback(async () => {
+    setIsSendingContractTest(true);
+    try {
+      const user = firebaseAuth.currentUser;
+      const testerEmail = user?.email || "";
+      
+      await addDoc(collection(firestoreDb, "contracts"), {
+        createdAt: serverTimestamp(),
+        language: "hu",
+        status: "new",
+        serviceType: "szekhely-hu",
+        servicePackage: "basic",
+        company: {
+          name: "Teszt Szerződés Kft.",
+          shortName: "TesztKft",
+          legalForm: "kft",
+          mainActivity: "Számítástechnikai szolgáltatás",
+          mainActivityCode: "6201",
+        },
+        contact: {
+          fullName: "Teszt Elek",
+          email: testerEmail,
+          phone: "+36 30 123 4567",
+        },
+        isTest: true,
+        testerEmail: testerEmail,
+        sourcePath: "/ops/nova/email",
+      });
+      toast.success("Szerződés teszt elküldve!", {
+        description: "A contract admin és ügyfél értesítések hamarosan megérkeznek.",
+      });
+    } catch (error) {
+      console.error("Contract test send error:", error);
+      toast.error("Szerződés teszt küldés sikertelen!");
+    } finally {
+      setIsSendingContractTest(false);
     }
   }, []);
 
@@ -759,20 +806,37 @@ export default function EmailSettingsPage() {
           description="Ügyfélnek küldött visszaigazoló a szerződés beadványokról"
           icon={<Mail className="w-5 h-5" />}
           badge={
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                updateField("contractAutoReplyEnabled", !settings.contractAutoReplyEnabled);
-              }}
-              className="ml-2"
-              title={settings.contractAutoReplyEnabled ? "Bekapcsolva" : "Kikapcsolva"}
-            >
-              {settings.contractAutoReplyEnabled ? (
-                <ToggleRight className="w-6 h-6 text-green-500" />
-              ) : (
-                <ToggleLeft className="w-6 h-6 text-[color:var(--muted-foreground)]" />
-              )}
-            </button>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  sendTestContractNotification();
+                }}
+                disabled={isSendingContractTest}
+              >
+                {isSendingContractTest ? (
+                  <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                ) : (
+                  <Send className="w-4 h-4 mr-1" />
+                )}
+                Teszt
+              </Button>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  updateField("contractAutoReplyEnabled", !settings.contractAutoReplyEnabled);
+                }}
+                title={settings.contractAutoReplyEnabled ? "Bekapcsolva" : "Kikapcsolva"}
+              >
+                {settings.contractAutoReplyEnabled ? (
+                  <ToggleRight className="w-6 h-6 text-green-500" />
+                ) : (
+                  <ToggleLeft className="w-6 h-6 text-[color:var(--muted-foreground)]" />
+                )}
+              </button>
+            </div>
           }
         >
           <div className="space-y-4">
