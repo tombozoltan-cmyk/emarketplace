@@ -75,7 +75,8 @@ const PACKAGE_NAMES: Record<string, string> = {
   "szekhely-kezbesitesi-kulfoldi": "Teljes csomag - Külföldi",
 };
 
-const STATUS_CONFIG: Record<ContractStatus, { label: string; variant: "default" | "success" | "warning" | "error" | "info" }> = {
+const FALLBACK_STATUS = { label: "Ismeretlen", variant: "default" as const };
+const STATUS_CONFIG: Record<string, { label: string; variant: "default" | "success" | "warning" | "error" | "info" }> = {
   draft: { label: "Piszkozat", variant: "default" },
   pending_review: { label: "Ellenőrzésre vár", variant: "warning" },
   documents_needed: { label: "Dokumentumok szükségesek", variant: "warning" },
@@ -985,7 +986,7 @@ export default function ContractsPage() {
                       ? "bg-red-600 text-white"
                       : "bg-gray-500 text-white"
                   }`}>
-                    {STATUS_CONFIG[contract.status || "draft"].label}
+                    {(STATUS_CONFIG[contract.status || "draft"] ?? FALLBACK_STATUS).label}
                   </span>
                 </div>
 
@@ -1060,7 +1061,7 @@ export default function ContractsPage() {
                   ? "bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300"
                   : "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300"
               }`}>
-                {STATUS_CONFIG[selectedContract.status || "pending_review"].label}
+                {(STATUS_CONFIG[selectedContract.status || "pending_review"] ?? FALLBACK_STATUS).label}
               </span>
             </div>
 

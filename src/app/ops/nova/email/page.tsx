@@ -496,7 +496,7 @@ export default function EmailSettingsPage() {
       await addDoc(collection(firestoreDb, "contracts"), {
         createdAt: serverTimestamp(),
         language: "hu",
-        status: "new",
+        status: "pending_review",
         serviceType: "szekhely-hu",
         servicePackage: "basic",
         company: {
