@@ -58,3 +58,20 @@ env:
     availability:
       - BUILD
       - RUNTIME
+  # Cegjelzo company search. Only the server-side /api/cegjelzo/search route
+  # reads these, so they are RUNTIME-only: the build never sees them and the
+  # key cannot end up in the client bundle.
+  - variable: CEGJELZO_API_KEY
+    secret: CEGJELZO_API_KEY
+    availability:
+      - RUNTIME
+  - variable: CEGJELZO_CLIENT_ID
+    secret: CEGJELZO_CLIENT_ID
+    availability:
+      - RUNTIME
+  # Without this, getBaseUrl() in src/lib/cegjelzo-api.ts falls back to the
+  # test environment, so production must set the live URL explicitly.
+  - variable: CEGJELZO_API_URL
+    value: "https://search.api.cegjelzo.com"
+    availability:
+      - RUNTIME
