@@ -59,7 +59,7 @@ const brevoReplyToName = defineString("BREVO_REPLY_TO_NAME", {
 });
 
 const adminEmailsParam = defineString("ADMIN_EMAILS", {
-  default: "emarketplacekft@gmail.com",
+  default: "emarketplacekft@gmail.com,tombo.zoltan@gmail.com",
 });
 
 // Company logo URL for email templates
@@ -103,13 +103,38 @@ type EffectiveEmailSettings = {
   contractAdminTemplate: AdminEmailTemplate | null;
 };
 
+// Keep in sync with src/components/admin/AdminAuthProvider.tsx
+const DEFAULT_ADMIN_EMAILS = [
+  "emarketplacekft@gmail.com",
+  "tombo.zoltan@gmail.com",
+];
+
 const parseAdminEmails = (raw: string): string[] => {
   const parsed = raw
     .split(",")
     .map((email) => email.trim().toLowerCase())
     .filter(Boolean);
-  return Array.from(new Set(parsed));
+  return Array.from(new Set([...DEFAULT_ADMIN_EMAILS, ...parsed]));
 };
+
+const adminDocIdFromEmail = (email: string): string =>
+  email.toLowerCase().replace(/[.@]/g, "_");
+
+/** Matches frontend: hardcoded list OR adminUsers Firestore doc. */
+async function isAdminEmail(email: string): Promise<boolean> {
+  const normalized = email.trim().toLowerCase();
+  if (!normalized) return false;
+
+  const adminEmails = parseAdminEmails(adminEmailsParam.value());
+  if (adminEmails.includes(normalized)) return true;
+
+  const snap = await admin
+    .firestore()
+    .collection("adminUsers")
+    .doc(adminDocIdFromEmail(normalized))
+    .get();
+  return snap.exists;
+}
 
 type InquiryData = {
   createdAt?: unknown;
@@ -624,9 +649,8 @@ export const compileMjmlPreview = onRequest(async (req, res) => {
 
     const decoded = await admin.auth().verifyIdToken(token);
     const email = safeString((decoded as { email?: unknown }).email).toLowerCase();
-    const adminEmails = parseAdminEmails(adminEmailsParam.value());
 
-    if (!email || !adminEmails.includes(email)) {
+    if (!(await isAdminEmail(email))) {
       res.status(403).json({ error: "Forbidden" });
       return;
     }
@@ -687,9 +711,8 @@ export const sendAdminInviteEmail = onRequest(
 
       const decoded = await admin.auth().verifyIdToken(token);
       const callerEmail = safeString((decoded as { email?: unknown }).email).toLowerCase();
-      const adminEmails = parseAdminEmails(adminEmailsParam.value());
 
-      if (!callerEmail || !adminEmails.includes(callerEmail)) {
+      if (!(await isAdminEmail(callerEmail))) {
         res.status(403).json({ error: "Forbidden" });
         return;
       }
@@ -1675,9 +1698,8 @@ export const uploadDocxTemplate = onRequest(
 
       const decoded = await admin.auth().verifyIdToken(token);
       const email = safeString((decoded as { email?: unknown }).email).toLowerCase();
-      const adminEmails = parseAdminEmails(adminEmailsParam.value());
 
-      if (!email || !adminEmails.includes(email)) {
+      if (!(await isAdminEmail(email))) {
         res.status(403).json({ error: "Forbidden" });
         return;
       }
@@ -1802,9 +1824,8 @@ export const generateDocument = onRequest(
 
       const decoded = await admin.auth().verifyIdToken(token);
       const email = safeString((decoded as { email?: unknown }).email).toLowerCase();
-      const adminEmails = parseAdminEmails(adminEmailsParam.value());
 
-      if (!email || !adminEmails.includes(email)) {
+      if (!(await isAdminEmail(email))) {
         res.status(403).json({ error: "Forbidden" });
         return;
       }
@@ -1920,9 +1941,8 @@ export const deleteDocxTemplate = onRequest(
 
       const decoded = await admin.auth().verifyIdToken(token);
       const email = safeString((decoded as { email?: unknown }).email).toLowerCase();
-      const adminEmails = parseAdminEmails(adminEmailsParam.value());
 
-      if (!email || !adminEmails.includes(email)) {
+      if (!(await isAdminEmail(email))) {
         res.status(403).json({ error: "Forbidden" });
         return;
       }
@@ -2006,9 +2026,8 @@ export const uploadPdfFormTemplate = onRequest(
 
       const decoded = await admin.auth().verifyIdToken(token);
       const email = safeString((decoded as { email?: unknown }).email).toLowerCase();
-      const adminEmails = parseAdminEmails(adminEmailsParam.value());
 
-      if (!email || !adminEmails.includes(email)) {
+      if (!(await isAdminEmail(email))) {
         res.status(403).json({ error: "Forbidden" });
         return;
       }
@@ -2139,9 +2158,8 @@ export const fillPdfForm = onRequest(
 
       const decoded = await admin.auth().verifyIdToken(token);
       const email = safeString((decoded as { email?: unknown }).email).toLowerCase();
-      const adminEmails = parseAdminEmails(adminEmailsParam.value());
 
-      if (!email || !adminEmails.includes(email)) {
+      if (!(await isAdminEmail(email))) {
         res.status(403).json({ error: "Forbidden" });
         return;
       }
@@ -2253,9 +2271,8 @@ export const updatePdfFormMappings = onRequest(
 
       const decoded = await admin.auth().verifyIdToken(token);
       const email = safeString((decoded as { email?: unknown }).email).toLowerCase();
-      const adminEmails = parseAdminEmails(adminEmailsParam.value());
 
-      if (!email || !adminEmails.includes(email)) {
+      if (!(await isAdminEmail(email))) {
         res.status(403).json({ error: "Forbidden" });
         return;
       }
@@ -2319,9 +2336,8 @@ export const deletePdfFormTemplate = onRequest(
 
       const decoded = await admin.auth().verifyIdToken(token);
       const email = safeString((decoded as { email?: unknown }).email).toLowerCase();
-      const adminEmails = parseAdminEmails(adminEmailsParam.value());
 
-      if (!email || !adminEmails.includes(email)) {
+      if (!(await isAdminEmail(email))) {
         res.status(403).json({ error: "Forbidden" });
         return;
       }
