@@ -6,6 +6,9 @@ import Link from "next/link";
 import { MapPin, Phone, Mail, Facebook, Linkedin } from "lucide-react";
 import { usePathname } from "next/navigation";
 
+import { LEGAL_DOCUMENTS } from "@/lib/legal/registry";
+import type { LegalLanguage } from "@/lib/legal/types";
+
 export function Footer() {
   const pathname = usePathname();
   const isEnglish = pathname?.startsWith("/en");
@@ -39,12 +42,18 @@ export function Footer() {
 
   const cookieSettingsLabel = isEnglish ? "Cookie settings" : "Cookie beállítások";
 
+  // Az évszám a build idejéből jön, hogy ne kelljen évente kézzel átírni.
+  const currentYear = new Date().getFullYear();
   const copyright = isEnglish
-    ? "© 2025 E-Marketplace Kft. All rights reserved."
-    : "© 2025 E-Marketplace Kft. Minden jog fenntartva.";
+    ? `© ${currentYear} E-Marketplace Kft. All rights reserved.`
+    : `© ${currentYear} E-Marketplace Kft. Minden jog fenntartva.`;
 
   const blogHref = isEnglish ? "/en/blog" : "/blog";
   const faqHref = isEnglish ? "/en#gyik" : "/#gyik";
+
+  const language: LegalLanguage = isEnglish ? "en" : "hu";
+  const termsHref = LEGAL_DOCUMENTS.terms.path[language];
+  const privacyHref = LEGAL_DOCUMENTS.privacy.path[language];
 
   const handleOpenCookies = () => {
     if (typeof window !== "undefined") {
@@ -176,13 +185,13 @@ export function Footer() {
                 </Link>
               </li>
               <li>
-                <Link href="/aszf" className="block py-2 hover:text-[color:var(--primary)]">
+                <Link href={termsHref} className="block py-2 hover:text-[color:var(--primary)]">
                   {termsLabel}
                 </Link>
               </li>
               <li>
                 <Link
-                  href="/adatvedelem"
+                  href={privacyHref}
                   className="block py-2 hover:text-[color:var(--primary)]"
                 >
                   {privacyLabel}
@@ -219,7 +228,7 @@ export function Footer() {
 
         {/* Alsó sáv */}
         <div className="mt-6 border-t border-[color:var(--primary)]/20 pt-4 text-xs text-slate-200/80 md:mt-10 md:flex md:items-center md:justify-between md:pt-6 lg:mt-12 lg:pt-8 md:text-sm">
-          <p>{copyright}</p>
+          <p suppressHydrationWarning>{copyright}</p>
           <div className="mt-3 flex flex-wrap items-center gap-2 md:mt-0 md:gap-4 lg:gap-6">
             <button
               type="button"
@@ -229,19 +238,13 @@ export function Footer() {
               {cookieSettingsLabel}
             </button>
             <Link
-              href="/adatvedelem"
+              href={privacyHref}
               className="hover:text-[color:var(--primary)]"
             >
               {privacyLabel}
             </Link>
-            <Link href="/aszf" className="hover:text-[color:var(--primary)]">
+            <Link href={termsHref} className="hover:text-[color:var(--primary)]">
               {termsLabel}
-            </Link>
-            <Link
-              href="/admin/login"
-              className="opacity-0 transition hover:opacity-100"
-            >
-              🔒
             </Link>
           </div>
         </div>

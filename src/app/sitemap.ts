@@ -13,12 +13,24 @@ export default function sitemap(): MetadataRoute.Sitemap {
     "/arak",
     "/blog",
     "/kapcsolat",
-    "/adatvedelem",
   ].map((path) => ({
     url: `${baseUrl}${path}`,
     lastModified: new Date(),
     changeFrequency: "weekly",
     priority: path === "" ? 1 : 0.8,
+  }));
+
+  // A jogi dokumentumok ritkán változnak, és a verziót a dokumentum fejléce hordozza.
+  const legalPages: MetadataRoute.Sitemap = [
+    "/aszf",
+    "/adatvedelem",
+    "/en/terms",
+    "/en/privacy",
+  ].map((path) => ({
+    url: `${baseUrl}${path}`,
+    lastModified: new Date("2026-01-01"),
+    changeFrequency: "yearly",
+    priority: 0.3,
   }));
 
   const blogPages: MetadataRoute.Sitemap = blogPosts.map((post) => ({
@@ -28,5 +40,5 @@ export default function sitemap(): MetadataRoute.Sitemap {
     priority: 0.6,
   }));
 
-  return [...staticPages, ...blogPages];
+  return [...staticPages, ...legalPages, ...blogPages];
 }

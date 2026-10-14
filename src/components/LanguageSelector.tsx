@@ -118,6 +118,10 @@ export function LanguageSelector() {
                     "/en/blog": { en: "/en/blog", hu: "/blog" },
                     "/kapcsolat": { en: "/en/contact", hu: "/kapcsolat" },
                     "/en/contact": { en: "/en/contact", hu: "/kapcsolat" },
+                    "/aszf": { en: "/en/terms", hu: "/aszf" },
+                    "/en/terms": { en: "/en/terms", hu: "/aszf" },
+                    "/adatvedelem": { en: "/en/privacy", hu: "/adatvedelem" },
+                    "/en/privacy": { en: "/en/privacy", hu: "/adatvedelem" },
                   };
 
                   const safePathname = pathname ?? "";
