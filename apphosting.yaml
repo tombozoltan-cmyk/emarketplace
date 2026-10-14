@@ -69,9 +69,3 @@ env:
     secret: CEGJELZO_CLIENT_ID
     availability:
       - RUNTIME
-  # Without this, getBaseUrl() in src/lib/cegjelzo-api.ts falls back to the
-  # test environment, so production must set the live URL explicitly.
-  - variable: CEGJELZO_API_URL
-    value: "https://search.api.cegjelzo.com"
-    availability:
-      - RUNTIME

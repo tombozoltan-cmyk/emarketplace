@@ -1,31 +1,39 @@
 /**
- * Cégjelző V3 Search API - Company Name Search Integration
- * 
- * API Documentation: https://search.api.cegjelzo.com
- * 
+ * Cégjelző Search API v2 - Company Name Search Integration
+ *
  * Environment configuration:
- * - NEXT_PUBLIC_CEGJELZO_API_URL: Base URL (defaults to test environment)
- * - CEGJELZO_API_KEY: API key for authentication (server-side only)
- * - NEXT_PUBLIC_CEGJELZO_API_KEY: API key for client-side (if needed)
+ * - CEGJELZO_API_URL: Base URL (defaults to CEGJELZO_BASE_URL below)
+ * - CEGJELZO_API_KEY: API key, sent as X-Api-Key (server-side only)
+ * - CEGJELZO_CLIENT_ID: Client id, sent as X-Client-Id (server-side only)
+ *
+ * The key and the client id are issued as a pair and are bound to a contract
+ * that lists which fields the search may return. Fields outside the contract
+ * are simply absent from the response — see mapCompany() below.
  */
 
 // =============================================================================
 // Configuration
 // =============================================================================
 
-const CEGJELZO_BASE_URLS = {
-  test: 'https://search-dev.api.cegjelzo.com',
-  production: 'https://search.api.cegjelzo.com',
-} as const
+/**
+ * Search host. Our contract is bound to this host: the older
+ * `search.api.cegjelzo.com` (and its `search-dev` counterpart) answer
+ * 403 Forbidden for the same key and client id.
+ */
+const CEGJELZO_BASE_URL = 'https://api.cegjelzo.com'
+const CEGJELZO_SEARCH_PATH = '/api/v2/search'
+
+/** Default page size used by the API when `limit` is omitted. */
+const CEGJELZO_DEFAULT_LIMIT = 30
 
 /**
- * Get base URL from environment or default to test
+ * Get base URL from environment or fall back to the known search host.
  */
 function getBaseUrl(): string {
   return (
     process.env.NEXT_PUBLIC_CEGJELZO_API_URL ||
     process.env.CEGJELZO_API_URL ||
-    CEGJELZO_BASE_URLS.test
+    CEGJELZO_BASE_URL
   )
 }
 
@@ -117,13 +125,140 @@ export type CegjelzoSearchResponse = {
 }
 
 /**
+ * What the searched value is. Optional: without it the API matches on any of
+ * them, with it the match is stricter (`tax_number` errors out if the value is
+ * not a tax number). Name search matches the start of the long and short name.
+ */
+export type CegjelzoSearchValueType = 'name' | 'tax_number' | 'reg_number'
+
+/**
  * Search parameters
  */
 export type CegjelzoSearchParams = {
   /** Company name or partial name (min 3 characters) */
   value: string
-  /** Maximum results to return (default: 50, max: 50) */
+  /** Maximum results to return (API default: 30) */
   limit?: number
+  /** 1-based page number (API default: 1) */
+  page?: number
+  /** Type of the searched value; omitted by default */
+  type?: CegjelzoSearchValueType
+}
+
+// =============================================================================
+// Raw v2 response shape
+// =============================================================================
+
+/**
+ * Every "rovat" (register section) comes back as the full history of that
+ * section, one entry per change. `change` / `insertion` are ISO dates.
+ */
+type CegjelzoHistoryEntry = {
+  change?: string | null
+  insertion?: string | null
+}
+
+/**
+ * A register section. Company records (`type: "companies"`) carry the full
+ * history of the section as dated entries; other registers — civil
+ * organisations, for example — return a plain string, or null when the
+ * register has no such section at all.
+ */
+type CegjelzoSection<T> = T[] | string | null
+
+type CegjelzoRawCompany = {
+  type?: string
+  status_code?: number
+  nav_status?: string | null
+  nav_status_code?: number | null
+  long_name?: CegjelzoSection<CegjelzoHistoryEntry & { name?: string | null }>
+  short_name?: CegjelzoSection<CegjelzoHistoryEntry & { name?: string | null }>
+  address?: CegjelzoSection<CegjelzoHistoryEntry & { address?: string | null }>
+  tax_number?: CegjelzoSection<
+    CegjelzoHistoryEntry & {
+      tax_number?: string | null
+      social_tax_number?: string | null
+    }
+  >
+  company_registration_number?: CegjelzoSection<
+    CegjelzoHistoryEntry & { company_registration_number?: string | null }
+  >
+  representatives?: CegjelzoSection<
+    CegjelzoHistoryEntry & {
+      name?: string | null
+      title?: string | null
+      address?: string | null
+      birth_date?: string | null
+      mother?: string | null
+      tax_number?: string | null
+      start_date?: string | null
+      end_date?: string | null
+    }
+  >
+}
+
+/**
+ * Pick the entry in force from a register section.
+ *
+ * The API returns the history in what is normally chronological order, but
+ * that is not documented, so we sort by `change ?? insertion` instead of
+ * trusting the array order. Entries without either date keep their relative
+ * position and sort first, so a dated entry always wins over an undated one.
+ */
+function latestEntry<T extends CegjelzoHistoryEntry>(
+  section?: CegjelzoSection<T>
+): T | undefined {
+  if (!Array.isArray(section) || section.length === 0) return undefined
+  if (section.length === 1) return section[0]
+
+  return section
+    .map((entry, index) => ({ entry, index, key: entry.change ?? entry.insertion ?? '' }))
+    .sort((a, b) => (a.key === b.key ? a.index - b.index : a.key < b.key ? -1 : 1))
+    .at(-1)?.entry
+}
+
+/**
+ * Read one value out of a register section, whichever shape it arrived in.
+ */
+function sectionValue<T extends CegjelzoHistoryEntry>(
+  section: CegjelzoSection<T> | undefined,
+  pick: (entry: T) => string | null | undefined
+): string {
+  if (typeof section === 'string') return section
+
+  const entry = latestEntry(section)
+  return (entry ? pick(entry) : undefined) ?? ''
+}
+
+/**
+ * Flatten one raw result into the shape the rest of the app consumes.
+ *
+ * `bank_accounts`, `founded_at` and `main_activities` are not part of our
+ * search contract, so they stay empty rather than being guessed at — the
+ * register section dates are not a founding date.
+ */
+function mapCompany(raw: CegjelzoRawCompany): CegjelzoCompany {
+  const representatives = Array.isArray(raw.representatives) ? raw.representatives : []
+
+  return {
+    type: raw.type ?? '',
+    status_code: raw.status_code ?? 0,
+    full_name: sectionValue(raw.long_name, (entry) => entry.name),
+    short_name: sectionValue(raw.short_name, (entry) => entry.name),
+    address: sectionValue(raw.address, (entry) => entry.address),
+    tax_number: sectionValue(raw.tax_number, (entry) => entry.tax_number),
+    social_tax_number: sectionValue(raw.tax_number, (entry) => entry.social_tax_number),
+    registration_number: sectionValue(
+      raw.company_registration_number,
+      (entry) => entry.company_registration_number
+    ),
+    representatives: representatives
+      .filter((rep): rep is typeof rep & { name: string } => Boolean(rep.name))
+      .map((rep) => ({ name: rep.name })),
+    bank_accounts: [],
+    founded_at: '',
+    main_activities: [],
+  }
 }
 
 /**
@@ -145,11 +280,13 @@ export class CegjelzoApiError extends Error {
 // =============================================================================
 
 /**
- * Search companies by name using Cégjelző V3 Search API
- * 
+ * Search companies by name using the Cégjelző v2 search API
+ *
  * @param params Search parameters
  * @param params.value Company name or partial name (minimum 3 characters)
- * @param params.limit Maximum number of results (default: 50, max: 50)
+ * @param params.limit Maximum number of results (API default: 30)
+ * @param params.page 1-based page number (API default: 1)
+ * @param params.type Type of the searched value, for a stricter match
  * @returns Search results with company data
  * @throws CegjelzoApiError on API errors
  * 
@@ -164,7 +301,7 @@ export class CegjelzoApiError extends Error {
 export async function searchCompaniesByName(
   params: CegjelzoSearchParams
 ): Promise<CegjelzoSearchResponse> {
-  const { value, limit } = params
+  const { value, limit, page, type } = params
 
   // Validate minimum length
   if (!value || value.trim().length < 3) {
@@ -180,11 +317,16 @@ export async function searchCompaniesByName(
   // Build query parameters
   const queryParams = new URLSearchParams()
   queryParams.set('value', value.trim())
-  if (limit !== undefined && limit > 0) {
-    queryParams.set('limit', Math.min(limit, 50).toString())
+  const effectiveLimit = limit !== undefined && limit > 0 ? limit : CEGJELZO_DEFAULT_LIMIT
+  queryParams.set('limit', effectiveLimit.toString())
+  if (page !== undefined && page > 1) {
+    queryParams.set('page', page.toString())
+  }
+  if (type) {
+    queryParams.set('type', type)
   }
 
-  const url = `${baseUrl}/v1/names?${queryParams.toString()}`
+  const url = `${baseUrl}${CEGJELZO_SEARCH_PATH}?${queryParams.toString()}`
 
   try {
     const clientId = getClientId()
@@ -212,8 +354,16 @@ export async function searchCompaniesByName(
       )
     }
 
-    const data: CegjelzoSearchResponse = await response.json()
-    return data
+    // v2 returns a bare array with no paging metadata. A full page is the only
+    // signal that more results may exist.
+    const raw: unknown = await response.json()
+    const items: CegjelzoRawCompany[] = Array.isArray(raw) ? raw : []
+
+    return {
+      current_page: page && page > 1 ? page : 1,
+      has_next: items.length >= effectiveLimit,
+      results: items.map(mapCompany),
+    }
   } catch (error) {
     if (error instanceof CegjelzoApiError) {
       throw error
@@ -267,11 +417,8 @@ export function isCegjelzoApiConfigured(): boolean {
 }
 
 /**
- * Get current environment (test or production based on URL)
+ * Whether the configured base URL is the known search host or an override.
  */
-export function getCegjelzoEnvironment(): 'test' | 'production' | 'custom' {
-  const baseUrl = getBaseUrl()
-  if (baseUrl === CEGJELZO_BASE_URLS.test) return 'test'
-  if (baseUrl === CEGJELZO_BASE_URLS.production) return 'production'
-  return 'custom'
+export function getCegjelzoEnvironment(): 'production' | 'custom' {
+  return getBaseUrl() === CEGJELZO_BASE_URL ? 'production' : 'custom'
 }
