@@ -1,59 +1,81 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Blog posts - public read, authenticated write
+    // Staff = a signed-in, verified e-mail that has an adminUsers/<id> document,
+    // where <id> is the lower-cased e-mail with "." and "@" replaced by "_"
+    // (the id AdminAuthProvider and the users page use).
+    // Signing in alone is NOT enough: Google sign-in accepts any Google account.
+    function signedIn() {
+      return request.auth != null && request.auth.token.email_verified == true;
+    }
+    function staffId() {
+      return request.auth.token.email.lower().replace('[.@]', '_');
+    }
+    function staffPath() {
+      return /databases/$(database)/documents/adminUsers/$(staffId());
+    }
+    function isStaff() {
+      return signedIn() && exists(staffPath());
+    }
+    function isAdmin() {
+      // A document without a role counts as admin, as the admin UI always did.
+      return isStaff() && get(staffPath()).data.get('role', 'admin') == 'admin';
+    }
+
+    // Blog posts - public read, editors and admins write
     match /posts/{postId} {
       allow read: if true;
-      allow write: if request.auth != null;
+      allow write: if isStaff();
     }
-    
-    // Contracts - public create (wizard), authenticated read/update/delete (admin)
+
+    // Contracts (customer personal data) - public create (wizard), admin only otherwise
     match /contracts/{contractId} {
       allow create: if true;
-      allow read, update, delete: if request.auth != null;
+      allow read, update, delete: if isAdmin();
     }
-    
-    // DOCX templates - authenticated only (admin)
+
+    // DOCX templates - admin only
     match /docxTemplates/{templateId} {
-      allow read, write: if request.auth != null;
+      allow read, write: if isAdmin();
     }
-    
-    // PDF form templates - authenticated only (admin)
+
+    // PDF form templates - admin only
     match /pdfFormTemplates/{templateId} {
-      allow read, write: if request.auth != null;
+      allow read, write: if isAdmin();
     }
-    
-    // Pricing cards - public read for wizard
+
+    // Pricing cards - public read for wizard, admin write
     match /pricingCards/{cardId} {
       allow read: if true;
-      allow write: if request.auth != null;
+      allow write: if isAdmin();
     }
-    
-    // Inquiries - public create, authenticated read
+
+    // Inquiries - public create, admin only otherwise
     match /inquiries/{inquiryId} {
       allow create: if true;
-      allow read, update, delete: if request.auth != null;
+      allow read, update, delete: if isAdmin();
     }
-    
-    // Users - authenticated only
+
+    // Users - admin only
     match /users/{userId} {
-      allow read, write: if request.auth != null;
+      allow read, write: if isAdmin();
     }
-    
-    // Admin users - authenticated only
+
+    // Admin users - admins manage, everyone may read their own entry
     match /adminUsers/{userId} {
-      allow read, write: if request.auth != null;
+      allow read: if isAdmin() || (signedIn() && userId == staffId());
+      allow write: if isAdmin();
     }
-    
-    // Email settings - authenticated only (admin)
+
+    // Email settings - admin only
     match /emailSettings/{docId} {
-      allow read, write: if request.auth != null;
+      allow read, write: if isAdmin();
     }
-    
-    // Marketing settings - public read (for scripts), authenticated write
+
+    // Marketing settings - public read (for scripts), admin write
     match /marketingSettings/{docId} {
       allow read: if true;
-      allow write: if request.auth != null;
+      allow write: if isAdmin();
     }
   }
 }

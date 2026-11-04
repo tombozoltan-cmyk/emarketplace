@@ -48,6 +48,13 @@ const safeString = (v: unknown): string => (typeof v === "string" ? v.trim() : "
 
 const safeBool = (v: unknown): boolean => Boolean(v);
 
+// These IDs are interpolated into inline scripts on every public page, so
+// anything that is not a well-formed ID is dropped instead of being injected.
+const safeId = (v: unknown, pattern: RegExp): string => {
+  const s = safeString(v);
+  return s && pattern.test(s) ? s : "";
+};
+
 const normalizeSettings = (raw: DocumentData | undefined): MarketingSettings => {
   if (!raw) {
     return emptySettings;
@@ -56,15 +63,15 @@ const normalizeSettings = (raw: DocumentData | undefined): MarketingSettings => 
   const enabledRaw = (raw.enabled ?? {}) as Record<string, unknown>;
 
   return {
-    ga4MeasurementId: safeString(raw.ga4MeasurementId),
-    gtmContainerId: safeString(raw.gtmContainerId),
-    googleAdsId: safeString(raw.googleAdsId),
-    googleAdsConversionLabel: safeString(raw.googleAdsConversionLabel),
-    metaPixelId: safeString(raw.metaPixelId),
-    linkedInPartnerId: safeString(raw.linkedInPartnerId),
-    tiktokPixelId: safeString(raw.tiktokPixelId),
-    hotjarSiteId: safeString(raw.hotjarSiteId),
-    clarityProjectId: safeString(raw.clarityProjectId),
+    ga4MeasurementId: safeId(raw.ga4MeasurementId, /^G-[A-Z0-9]{4,16}$/),
+    gtmContainerId: safeId(raw.gtmContainerId, /^GTM-[A-Z0-9]{4,12}$/),
+    googleAdsId: safeId(raw.googleAdsId, /^AW-[0-9]{6,15}$/),
+    googleAdsConversionLabel: safeId(raw.googleAdsConversionLabel, /^[A-Za-z0-9_-]{1,40}$/),
+    metaPixelId: safeId(raw.metaPixelId, /^[0-9]{8,20}$/),
+    linkedInPartnerId: safeId(raw.linkedInPartnerId, /^[0-9]{4,12}$/),
+    tiktokPixelId: safeId(raw.tiktokPixelId, /^[A-Z0-9]{10,30}$/),
+    hotjarSiteId: safeId(raw.hotjarSiteId, /^[0-9]{4,12}$/),
+    clarityProjectId: safeId(raw.clarityProjectId, /^[a-z0-9]{6,16}$/),
     customHeadHtml: safeString(raw.customHeadHtml),
     enabled: {
       ga4: safeBool(enabledRaw.ga4),
