@@ -1,37 +1,56 @@
 rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
-    // Blog images - authenticated users can upload
+    // Staff = a signed-in, verified e-mail with an adminUsers/<id> document in
+    // Firestore (id: lower-cased e-mail, "." and "@" replaced by "_").
+    // Signing in alone is NOT enough: Google sign-in accepts any Google account.
+    function staffPath() {
+      return /databases/(default)/documents/adminUsers/$(request.auth.token.email.lower().replace('[.@]', '_'));
+    }
+    function isStaff() {
+      return request.auth != null
+        && request.auth.token.email_verified == true
+        && firestore.exists(staffPath());
+    }
+    function isAdmin() {
+      return isStaff() && firestore.get(staffPath()).data.get('role', 'admin') == 'admin';
+    }
+
+    // Blog images - editors and admins upload
     match /image/{allPaths=**} {
       allow read: if true;
-      allow write: if request.auth != null;
+      allow write: if isStaff();
     }
     
     // Contract templates (Word documents)
     match /contract-templates/{allPaths=**} {
-      allow read: if request.auth != null;
-      allow write: if request.auth != null;
+      allow read, write: if isAdmin();
     }
     
     // DOCX templates for document generation
     match /docx-templates/{allPaths=**} {
-      allow read: if request.auth != null;
-      allow write: if request.auth != null;
+      allow read, write: if isAdmin();
     }
     
-    // Contract documents - authenticated users can upload
+    // Contract documents - admin only
     match /contracts/{allPaths=**} {
-      allow read: if request.auth != null;
-      allow write: if request.auth != null;
+      allow read, write: if isAdmin();
     }
     
-    // Contract wizard document uploads (public access for wizard)
+    // Contract wizard document uploads (ID card copies — personal data)
+    // - list: only authenticated admins (no enumeration of uploads)
+    // - get: admins always; the anonymous wizard only within 15 minutes of
+    //   upload, so it can fetch the download URL right after uploadBytes.
+    //   Stored download URLs (token URLs) keep working for the ops page.
+    // - create only: no anonymous overwrite or delete of existing files
     // Validation: only images and PDFs, max 10MB
     match /contract-documents/{allPaths=**} {
-      allow read: if true;
-      allow write: if request.resource.size < 10 * 1024 * 1024
-                   && (request.resource.contentType.matches('image/.*')
-                       || request.resource.contentType == 'application/pdf');
+      allow list: if isAdmin();
+      allow get: if isAdmin()
+                 || request.time < resource.timeCreated + duration.value(15, 'm');
+      allow create: if request.resource.size < 10 * 1024 * 1024
+                    && (request.resource.contentType.matches('image/.*')
+                        || request.resource.contentType == 'application/pdf');
     }
     
     // Default deny all other paths
