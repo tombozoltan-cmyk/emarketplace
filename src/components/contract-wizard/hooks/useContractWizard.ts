@@ -12,6 +12,7 @@ import type {
 import { WIZARD_STEPS } from "@/lib/contract-types";
 import { validIdType, withoutIdImages } from "@/lib/id-documents";
 import { dropUndefined, resolveContact } from "@/lib/contract-submission";
+import type { ServiceSelection } from "@/lib/service-types";
 import { legalPdfUrl, currentLegalVersion, legalVersionRef, LEGAL_DOCUMENTS } from "@/lib/legal/registry";
 
 /** Az összegző lépés két jelölőnégyzete. A beküldés csak akkor fut le, ha mindkettő be van jelölve. */
@@ -283,7 +284,7 @@ export type UseContractWizardReturn = {
   updatePepDeclaration: (updates: Partial<ContractData["pepDeclaration"]>) => void;
   updateDocuments: (updates: Partial<ContractData["uploadedDocuments"]>) => void;
   updateDocumentPaths: (updates: Partial<ContractDocumentPaths>) => void;
-  setServiceType: (serviceType: ServiceType, packageId: string, monthlyPrice: number, annualPrice: number) => void;
+  setServiceType: (selection: ServiceSelection) => void;
 
   // Validáció
   validateCurrentStep: () => StepValidation;
@@ -506,23 +507,25 @@ export function useContractWizard(
     []
   );
 
-  const setServiceType = useCallback(
-    (
-      serviceType: ServiceType,
-      packageId: string,
-      monthlyPrice: number,
-      annualPrice: number
-    ) => {
-      setData((prev) => ({
+  // egy objektum, nem négy sorrendfüggő érték: a két új mezővel hat lett volna belőlük,
+  // és egy felcserélt pár csendben rossz árat vagy rossz megnevezést írt volna a beadványba
+  const setServiceType = useCallback((selection: ServiceSelection) => {
+    setData((prev) => {
+      const next = {
         ...prev,
-        serviceType,
-        packageId,
-        monthlyPrice,
-        annualPrice,
-      }));
-    },
-    []
-  );
+        serviceType: selection.serviceType as ServiceType,
+        packageId: selection.packageId,
+        monthlyPrice: selection.monthlyPrice,
+        annualPrice: selection.annualPrice,
+      } as ContractData;
+      // üres kártyaszövegnél a kulcs kimarad, nem marad ott egy korábbi kártya szövege sem
+      if (selection.packageLabel) next.packageLabel = selection.packageLabel;
+      else delete next.packageLabel;
+      if (selection.priceText) next.priceText = selection.priceText;
+      else delete next.priceText;
+      return next;
+    });
+  }, []);
 
   // Beküldés
   const submit = useCallback(async (consent: ConsentInput): Promise<string | null> => {

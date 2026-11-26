@@ -94,3 +94,93 @@ export function serviceTypeForCard(packageId: string | undefined, cardId?: strin
   if (SERVICE_TYPES.includes(id)) return id;
   return CARD_ID_TO_SERVICE_TYPE[id] || null;
 }
+
+// Mit jegyzünk fel a beküldéskor arról, hogy az ügyfél MIT LÁTOTT az ár-kártyán.
+//
+// Eddig csak a `packageId` és a két szám (havi/éves díj) került a beadványba. A kártya
+// megnevezése és a kiírt ár-szöveg nem, pedig az iratot és a levelet az ügyfél ezek alapján
+// fogadta el. Ha az árlista később változik, a régi beadványból ma nem derül ki, milyen
+// megnevezéssel és milyen árszöveggel kötötték.
+//
+// Három szabály, és ezek szándékosak:
+//   1. Az ár-szöveg SZÖVEG MARAD. Nem alakítjuk, és nem számolunk belőle: a `monthlyPrice`
+//      továbbra is külön, a maga útján készül. Aki összeget akar, azt használja.
+//   2. Ha a kártyán nincs szöveg, a mező ÜRESEN marad. Nem teszünk a helyére se
+//      alapértelmezést, se az azonosítót: a hiányzó adat maradjon látható hiánynak.
+//   3. Régi sorokra nem megy vissza semmi: ez csak az új beküldésekre vonatkozik.
+//
+// Csak törölhető TypeScript-nyelvtan van itt, hogy a `node --test` be tudja tölteni.
+
+export type ServiceCardText = { hu: string; en: string };
+
+/** A kártyából csak ennyi kell ide; a teljes PricingCard ennél bővebb. */
+export type ServiceCardLike = {
+  id?: string;
+  packageId?: string;
+  title?: ServiceCardText;
+  price?: ServiceCardText;
+  priceNote?: ServiceCardText;
+};
+
+export type ServiceSelection = {
+  serviceType: string;
+  packageId: string;
+  monthlyPrice: number;
+  annualPrice: number;
+  /** A kártya megnevezése, ahogy az ügyfél látta. Üres kártyaszövegnél nincs megadva. */
+  packageLabel?: string;
+  /** A kiírt ár, SZÖVEGKÉNT (pl. "24 000 Ft + ÁFA / hó"). Soha ne számolj belőle. */
+  priceText?: string;
+};
+
+export type ServiceSelectionResult = {
+  selection: ServiceSelection;
+  /** Hamis, ha az ár-kártyát nem ismertük fel: a hívó ilyenkor jelez a konzolra. */
+  recognised: boolean;
+};
+
+/** A kártya szövege a választott nyelven, magyar tartalékkal. Üresre üreset ad. */
+export function cardText(text: ServiceCardText | undefined, language: string): string {
+  if (!text) return "";
+  const chosen = language === "en" ? text.en : text.hu;
+  return String(chosen || text.hu || "").trim();
+}
+
+/** A havi díj SZÁMKÉNT, a számlázáshoz. Ez nem helyettesíti az ár-szöveget, és fordítva sem. */
+export function parseMonthlyPrice(priceText: string): number {
+  const digits = String(priceText || "").replace(/[^\d]/g, "");
+  return parseInt(digits, 10) || 0;
+}
+
+/** Az ár-szöveg úgy, ahogy a kártyán állt: az ár és a hozzá írt megjegyzés egyben. */
+export function priceTextOf(card: ServiceCardLike, language: string): string {
+  return [cardText(card.price, language), cardText(card.priceNote, language)]
+    .filter((part) => part.length > 0)
+    .join(" ");
+}
+
+export function buildServiceSelection(
+  card: ServiceCardLike,
+  language: string,
+  fallbackServiceType = "szekhely-hu",
+): ServiceSelectionResult {
+  const packageId = String(card.packageId || "").trim();
+  const resolved = serviceTypeForCard(packageId, card.id);
+  const monthlyPrice = parseMonthlyPrice(cardText(card.price, language));
+
+  const packageLabel = cardText(card.title, language);
+  const priceText = priceTextOf(card, language);
+
+  const selection: ServiceSelection = {
+    serviceType: resolved || fallbackServiceType,
+    packageId,
+    monthlyPrice,
+    // ahogy eddig is: az éves díj a havi tizenkétszerese
+    annualPrice: monthlyPrice * 12,
+  };
+  // üres kártyaszöveg esetén a kulcs KIMARAD, nem kerül a helyére semmi
+  if (packageLabel) selection.packageLabel = packageLabel;
+  if (priceText) selection.priceText = priceText;
+
+  return { selection, recognised: resolved !== null };
+}

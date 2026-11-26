@@ -165,6 +165,10 @@ export type ContractData = {
   packageId: string;
   monthlyPrice: number;
   annualPrice: number;
+  // amit az ügyfél az ár-kártyán LÁTOTT; üres kártyaszövegnél nincs megadva
+  packageLabel?: string;
+  // a kiírt ár SZÖVEGKÉNT, pl. "24 000 Ft + ÁFA / hó" - soha ne számolj belőle
+  priceText?: string;
 
   // Cég adatok
   company: CompanyData;
