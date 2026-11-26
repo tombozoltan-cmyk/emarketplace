@@ -11,6 +11,7 @@ import { serviceTypeLabel } from "./service-types"
 const ID_TYPE_LABELS: Record<string, string> = {
   personal_id: "Személyi igazolvány",
   passport: "Útlevél",
+  drivers_license: "Vezetői engedély",
 }
 
 // Legal form mapping: the labels are kept in one place (docx-data.ts), the new DOCX templates use them too

@@ -20,6 +20,7 @@ import type {
   OwnerData,
 } from "@/lib/contract-types";
 import { NATIONALITIES } from "@/lib/contract-types";
+import { idTypeLabel, idTypeNote, idTypesFor } from "@/lib/id-documents";
 
 type RepresentativeData = ContractData["representative"];
 
@@ -250,14 +251,16 @@ export function Step5Representative({
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="personal_id">
-                      {t ? "Személyi igazolvány" : "Personal ID Card"}
-                    </SelectItem>
-                    <SelectItem value="passport">
-                      {t ? "Útlevél" : "Passport"}
-                    </SelectItem>
+                    {idTypesFor(data.nationality).map((type) => (
+                      <SelectItem key={type} value={type}>
+                        {idTypeLabel(type, language)}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
+                {idTypeNote(data.idType, data.nationality, language) && (
+                  <p className="text-xs text-[color:var(--muted-foreground)]">{idTypeNote(data.idType, data.nationality, language)}</p>
+                )}
               </div>
 
               {/* Okmány száma */}

@@ -17,42 +17,30 @@ import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { firebaseStorage } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import type { ContractLanguage, ContractDocuments } from "@/lib/contract-types";
+import type { ContractLanguage, ContractDocuments, IdDocumentType } from "@/lib/contract-types";
+import { idImagesFor } from "@/lib/id-documents";
 
 type Step7DocumentsProps = {
   data: ContractDocuments;
   companyName: string;
   ownerName: string;
+  idType: IdDocumentType;
   onChange: (updates: Partial<ContractDocuments>) => void;
   language: ContractLanguage;
 };
 
 type DocumentType = keyof Omit<ContractDocuments, "otherDocuments">;
 
-const DOCUMENT_TYPES: {
+type DocumentSpec = {
   key: DocumentType;
   label: { hu: string; en: string };
   description: { hu: string; en: string };
   required: boolean;
-}[] = [
-  {
-    key: "idFront",
-    label: { hu: "Személyi igazolvány (előlap)", en: "ID Card (front)" },
-    description: {
-      hu: "Az azonosító okmány első oldala, ahol a fénykép és az alapadatok láthatók.",
-      en: "The front side of the ID card with photo and basic data.",
-    },
-    required: true,
-  },
-  {
-    key: "idBack",
-    label: { hu: "Személyi igazolvány (hátlap)", en: "ID Card (back)" },
-    description: {
-      hu: "Az azonosító okmány hátsó oldala a lakcímmel.",
-      en: "The back side of the ID card with address.",
-    },
-    required: true,
-  },
+};
+
+// The documents asked for besides the identity document; the images of the identity document come from src/lib/id-documents.ts, by the
+// document type the applicant chose.
+const OTHER_DOCUMENT_TYPES: DocumentSpec[] = [
   {
     key: "addressCard",
     label: { hu: "Lakcímkártya (első oldal)", en: "Address Card (front only)" },
@@ -77,10 +65,13 @@ export function Step7Documents({
   data,
   companyName,
   ownerName,
+  idType,
   onChange,
   language,
 }: Step7DocumentsProps) {
   const t = language === "hu";
+  // What is asked for follows the document type the applicant chose (an ID card: two sides; a passport: the data page)
+  const documentTypes: DocumentSpec[] = [...idImagesFor(idType), ...OTHER_DOCUMENT_TYPES];
   const [uploading, setUploading] = useState<DocumentType | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
 
@@ -233,7 +224,7 @@ export function Step7Documents({
 
         {/* Dokumentum feltöltő kártyák */}
         <div className="grid gap-4 md:grid-cols-2">
-          {DOCUMENT_TYPES.map((docType) => {
+          {documentTypes.map((docType) => {
             const isUploaded = !!data[docType.key];
             const isUploading = uploading === docType.key;
 

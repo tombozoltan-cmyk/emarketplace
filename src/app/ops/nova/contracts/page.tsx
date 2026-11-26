@@ -58,6 +58,7 @@ import {
 } from "@/components/admin";
 import { buildConditionalContext, replaceShortcodes } from "@/lib/contract-shortcodes";
 import { fillOfficialPostalAuthPDF, type OfficialPostalAuthData } from "@/lib/pdf-generators/postal-authorization";
+import { idTypeLabel, uploadedDocumentLabel } from "@/lib/id-documents";
 import { planDownloads, type DownloadItem, type DownloadKind } from "@/lib/docx-selection";
 import { PROVIDER_NAME, buildDocxData, deliveryContractWarning, docxContractProblem, ownerDataAliases, packageDocuments, pepOwnersOf } from "@/lib/docx-data";
 
@@ -1381,7 +1382,7 @@ export default function ContractsPage() {
                             <div className="grid grid-cols-2 gap-2">
                               <div>
                                 <dt className="text-[color:var(--muted-foreground)]">Okmány típusa</dt>
-                                <dd>{owner.natural?.idType === "passport" ? "Útlevél" : "Személyi igazolvány"}</dd>
+                                <dd>{idTypeLabel(owner.natural?.idType)}</dd>
                               </div>
                               <div>
                                 <dt className="text-[color:var(--muted-foreground)]">Okmányszám</dt>
@@ -1440,13 +1441,8 @@ export default function ContractsPage() {
                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
                   {Object.entries(selectedContract.uploadedDocuments).map(([key, url]) => {
                     if (!url || key === "otherDocuments") return null
-                    const labels: Record<string, string> = {
-                      idFront: "Személyi elő",
-                      idBack: "Személyi hát",
-                      addressCard: "Lakcímkártya",
-                      passport: "Útlevél",
-                      companyExtract: "Cégkivonat",
-                    }
+                    // the name follows what was asked when the image was uploaded, and says so when the application's document type differs
+                    const label = uploadedDocumentLabel(key, selectedContract.representative?.idType)
                     const isImage = typeof url === "string" && (url.includes("image") || url.match(/\.(jpg|jpeg|png|gif|webp)/i))
                     return (
                       <a
@@ -1460,7 +1456,7 @@ export default function ContractsPage() {
                           <div className="aspect-[4/3] relative bg-[color:var(--muted)]">
                             <img
                               src={url as string}
-                              alt={labels[key] || key}
+                              alt={label}
                               className="w-full h-full object-cover"
                             />
                             <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
@@ -1473,7 +1469,7 @@ export default function ContractsPage() {
                           </div>
                         )}
                         <div className="p-2 text-center">
-                          <span className="text-xs font-medium text-[color:var(--foreground)]">{labels[key] || key}</span>
+                          <span className="text-xs font-medium text-[color:var(--foreground)]">{label}</span>
                         </div>
                       </a>
                     )

@@ -25,6 +25,7 @@ import type {
   OwnerType,
 } from "@/lib/contract-types";
 import { NATIONALITIES } from "@/lib/contract-types";
+import { idTypeLabel, idTypeNote, idTypesFor, validIdType } from "@/lib/id-documents";
 
 type Step4OwnerContactProps = {
   owners: OwnerData[];
@@ -172,8 +173,10 @@ export function Step4OwnerContact({
     };
 
     const updateNatural = (updates: Partial<NaturalPersonData>) => {
+      const merged = { ...natural, ...updates };
       onOwnerChange(index, {
-        natural: { ...natural, ...updates },
+        // a nationality that does not allow the chosen document type (a foreign citizen with a driving licence) takes the default of the nationality
+        natural: { ...merged, idType: validIdType(merged.nationality, merged.idType) },
       });
     };
 
@@ -420,14 +423,16 @@ export function Step4OwnerContact({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="personal_id">
-                    {t ? "Személyi igazolvány" : "Personal ID Card"}
-                  </SelectItem>
-                  <SelectItem value="passport">
-                    {t ? "Útlevél" : "Passport"}
-                  </SelectItem>
+                  {idTypesFor(natural.nationality).map((type) => (
+                    <SelectItem key={type} value={type}>
+                      {idTypeLabel(type, language)}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
+              {idTypeNote(natural.idType, natural.nationality, language) && (
+                <p className="text-xs text-[color:var(--muted-foreground)]">{idTypeNote(natural.idType, natural.nationality, language)}</p>
+              )}
             </div>
 
             {/* Okmány száma */}
