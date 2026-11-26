@@ -3,6 +3,7 @@
 import * as React from "react";
 import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { labelForValue } from "./select-label";
 
 // Native HTML Select (for simple use cases like blog page)
 export type NativeSelectProps = React.SelectHTMLAttributes<HTMLSelectElement>;
@@ -24,13 +25,11 @@ interface SelectContextValue {
   open: boolean;
   setOpen: (open: boolean) => void;
   displayLabel?: string;
-  setDisplayLabel: (label: string) => void;
 }
 
 const SelectContext = React.createContext<SelectContextValue>({
   open: false,
   setOpen: () => {},
-  setDisplayLabel: () => {},
 });
 
 export interface SelectProps {
@@ -41,10 +40,12 @@ export interface SelectProps {
 
 export function Select({ value, onValueChange, children }: SelectProps) {
   const [open, setOpen] = React.useState(false);
-  const [displayLabel, setDisplayLabel] = React.useState<string | undefined>();
+  // a felirat az ERTEKBOL szarmazik, nem allapotbol: kulonben a zart lista miatt
+  // ures maradna, vagy egy korabbi kattintas feliratat mutatna a megvaltozott ertek helyett
+  const displayLabel = labelForValue(children, value);
 
   return (
-    <SelectContext.Provider value={{ value, onValueChange, open, setOpen, displayLabel, setDisplayLabel }}>
+    <SelectContext.Provider value={{ value, onValueChange, open, setOpen, displayLabel }}>
       <div className="relative">{children}</div>
     </SelectContext.Provider>
   );
@@ -143,22 +144,12 @@ export function SelectItem({
   className,
   ...props
 }: SelectItemProps) {
-  const { value: selectedValue, onValueChange, setOpen, setDisplayLabel } =
+  const { value: selectedValue, onValueChange, setOpen } =
     React.useContext(SelectContext);
   const isSelected = selectedValue === value;
 
-  // Set display label when this item is selected on mount
-  React.useEffect(() => {
-    if (isSelected && typeof children === "string") {
-      setDisplayLabel(children);
-    }
-  }, [isSelected, children, setDisplayLabel]);
-
   const handleClick = () => {
     onValueChange?.(value);
-    if (typeof children === "string") {
-      setDisplayLabel(children);
-    }
     setOpen(false);
   };
 
