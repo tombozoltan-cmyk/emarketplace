@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { DELIVERY_FEE, LEGAL_FORM_LABELS, OFFICE_ADDRESS, PROVIDER_NAME, buildDocxData, canonicalPackageId, docxContractProblem, feesOf, packageDocuments } from "../src/lib/docx-data.ts";
+import { DELIVERY_CONTRACT_WARNING, DELIVERY_FEE, LEGAL_FORM_LABELS, deliveryContractWarning, OFFICE_ADDRESS, PROVIDER_NAME, buildDocxData, canonicalPackageId, docxContractProblem, feesOf, packageDocuments } from "../src/lib/docx-data.ts";
 
 // The data of the DOCX templates beyond the old builder of the contracts page. All the data here is made up (no real person, no real company).
 
@@ -69,6 +69,28 @@ describe("the packages and their fees", () => {
     assert.match(docxContractProblem(contract({ packageId: undefined, serviceType: undefined })), /A csomag nem ismerhető fel/);
     // a string "false" or a missing flag is not a yes or a no
     assert.ok(docxContractProblem(contract({ company: { name: "Minta Kft.", isNew: "false" } })));
+  });
+
+  // legal review 2026-11-26 (msg 3896 1/e): the delivery contract template has the representative as the Principal; a warning, never a stop
+  it("the delivery contract warns when a member is not the representative or is a legal person, and says nothing otherwise", () => {
+    const warn = (extra) => deliveryContractWarning(contract(extra));
+    // the one member is the representative: nothing to say
+    assert.equal(warn(), null);
+    assert.equal(warn({ owners: [{ type: "natural", natural: person({ fullName: "  teszt   ELEMÉR " }) }] }), null, "case and spaces do not make another person");
+    // the member is another person
+    assert.equal(warn({ owners: [{ type: "natural", natural: person({ fullName: "Másik Személy" }) }] }), DELIVERY_CONTRACT_WARNING);
+    // two members: one of them is not the representative
+    assert.equal(warn({ owners: [{ type: "natural", natural: person() }, { type: "natural", natural: person({ fullName: "Másik Személy" }) }] }), DELIVERY_CONTRACT_WARNING);
+    // a legal person among the members (also a foreign one: the law is about foreign persons, the check only sees the type)
+    assert.equal(warn({ owners: [{ type: "legal" }] }), DELIVERY_CONTRACT_WARNING);
+    assert.equal(warn({ owners: [{ type: "natural", natural: person() }, { type: "legal" }] }), DELIVERY_CONTRACT_WARNING);
+    // a missing name cannot show that the member is the representative
+    assert.equal(warn({ representative: person({ fullName: "" }) }), DELIVERY_CONTRACT_WARNING);
+    assert.equal(warn({ owners: [{ type: "natural", natural: person({ fullName: "" }) }] }), DELIVERY_CONTRACT_WARNING);
+    // a package without the delivery agent contract has nothing to warn about, whoever the members are
+    assert.equal(warn({ packageId: "szekhely-hu", owners: [{ type: "legal" }] }), null);
+    // the text is the one of the legal review
+    assert.equal(DELIVERY_CONTRACT_WARNING, "Ennél a beadványnál személyenként külön kézbesítési szerződés kell (a tag nem azonos az ügyvezetővel, vagy jogi személy). A sablon ezt nem kezeli.");
   });
 
   it("the two conditions of the contract sections: a company in formation, and a package with the delivery agent mandate", () => {

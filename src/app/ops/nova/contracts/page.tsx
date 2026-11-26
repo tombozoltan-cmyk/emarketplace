@@ -58,7 +58,7 @@ import {
 import { buildConditionalContext, replaceShortcodes } from "@/lib/contract-shortcodes";
 import { fillOfficialPostalAuthPDF, type OfficialPostalAuthData } from "@/lib/pdf-generators/postal-authorization";
 import { planDownloads, type DownloadItem, type DownloadKind } from "@/lib/docx-selection";
-import { PROVIDER_NAME, buildDocxData, docxContractProblem, packageDocuments } from "@/lib/docx-data";
+import { PROVIDER_NAME, buildDocxData, deliveryContractWarning, docxContractProblem, packageDocuments } from "@/lib/docx-data";
 
 const FUNCTIONS_BASE_URL = process.env.NEXT_PUBLIC_FUNCTIONS_URL || "https://us-central1-emarketplace-8aab1.cloudfunctions.net";
 
@@ -621,6 +621,9 @@ export default function ContractsPage() {
         );
         return;
       }
+      // the delivery agent template has the representative as the Principal: a warning, never a stop (legal review 2026-11-26, msg 3896 1/e)
+      const deliveryWarning = items.some((item) => item.kind === "delivery") ? deliveryContractWarning(selectedContract) : null;
+      if (deliveryWarning) alert(deliveryWarning);
       const data = docxDataOf(selectedContract);
       let downloaded = 0;
       for (const item of items) {

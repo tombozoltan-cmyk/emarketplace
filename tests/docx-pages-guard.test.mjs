@@ -28,6 +28,12 @@ describe("the contracts page", () => {
     assert.ok(/delete next\.isNew;/.test(page));
   });
 
+  it("warns about the delivery contract (a member who is not the representative, a legal person) when a delivery contract is in the plan, and does not stop", () => {
+    const run = page.slice(page.indexOf("const runDocxDownloads"));
+    assert.ok(/items\.some\(\(item\) => item\.kind === "delivery"\) \? deliveryContractWarning\(selectedContract\) : null/.test(run), "only when the plan has the delivery contract");
+    assert.ok(/if \(deliveryWarning\) alert\(deliveryWarning\);\n\s+const data = docxDataOf/.test(run), "an alert, then the downloads go on (no return)");
+  });
+
   it("recognises the package from the package id and the service type, in the plan and on the button", () => {
     assert.equal((page.match(/packageDocuments\(selectedContract\.packageId, selectedContract\.serviceType\)/g) || []).length, 3, "plan, empty-plan message, button");
     assert.ok(!/packageDocuments\(selectedContract\.packageId\)/.test(page));

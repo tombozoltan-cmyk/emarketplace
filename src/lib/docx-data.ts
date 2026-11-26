@@ -106,6 +106,29 @@ export function docxContractProblem(contract: DocxContractInput): string | null 
   return null;
 }
 
+/** A name compared as a person's name: case, spaces and the edges do not matter. */
+const sameName = (a: string | undefined, b: string | undefined): boolean => {
+  const plain = (s: string | undefined) => (s || "").toLowerCase().replace(/\s+/g, " ").trim();
+  return plain(a) !== "" && plain(a) === plain(b);
+};
+
+export const DELIVERY_CONTRACT_WARNING =
+  "Ennél a beadványnál személyenként külön kézbesítési szerződés kell (a tag nem azonos az ügyvezetővel, vagy jogi személy). A sablon ezt nem kezeli.";
+
+/**
+ * A warning (not a stop) for the delivery agent contract: the template has the representative as the Principal, but the law asks for a delivery agent for every
+ * foreign natural person and every foreign legal person in the registration application (legal review 2026-11-26, msg 3896 1/e). So the contract needs one
+ * agreement per person, with another Principal block, when a member is a legal person, or a natural member is not the representative (the managing director).
+ * Null when the package has no delivery agent contract, or when the only member is the representative. A representative or a member whose name is missing cannot
+ * be shown to be the same person, so that case warns too.
+ */
+export function deliveryContractWarning(contract: DocxContractInput): string | null {
+  if (!packageDocuments(contract.packageId, contract.serviceType).delivery) return null;
+  const owners = contract.owners || [];
+  const foreignOrDifferent = owners.some((owner) => owner.type === "legal" || !sameName(owner.natural?.fullName, contract.representative?.fullName));
+  return foreignOrDifferent ? DELIVERY_CONTRACT_WARNING : null;
+}
+
 /** The monthly net fees of the two contracts of a package, from the monthly price of the package. */
 export function feesOf(packageId: string | undefined, monthlyPrice: number | undefined, serviceType?: string | undefined): { seatMonthly: number; deliveryMonthly: number } {
   const monthly = monthlyPrice && monthlyPrice > 0 ? monthlyPrice : 0;
