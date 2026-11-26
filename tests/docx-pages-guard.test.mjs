@@ -20,6 +20,14 @@ describe("the contracts page", () => {
     assert.ok(!/isNew \?\? true/.test(page), "no default of 'new company'");
   });
 
+  it("lets the admin say whether the company is new (a contract without the flag could not be fixed in the page otherwise), and shows it", () => {
+    assert.ok(page.includes("Új (alakuló) cég? A szerződések szövege ettől függ"));
+    assert.ok(page.includes('<option value="new">Új (alakuló) cég</option>') && page.includes('<option value="existing">Meglévő cég</option>'));
+    assert.ok(page.includes("Cég típusa"));
+    // "Nincs megadva" removes the field (Firestore does not take undefined)
+    assert.ok(/delete next\.isNew;/.test(page));
+  });
+
   it("recognises the package from the package id and the service type, in the plan and on the button", () => {
     assert.equal((page.match(/packageDocuments\(selectedContract\.packageId, selectedContract\.serviceType\)/g) || []).length, 3, "plan, empty-plan message, button");
     assert.ok(!/packageDocuments\(selectedContract\.packageId\)/.test(page));

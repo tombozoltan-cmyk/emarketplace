@@ -98,7 +98,7 @@ export function packageDocuments(packageId: string | undefined, serviceType?: st
  */
 export function docxContractProblem(contract: DocxContractInput): string | null {
   if (typeof contract.company?.isNew !== "boolean") {
-    return "A beadványban nincs megadva, hogy a cég új (alakuló) vagy már meglévő. A szerződések szövege ettől függ, ezért a letöltés megállt. Egészítsd ki a beadvány cégadatait (új cég: igen/nem), és próbáld újra.";
+    return "A beadványban nincs megadva, hogy a cég új (alakuló) vagy már meglévő. A szerződések szövege ettől függ, ezért a letöltés megállt. Add meg a beadvány Cég blokkjában (ceruza ikon, „Új (alakuló) cég?”), és próbáld újra.";
   }
   if (!packageDocuments(contract.packageId, contract.serviceType).known) {
     return `A csomag nem ismerhető fel (csomagazonosító: "${contract.packageId || ""}", szolgáltatástípus: "${contract.serviceType || ""}"). A szerződések szövege a csomagtól függ, ezért a letöltés megállt.`;

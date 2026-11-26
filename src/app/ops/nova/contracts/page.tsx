@@ -1091,6 +1091,23 @@ export default function ContractsPage() {
                         </div>
                       </div>
                       <div>
+                        <label className="text-[color:var(--muted-foreground)] text-xs">Új (alakuló) cég? A szerződések szövege ettől függ</label>
+                        <select
+                          value={editedCompany?.isNew === true ? "new" : editedCompany?.isNew === false ? "existing" : ""}
+                          onChange={(e) => {
+                            // "Nincs megadva" removes the field (Firestore does not take undefined); the type has it as required, the stored data may not
+                            const next: Partial<ContractDoc["company"]> = { ...editedCompany };
+                            delete next.isNew;
+                            setEditedCompany((e.target.value === "" ? next : { ...next, isNew: e.target.value === "new" }) as ContractDoc["company"]);
+                          }}
+                          className="h-8 w-full rounded-md border border-[color:var(--border)] bg-[color:var(--background)] px-2 text-sm"
+                        >
+                          <option value="">Nincs megadva</option>
+                          <option value="new">Új (alakuló) cég</option>
+                          <option value="existing">Meglévő cég</option>
+                        </select>
+                      </div>
+                      <div>
                         <label className="text-[color:var(--muted-foreground)] text-xs">Főtevékenység</label>
                         <Input value={editedCompany?.mainActivity || ""} onChange={(e) => setEditedCompany({ ...editedCompany, mainActivity: e.target.value })} className="h-8 text-sm" />
                       </div>
@@ -1118,6 +1135,10 @@ export default function ContractsPage() {
                       <div>
                         <dt className="text-[color:var(--muted-foreground)]">Főtevékenység</dt>
                         <dd>{selectedContract.company?.mainActivity || "-"}</dd>
+                      </div>
+                      <div>
+                        <dt className="text-[color:var(--muted-foreground)]">Cég típusa</dt>
+                        <dd>{selectedContract.company?.isNew === true ? "Új (alakuló) cég" : selectedContract.company?.isNew === false ? "Meglévő cég" : "Nincs megadva"}</dd>
                       </div>
                     </dl>
                   )}
