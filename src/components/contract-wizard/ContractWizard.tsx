@@ -114,6 +114,7 @@ export function ContractWizard({ language = "hu" }: ContractWizardProps) {
             data={wizard.data.uploadedDocuments}
             companyName={wizard.data.company.name}
             ownerName={wizard.data.owners[0]?.natural?.fullName || ""}
+            idType={wizard.data.representative.idType}
             onChange={wizard.updateDocuments}
             language={wizard.language}
           />
