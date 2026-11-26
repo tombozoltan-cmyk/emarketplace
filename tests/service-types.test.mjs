@@ -44,13 +44,40 @@ describe("a kártyából a szolgáltatástípus", () => {
   });
 });
 
+// A `pricingCards` tíz kártyájának `packageId` mezője, ahogy 2026-11-26-án mértem
+// (nyilvánosan olvasható gyűjtemény). Ez a lista a teszt BEMENETE, nem a kódból jön:
+// különben a vizsgálat tárgya egyben a mérőléce is lenne, és egy forrásból kitörölt
+// bejegyzést nem vennénk észre. Ha egy új csomag kerül a kínálatba, ez a lista bővül,
+// és a teszt addig bukik, amíg a név és a kártya-leképezés nincs meg hozzá.
+const MERT_PACKAGE_IDS = [
+  "szekhely-hu",
+  "szekhely-kulfoldi",
+  "kezbesitesi",
+  "szerzodeses-irodaberles",
+  "szekhely-kezbesitesi-hu",
+  "szekhely-kezbesitesi-kulfoldi",
+  "iroda-hu",
+  "iroda-kulfoldi",
+  "iroda-kezbesitesi-hu",
+  "iroda-kezbesitesi-kulfoldi",
+];
+
 describe("a szolgáltatás megnevezése", () => {
-  it("mind a tíz típushoz van név", () => {
-    for (const type of SERVICE_TYPES) {
-      assert.ok(SERVICE_TYPE_LABELS[type], type);
-      assert.notEqual(serviceTypeLabel(type), type, `${type} nyers azonosítóként jelenne meg`);
+  it("minden ÉLŐ csomagnak van neve - ez bukik el, ha egy csomag kimarad a listából", () => {
+    for (const id of MERT_PACKAGE_IDS) {
+      assert.ok(SERVICE_TYPE_LABELS[id], `${id}: nincs megnevezés, nyers azonosító kerülne az iratba`);
+      assert.notEqual(serviceTypeLabel(id), id, `${id} nyers azonosítóként jelenne meg`);
+      assert.ok(SERVICE_TYPES.includes(id), `${id} nincs a SERVICE_TYPES-ban`);
+      assert.ok(
+        Object.values(CARD_ID_TO_SERVICE_TYPE).includes(id),
+        `${id}: egyetlen ár-kártya sem képez rá, tehát a wizard sosem állítaná be`
+      );
     }
-    assert.equal(Object.keys(SERVICE_TYPE_LABELS).length, SERVICE_TYPES.length);
+  });
+
+  it("a kódbeli lista pontosan az élő csomagokat tartalmazza, se többet, se kevesebbet", () => {
+    assert.deepEqual([...SERVICE_TYPES].sort(), [...MERT_PACKAGE_IDS].sort());
+    assert.deepEqual(Object.keys(SERVICE_TYPE_LABELS).sort(), [...MERT_PACKAGE_IDS].sort());
   });
 
   it("a négy iroda-csomag is benne van - ezek maradtak ki az admin táblából", () => {
