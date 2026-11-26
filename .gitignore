@@ -42,8 +42,9 @@ yarn-error.log*
 functions/.env
 functions/.env.*
 *.env
-# A példafájl kivétel: CSAK a változónevek vannak benne, érték nélkül.
+# A példafájlok kivételek: CSAK a változónevek vannak bennük, érték nélkül.
 !src/lib/cegjelzo-api.example.env
+!functions/.env.example
 
 # graft helyi gráf-gyorsítótára - újragenerálható (`graft build`), nem commitoljuk
 /graft/

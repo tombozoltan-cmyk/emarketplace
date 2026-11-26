@@ -69,11 +69,10 @@ env:
     secret: CEGJELZO_CLIENT_ID
     availability:
       - RUNTIME
-  # Must stay here even though the code already defaults to this host: the
-  # committed .env.local still points at the retired search.api host, and Next
-  # loads it at runtime. A real environment variable takes precedence over an
-  # .env file, so this is what keeps production on the working endpoint.
-  # Drop this once .env.local is out of the repository.
+  # The endpoint, stated explicitly. The committed .env.local that used to point
+  # at the retired search.api host is out of the repository now, so this no
+  # longer overrides anything - it is kept because naming the host here beats
+  # relying on a default buried in the code.
   - variable: CEGJELZO_API_URL
     value: "https://api.cegjelzo.com"
     availability:
