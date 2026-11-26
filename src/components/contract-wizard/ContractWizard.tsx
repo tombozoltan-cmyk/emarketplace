@@ -116,6 +116,7 @@ export function ContractWizard({ language = "hu" }: ContractWizardProps) {
             ownerName={wizard.data.owners[0]?.natural?.fullName || ""}
             idType={wizard.data.representative.idType}
             onChange={wizard.updateDocuments}
+            onPathsChange={wizard.updateDocumentPaths}
             language={wizard.language}
           />
         );

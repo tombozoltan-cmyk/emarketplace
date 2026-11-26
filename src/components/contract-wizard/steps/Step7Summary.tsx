@@ -22,7 +22,7 @@ type Step7SummaryProps = {
   language: ContractLanguage;
   isSubmitting: boolean;
   submitError: string | null;
-  onSubmit: () => Promise<string | null>;
+  onSubmit: (consent: { terms: boolean; privacy: boolean }) => Promise<string | null>;
   onEditStep: (step: string) => void;
 };
 
@@ -43,7 +43,8 @@ export function Step7Summary({
   const canSubmit = termsAccepted && privacyAccepted && !isSubmitting;
 
   const handleSubmit = async () => {
-    const id = await onSubmit();
+    // a két pipa a beküldéssel együtt kerül ki a szerződésre: a nyom nélkül nem derül ki, mit fogadott el az ügyfél
+    const id = await onSubmit({ terms: termsAccepted, privacy: privacyAccepted });
     if (id) {
       setSubmitSuccess(true);
       setContractId(id);

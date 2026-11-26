@@ -17,8 +17,9 @@ import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { firebaseStorage } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import type { ContractLanguage, ContractDocuments, IdDocumentType } from "@/lib/contract-types";
+import type { ContractLanguage, ContractDocumentPaths, ContractDocuments, IdDocumentType } from "@/lib/contract-types";
 import { idImagesFor } from "@/lib/id-documents";
+import { missingRequiredDocuments } from "@/lib/contract-submission";
 
 type Step7DocumentsProps = {
   data: ContractDocuments;
@@ -26,6 +27,8 @@ type Step7DocumentsProps = {
   ownerName: string;
   idType: IdDocumentType;
   onChange: (updates: Partial<ContractDocuments>) => void;
+  /** A Storage-útvonal a letöltési URL mellé: szerveroldali olvasáshoz az kell, nem a tokenes URL. */
+  onPathsChange: (updates: Partial<ContractDocumentPaths>) => void;
   language: ContractLanguage;
 };
 
@@ -67,11 +70,16 @@ export function Step7Documents({
   ownerName,
   idType,
   onChange,
+  onPathsChange,
   language,
 }: Step7DocumentsProps) {
   const t = language === "hu";
   // What is asked for follows the document type the applicant chose (an ID card: two sides; a passport: the data page)
   const documentTypes: DocumentSpec[] = [...idImagesFor(idType), ...OTHER_DOCUMENT_TYPES];
+  // A csillaggal jelölt okmányok, amik még nincsenek feltöltve. A beküldést NEM tiltja: a hiányos
+  // beadvány a `documents_needed` státusszal megy ügyintézésre. Korábban a csillag olyat ígért,
+  // amit semmi nem ellenőrzött, és az ügyfél nem is látta, hogy valami kimaradt.
+  const missing = missingRequiredDocuments(data, documentTypes, language);
   const [uploading, setUploading] = useState<DocumentType | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
 
@@ -121,6 +129,7 @@ export function Step7Documents({
 
         const downloadUrl = await getDownloadURL(storageRef);
         onChange({ [docType]: downloadUrl });
+        onPathsChange({ [docType]: path });
       } catch (error) {
         console.error("Upload error:", error);
         setUploadError(
@@ -130,14 +139,16 @@ export function Step7Documents({
         setUploading(null);
       }
     },
-    [companyName, onChange, t]
+    [companyName, onChange, onPathsChange, t]
   );
 
   const handleRemoveDocument = useCallback(
     (docType: DocumentType) => {
+      // `undefined` itt a kulcs TÖRLÉSÉT jelenti (lásd useContractWizard): tárolva a Firestore visszadobná a beküldést
       onChange({ [docType]: undefined });
+      onPathsChange({ [docType]: undefined });
     },
-    [onChange]
+    [onChange, onPathsChange]
   );
 
   return (
@@ -317,6 +328,25 @@ export function Step7Documents({
             );
           })}
         </div>
+
+        {/* Mi maradt ki a csillaggal jelöltekből */}
+        {missing.length > 0 && (
+          <div className="rounded-lg border border-amber-300 bg-amber-50 p-4 dark:border-amber-700 dark:bg-amber-950">
+            <div className="flex gap-2">
+              <AlertCircle className="h-5 w-5 flex-shrink-0 text-amber-600 dark:text-amber-400" />
+              <div className="text-sm text-amber-800 dark:text-amber-200">
+                <p className="font-medium">
+                  {t ? "Még hiányzik:" : "Still missing:"} {missing.join(", ")}
+                </p>
+                <p className="mt-1">
+                  {t
+                    ? "A beadvány enélkül is beküldhető, de a szerződést csak az okmányok beérkezése után tudjuk véglegesíteni, és ügyintézőnk utólag bekéri őket."
+                    : "You can submit without these, but we can only finalise the contract once the documents arrive, and our colleague will ask for them afterwards."}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Elfogadott formátumok */}
         <p className="text-center text-xs text-[color:var(--muted-foreground)]">
