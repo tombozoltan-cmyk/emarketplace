@@ -57,7 +57,7 @@ import {
 } from "@/components/admin";
 import { buildConditionalContext, replaceShortcodes } from "@/lib/contract-shortcodes";
 import { fillOfficialPostalAuthPDF, type OfficialPostalAuthData } from "@/lib/pdf-generators/postal-authorization";
-import { uploadedDocumentLabel } from "@/lib/id-documents";
+import { idTypeLabel, uploadedDocumentLabel } from "@/lib/id-documents";
 
 const FUNCTIONS_BASE_URL = process.env.NEXT_PUBLIC_FUNCTIONS_URL || "https://us-central1-emarketplace-8aab1.cloudfunctions.net";
 
@@ -1402,7 +1402,7 @@ export default function ContractsPage() {
                             <div className="grid grid-cols-2 gap-2">
                               <div>
                                 <dt className="text-[color:var(--muted-foreground)]">Okmány típusa</dt>
-                                <dd>{owner.natural?.idType === "passport" ? "Útlevél" : "Személyi igazolvány"}</dd>
+                                <dd>{idTypeLabel(owner.natural?.idType)}</dd>
                               </div>
                               <div>
                                 <dt className="text-[color:var(--muted-foreground)]">Okmányszám</dt>

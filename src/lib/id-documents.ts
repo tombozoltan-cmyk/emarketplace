@@ -1,12 +1,16 @@
-// The identity document images the contract wizard asks for, by the document type the applicant chose (step "representative"), and the names
-// the admin shows for the uploaded images. Pure functions, so the wizard, the admin page and the tests use the same table.
+// The identity document the contract wizard asks for: which document types the applicant can choose (by nationality, the Pmt. rule), which images
+// are asked for by the chosen type, and the names the admin shows. Pure functions, so the wizard, the admin page and the tests use the same table.
 //
-// An ID card has two sides (idFront, idBack); a passport has one data page (passport). What the applicant chose decides what is asked for and
-// how the image is called, so an applicant who chose "passport" is not asked for an "ID card (front)".
+// Pmt. (2017. évi LIII. törvény) 3. § 3a. and 32. pont, 7. § (3) a), as the lawyer reads it (review 2026-11-26): a Hungarian citizen: ID card,
+// passport, or a driving licence in CARD format; a foreign citizen: passport, or an ID card that entitles to stay in Hungary. A foreign driving
+// licence is not accepted. What the applicant chooses is what is asked for and what is stored: an ID card has two sides (idFront, idBack), a
+// card driving licence has two sides (idFront, idBack), a passport has one data page (passport).
 
 // Only erasable TypeScript syntax is used here (no enums, no namespaces), so the tests can load this file with `node --test` as it is.
 
 import type { IdDocumentType } from "./contract-types";
+
+type Lang = "hu" | "en";
 
 export type IdImageKey = "idFront" | "idBack" | "passport";
 export type IdImageSpec = {
@@ -15,6 +19,63 @@ export type IdImageSpec = {
   description: { hu: string; en: string };
   required: boolean;
 };
+
+/** The nationality value of a Hungarian citizen in the wizard's nationality select (the wizard's own rule for "foreign" is: not this). */
+export const HUNGARIAN = "magyar";
+
+export function isHungarianNationality(nationality: string | undefined): boolean {
+  return nationality === HUNGARIAN;
+}
+
+/** The document types the applicant can choose, for the chosen nationality; the first one is the default. */
+export function idTypesFor(nationality: string | undefined): IdDocumentType[] {
+  return isHungarianNationality(nationality) ? ["personal_id", "passport", "drivers_license"] : ["passport", "personal_id"];
+}
+
+/** The type to keep: the given one when the nationality allows it, otherwise the default of the nationality (a foreign citizen cannot keep a driving licence). */
+export function validIdType(nationality: string | undefined, idType: IdDocumentType | undefined): IdDocumentType {
+  const allowed = idTypesFor(nationality);
+  return idType && allowed.includes(idType) ? idType : allowed[0];
+}
+
+const TYPE_LABELS: Record<IdDocumentType, { hu: string; en: string }> = {
+  personal_id: { hu: "Személyi igazolvány", en: "Personal ID Card" },
+  passport: { hu: "Útlevél", en: "Passport" },
+  drivers_license: { hu: "Vezetői engedély (kártya formátumú)", en: "Driving licence (card format)" },
+};
+
+export function idTypeLabel(idType: string | undefined, lang: Lang = "hu"): string {
+  const known = idType && (TYPE_LABELS as Record<string, { hu: string; en: string }>)[idType];
+  return known ? known[lang] : "Személyi igazolvány";
+}
+
+/** A short note under the type select, or null: what the lawyer asked to say about that choice. */
+export function idTypeNote(idType: string | undefined, nationality: string | undefined, lang: Lang = "hu"): string | null {
+  if (idType === "personal_id" && !isHungarianNationality(nationality)) {
+    return lang === "hu" ? "Csak akkor, ha magyarországi tartózkodásra jogosít." : "Only if it entitles you to stay in Hungary.";
+  }
+  if (idType === "drivers_license") {
+    return lang === "hu"
+      ? "Csak kártya formátumú magyar vezetői engedély. Papír alapú vagy külföldi vezetői engedély nem fogadható el."
+      : "Only a Hungarian driving licence in card format. A paper or a foreign driving licence is not accepted.";
+  }
+  return null;
+}
+
+const CARD_IMAGES = (name: { hu: string; en: string }, frontHu: string, frontEn: string): IdImageSpec[] => [
+  {
+    key: "idFront",
+    label: { hu: `${name.hu} (előlap)`, en: `${name.en} (front)` },
+    description: { hu: frontHu, en: frontEn },
+    required: true,
+  },
+  {
+    key: "idBack",
+    label: { hu: `${name.hu} (hátlap)`, en: `${name.en} (back)` },
+    description: { hu: "Az okmány hátsó oldala.", en: "The back side of the document." },
+    required: true,
+  },
+];
 
 const PERSONAL_ID_IMAGES: IdImageSpec[] = [
   {
@@ -37,6 +98,12 @@ const PERSONAL_ID_IMAGES: IdImageSpec[] = [
   },
 ];
 
+const DRIVERS_LICENSE_IMAGES = CARD_IMAGES(
+  { hu: "Vezetői engedély", en: "Driving licence" },
+  "A kártya első oldala, ahol a fénykép és az alapadatok láthatók.",
+  "The front side of the card with photo and basic data."
+);
+
 const PASSPORT_IMAGES: IdImageSpec[] = [
   {
     key: "passport",
@@ -51,18 +118,15 @@ const PASSPORT_IMAGES: IdImageSpec[] = [
 
 /** The images to ask for, for the chosen document type (an unknown or missing type is asked as an ID card, like the form's default). */
 export function idImagesFor(idType: IdDocumentType | undefined): IdImageSpec[] {
-  return idType === "passport" ? PASSPORT_IMAGES : PERSONAL_ID_IMAGES;
+  if (idType === "passport") return PASSPORT_IMAGES;
+  if (idType === "drivers_license") return DRIVERS_LICENSE_IMAGES;
+  return PERSONAL_ID_IMAGES;
 }
 
-/** The image keys of the OTHER document type: cleared when the applicant changes the type, so nothing of the old choice stays in the application. */
-export function idImageKeysToClear(idType: IdDocumentType | undefined): IdImageKey[] {
-  return idType === "passport" ? ["idFront", "idBack"] : ["passport"];
-}
-
-/** A copy of the uploaded documents without the images of the other document type. */
-export function withoutOtherTypeImages<T extends object>(documents: T, idType: IdDocumentType | undefined): T {
+/** A copy of the uploaded documents without any identity document image. A changed document type asks for other documents, so nothing of the old choice stays. */
+export function withoutIdImages<T extends object>(documents: T): T {
   const copy = { ...documents } as unknown as Record<string, unknown>;
-  for (const key of idImageKeysToClear(idType)) delete copy[key];
+  for (const key of ["idFront", "idBack", "passport"]) delete copy[key];
   return copy as unknown as T;
 }
 
@@ -71,14 +135,16 @@ export function withoutOtherTypeImages<T extends object>(documents: T, idType: I
  * match it (an application made before the wizard asked by type), the name says so instead of calling a passport an ID card.
  */
 export function uploadedDocumentLabel(key: string, idType?: string): string {
-  const passportChosen = idType === "passport";
+  const typeName = idType === "passport" ? "útlevél" : idType === "drivers_license" ? "vezetői engedély" : "személyi igazolvány";
   switch (key) {
     case "passport":
-      return idType === "personal_id" ? "Útlevél (a megadott típus: személyi igazolvány)" : "Útlevél (adatoldal)";
+      return idType === "personal_id" || idType === "drivers_license" ? `Útlevél (a megadott típus: ${typeName})` : "Útlevél (adatoldal)";
     case "idFront":
-      return passportChosen ? "Okmány, 1. kép (a megadott típus: útlevél)" : "Személyi elő";
+      if (idType === "passport") return "Okmány, 1. kép (a megadott típus: útlevél)";
+      return idType === "drivers_license" ? "Vezetői engedély, előlap" : "Személyi elő";
     case "idBack":
-      return passportChosen ? "Okmány, 2. kép (a megadott típus: útlevél)" : "Személyi hát";
+      if (idType === "passport") return "Okmány, 2. kép (a megadott típus: útlevél)";
+      return idType === "drivers_license" ? "Vezetői engedély, hátlap" : "Személyi hát";
     case "addressCard":
       return "Lakcímkártya";
     case "companyExtract":

@@ -28,7 +28,7 @@ export type ServiceType =
 
 export type OwnerType = "natural" | "legal";
 
-export type IdDocumentType = "personal_id" | "passport";
+export type IdDocumentType = "personal_id" | "passport" | "drivers_license";
 
 // Természetes személy adatai (tulajdonos, ügyvezető, kapcsolattartó)
 export type NaturalPersonData = {

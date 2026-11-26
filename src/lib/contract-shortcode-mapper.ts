@@ -9,6 +9,7 @@ import type { ContractData, OwnerData } from "./contract-types"
 const ID_TYPE_LABELS: Record<string, string> = {
   personal_id: "Személyi igazolvány",
   passport: "Útlevél",
+  drivers_license: "Vezetői engedély",
 }
 
 // Legal form mapping

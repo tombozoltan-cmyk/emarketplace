@@ -9,7 +9,7 @@ import type {
   OwnerData,
 } from "@/lib/contract-types";
 import { WIZARD_STEPS } from "@/lib/contract-types";
-import { withoutOtherTypeImages } from "@/lib/id-documents";
+import { validIdType, withoutIdImages } from "@/lib/id-documents";
 
 // Alapértelmezett szerződés adatok
 const getDefaultOwner = (): OwnerData => ({
@@ -406,12 +406,15 @@ export function useContractWizard(
   const updateRepresentative = useCallback(
     (updates: Partial<ContractData["representative"]>) => {
       setData((prev) => {
+        const merged = { ...prev.representative, ...updates };
+        // a nationality that does not allow the chosen document type (a foreign citizen with a driving licence) takes the default of the nationality
+        merged.idType = validIdType(merged.nationality, merged.idType);
         // a changed document type asks for other images: the images of the old choice are removed from the application
-        const typeChanged = updates.idType !== undefined && updates.idType !== prev.representative.idType;
+        const typeChanged = merged.idType !== prev.representative.idType;
         return {
           ...prev,
-          representative: { ...prev.representative, ...updates },
-          ...(typeChanged ? { uploadedDocuments: withoutOtherTypeImages(prev.uploadedDocuments, updates.idType) } : {}),
+          representative: merged,
+          ...(typeChanged ? { uploadedDocuments: withoutIdImages(prev.uploadedDocuments) } : {}),
         };
       });
     },

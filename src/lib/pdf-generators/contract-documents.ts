@@ -1,4 +1,5 @@
 import { PDFDocument, PDFFont, PDFPage, rgb, StandardFonts } from "pdf-lib";
+import { idTypeLabel } from "@/lib/id-documents";
 
 const PAGE_WIDTH = 595.28; // A4
 const PAGE_HEIGHT = 841.89; // A4
@@ -208,7 +209,7 @@ export async function generateContractPDF(data: ContractPdfData): Promise<Uint8A
   y -= LINE_HEIGHT;
   drawLabelValue(page, "Lakcím:", data.representative.address, MARGIN, y, font, boldFont);
   y -= LINE_HEIGHT;
-  drawLabelValue(page, "Okmány típusa:", data.representative.idType === "passport" ? "Útlevél" : "Személyi igazolvány", MARGIN, y, font, boldFont);
+  drawLabelValue(page, "Okmány típusa:", idTypeLabel(data.representative.idType), MARGIN, y, font, boldFont);
   y -= LINE_HEIGHT;
   drawLabelValue(page, "Okmány száma:", data.representative.idNumber, MARGIN, y, font, boldFont);
   y -= LINE_HEIGHT * 2;
@@ -358,7 +359,7 @@ export async function generateKycFormPDF(data: ContractPdfData): Promise<Uint8Ar
     y -= LINE_HEIGHT;
     drawLabelValue(page, "Lakcím:", owner.address, MARGIN, y, font, boldFont);
     y -= LINE_HEIGHT;
-    drawLabelValue(page, "Okmány típusa:", owner.idType === "passport" ? "Útlevél" : "Személyi igazolvány", MARGIN, y, font, boldFont);
+    drawLabelValue(page, "Okmány típusa:", idTypeLabel(owner.idType), MARGIN, y, font, boldFont);
     y -= LINE_HEIGHT;
     drawLabelValue(page, "Okmány száma:", owner.idNumber, MARGIN, y, font, boldFont);
     y -= LINE_HEIGHT;
