@@ -106,6 +106,20 @@ export function docxContractProblem(contract: DocxContractInput): string | null 
   return null;
 }
 
+/**
+ * The data of one owner under the tags without a number: {TULAJDONOS_NEV} for the name of owner n, {TULAJDONOS_SZUL_HELY_IDO}, ... A template with the role
+ * "kyc" or "pep" uses them and is filled once per owner, so it serves any number of owners. Every key "TULAJDONOS_<n>_<REST>" becomes "TULAJDONOS_<REST>"; the
+ * other keys are kept; the unnumbered keys that the old builder gave for the first owner are replaced by this owner's values.
+ */
+export function ownerDataAliases(data: Record<string, string>, ownerNumber: number): Record<string, string> {
+  const prefix = `TULAJDONOS_${ownerNumber}_`;
+  const result: Record<string, string> = { ...data };
+  for (const [key, value] of Object.entries(data)) {
+    if (key.startsWith(prefix)) result[`TULAJDONOS_${key.slice(prefix.length)}`] = value;
+  }
+  return result;
+}
+
 /** A name compared as a person's name: case, spaces and the edges do not matter. */
 const sameName = (a: string | undefined, b: string | undefined): boolean => {
   const plain = (s: string | undefined) => (s || "").toLowerCase().replace(/\s+/g, " ").trim();
@@ -231,11 +245,17 @@ export function buildDocxData(contract: DocxContractInput, helpers: DocxDataHelp
     ...personData("KEPVISELO", representative, helpers),
   };
 
-  for (let index = 0; index < 3; index++) {
+  // every owner, however many there are (the wizard does not limit them; the old builder of the page stops at three): at least three, so the first three are
+  // always defined even when empty. The name, the address and the share are given here for every owner as the old builder gives them for the first three
+  // (a legal owner has no person data), so a template with the role "kyc" or "pep" (ownerDataAliases) works for the fourth owner and the tenth.
+  for (let index = 0; index < Math.max(3, owners.length); index++) {
     const owner = owners[index];
     const prefix = `TULAJDONOS_${index + 1}`;
     const natural = owner && owner.type !== "legal" ? owner.natural : undefined;
     Object.assign(data, natural ? personData(prefix, natural, helpers) : personData(prefix, {}, helpers));
+    data[`${prefix}_NEV`] = (natural?.fullName || "").trim();
+    data[`${prefix}_LAKCIM`] = (natural?.address || "").trim();
+    data[`${prefix}_ARANY`] = owner ? String(owner.ownershipPercent || 0) : "";
   }
   return data;
 }

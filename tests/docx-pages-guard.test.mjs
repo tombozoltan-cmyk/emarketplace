@@ -34,6 +34,13 @@ describe("the contracts page", () => {
     assert.ok(/if \(deliveryWarning\) alert\(deliveryWarning\);\n\s+const data = docxDataOf/.test(run), "an alert, then the downloads go on (no return)");
   });
 
+  it("fills the data sheet and the declaration once per owner, with that owner's data under the tags without a number", () => {
+    const run = page.slice(page.indexOf("const runDocxDownloads"));
+    assert.ok(/item\.kind === "kyc" \|\| item\.kind === "pep" \? ownerDataAliases\(data, item\.ownerNumber \?\? 1\) : data/.test(run));
+    // the file name still carries the owner's number and name
+    assert.ok(page.includes("`${title}_${ownerNumber}_${safeOwnerName}_${date}.docx`"));
+  });
+
   it("recognises the package from the package id and the service type, in the plan and on the button", () => {
     assert.equal((page.match(/packageDocuments\(selectedContract\.packageId, selectedContract\.serviceType\)/g) || []).length, 3, "plan, empty-plan message, button");
     assert.ok(!/packageDocuments\(selectedContract\.packageId\)/.test(page));

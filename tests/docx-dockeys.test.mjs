@@ -19,7 +19,7 @@ describe("the roles of the templates", () => {
   });
 
   it("are the contract, the delivery contract and the data sheet and declaration of three owners, each with a label", () => {
-    assert.deepEqual(DOCKEYS, [DOCKEY_CONTRACT, DOCKEY_DELIVERY, "kyc-1", "kyc-2", "kyc-3", "pep-1", "pep-2", "pep-3"]);
+    assert.deepEqual(DOCKEYS, [DOCKEY_CONTRACT, DOCKEY_DELIVERY, "kyc", "pep", "kyc-1", "kyc-2", "kyc-3", "pep-1", "pep-2", "pep-3"]);
     for (const key of DOCKEYS) assert.ok(DOCKEY_LABELS[key] && DOCKEY_LABELS[key].length > 5, key);
     assert.equal(new Set(Object.values(DOCKEY_LABELS)).size, DOCKEYS.length, "the labels are different");
   });

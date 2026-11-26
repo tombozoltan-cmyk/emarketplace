@@ -1226,7 +1226,7 @@ export const sendContractEmail = onDocumentCreated(
 // ========================================
 
 // The roles a template can have; src/lib/docx-selection.ts (DOCKEY_LABELS) has the same list, a test keeps them equal.
-const DOCX_DOCKEYS = ["contract", "delivery-contract", "kyc-1", "kyc-2", "kyc-3", "pep-1", "pep-2", "pep-3"];
+const DOCX_DOCKEYS = ["contract", "delivery-contract", "kyc", "pep", "kyc-1", "kyc-2", "kyc-3", "pep-1", "pep-2", "pep-3"];
 
 type DocxTemplateData = {
   id: string;

@@ -58,7 +58,7 @@ import {
 import { buildConditionalContext, replaceShortcodes } from "@/lib/contract-shortcodes";
 import { fillOfficialPostalAuthPDF, type OfficialPostalAuthData } from "@/lib/pdf-generators/postal-authorization";
 import { planDownloads, type DownloadItem, type DownloadKind } from "@/lib/docx-selection";
-import { PROVIDER_NAME, buildDocxData, deliveryContractWarning, docxContractProblem, packageDocuments } from "@/lib/docx-data";
+import { PROVIDER_NAME, buildDocxData, deliveryContractWarning, docxContractProblem, ownerDataAliases, packageDocuments } from "@/lib/docx-data";
 
 const FUNCTIONS_BASE_URL = process.env.NEXT_PUBLIC_FUNCTIONS_URL || "https://us-central1-emarketplace-8aab1.cloudfunctions.net";
 
@@ -628,7 +628,8 @@ export default function ContractsPage() {
       let downloaded = 0;
       for (const item of items) {
         if (downloaded > 0) await new Promise((r) => setTimeout(r, 500));
-        await downloadDocxItem(item, selectedContract, data);
+        // the data sheet and the declaration are filled once per owner, with that owner's data under the tags without a number ({TULAJDONOS_NEV})
+        await downloadDocxItem(item, selectedContract, item.kind === "kyc" || item.kind === "pep" ? ownerDataAliases(data, item.ownerNumber ?? 1) : data);
         downloaded++;
       }
       if (problems.length > 0) {

@@ -4,8 +4,9 @@
 // The templates are stored in the `docxTemplates` collection with a category ("Szerződés", "Adatlap", "Nyilatkozat", ...), a name and, for the new
 // templates, a role key `docKey`:
 //   contract           the seat contract            delivery-contract   the delivery agent contract
-//   kyc-1 .. kyc-3     the data sheet of owner n    pep-1 .. pep-3      the declaration of owner n
-// A template with a docKey is chosen ONLY by its role, never by category or name; a template without one follows the older rules: the documents of
+//   kyc                the data sheet of EVERY owner pep                the declaration of EVERY owner (tags without a number, one run per owner)
+//   kyc-1 .. kyc-3     the data sheet of owner n    pep-1 .. pep-3      the declaration of owner n (the older way, up to three owners)
+// "kyc" / "pep" win over "kyc-n" / "pep-n", which win over the older rules by name. A template with a docKey is chosen ONLY by its role, never by category or name; a template without one follows the older rules: the documents of
 // one owner carry the owner's number in the name ("{TULAJDONOS_2_NEV} ..."), a name without a number belongs to no owner (the contract, the
 // declaration of consent), so it is never offered for an owner's document. There is no "first one in the list" fallback: the list order is the
 // order of the document ids, which changes when a template is uploaded.
@@ -35,6 +36,10 @@ export const DOCKEYS_OWNER = { kyc: "kyc", pep: "pep" } as const;
 export const DOCKEY_LABELS: Record<string, string> = {
   [DOCKEY_CONTRACT]: "Székhelyszolgáltatási szerződés",
   [DOCKEY_DELIVERY]: "Kézbesítési megbízási szerződés",
+  // one template for every owner, however many there are: it uses the tags without a number ({TULAJDONOS_NEV}) and is filled once per owner
+  [DOCKEYS_OWNER.kyc]: "Átvilágítási adatlap (minden tulajdonos, sorszám nélküli címkékkel)",
+  [DOCKEYS_OWNER.pep]: "Közszereplői nyilatkozat (minden tulajdonos, sorszám nélküli címkékkel)",
+  // the older way, one template per owner number (up to three); a template with the role without a number wins over these
   "kyc-1": "Átvilágítási adatlap, 1. tulajdonos",
   "kyc-2": "Átvilágítási adatlap, 2. tulajdonos",
   "kyc-3": "Átvilágítási adatlap, 3. tulajdonos",
@@ -87,12 +92,15 @@ export function pickDeliveryTemplate(templates: DocxTemplateRef[]): TemplatePick
 const roleOf = (category: string): "kyc" | "pep" | null => (category === CATEGORY_KYC ? "kyc" : category === CATEGORY_PEP ? "pep" : null);
 
 /**
- * The template of one owner's document (category "Adatlap" or "Nyilatkozat"). When any template has a role "kyc-n" (or "pep-n"), the documents
- * of that kind come only from the keyed ones: the template with exactly this owner's role. Otherwise the older rule: exactly the template whose
- * name carries this owner number.
+ * The template of one owner's document (category "Adatlap" or "Nyilatkozat"). A template with the role "kyc" (or "pep"), without a number, is THE template of
+ * every owner, whatever the number of owners (the page fills it once per owner with that owner's data); two of them are an error. Otherwise, when any
+ * template has a role "kyc-n" (or "pep-n"), the documents of that kind come only from the keyed ones: the template with exactly this owner's role.
+ * Otherwise the older rule: exactly the template whose name carries this owner number.
  */
 export function pickOwnerTemplate(templates: DocxTemplateRef[], category: string, ownerNumber: number): TemplatePick {
   const role = roleOf(category);
+  const forEveryOwner = role ? pickByDocKey(templates, role) : null;
+  if (forEveryOwner) return forEveryOwner;
   if (role && templates.some((t) => (t.docKey || "").startsWith(`${role}-`))) {
     return pickByDocKey(templates, `${role}-${ownerNumber}`) || { error: `Nincs '${role}-${ownerNumber}' szerepű sablon a(z) ${ownerNumber}. tulajdonoshoz.` };
   }
