@@ -4,6 +4,7 @@
  */
 
 import type { ContractData, OwnerData } from "./contract-types"
+import { serviceTypeLabel } from "./service-types"
 
 // ID document type mapping
 const ID_TYPE_LABELS: Record<string, string> = {
@@ -22,19 +23,7 @@ const LEGAL_FORM_LABELS: Record<string, string> = {
   other: "Egyéb",
 }
 
-// Service type mapping
-const SERVICE_TYPE_LABELS: Record<string, string> = {
-  "szekhely-hu": "Székhelyszolgáltatás (magyar)",
-  "szekhely-kulfoldi": "Székhelyszolgáltatás (külföldi)",
-  "kezbesitesi": "Kézbesítési megbízott",
-  "szekhely-kezbesitesi-hu": "Székhely + Kézbesítési (magyar)",
-  "szekhely-kezbesitesi-kulfoldi": "Székhely + Kézbesítési (külföldi)",
-  "szerzodeses-irodaberles": "Virtuális iroda",
-  "iroda-hu": "Iroda csomag (magyar)",
-  "iroda-kulfoldi": "Iroda csomag (külföldi)",
-  "iroda-kezbesitesi-hu": "Teljes csomag (magyar)",
-  "iroda-kezbesitesi-kulfoldi": "Teljes csomag (külföldi)",
-}
+// A szolgáltatás megnevezése a src/lib/service-types.ts-ből jön, egy helyen
 
 // Format date to Hungarian format
 function formatDate(dateStr: string): string {
@@ -193,7 +182,7 @@ export function mapContractToShortcodes(contract: ContractData, contractId?: str
   codes["PEP_NYILATKOZAT"] = isPep ? "minősül" : "nem minősül"
 
   // === Service data ===
-  codes["SZOLGALTATAS_TIPUS"] = SERVICE_TYPE_LABELS[contract.serviceType] || contract.serviceType || ""
+  codes["SZOLGALTATAS_TIPUS"] = serviceTypeLabel(contract.serviceType)
   codes["CSOMAG_NEV"] = contract.packageId || ""
   codes["HAVI_DIJ"] = formatPrice(contract.monthlyPrice || 0)
   codes["EVES_DIJ"] = formatPrice(contract.annualPrice || 0)
