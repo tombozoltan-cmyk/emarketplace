@@ -4,6 +4,7 @@
  */
 
 import type { ContractData, OwnerData } from "./contract-types"
+import { LEGAL_FORM_LABELS } from "./docx-data"
 
 // ID document type mapping
 const ID_TYPE_LABELS: Record<string, string> = {
@@ -11,16 +12,7 @@ const ID_TYPE_LABELS: Record<string, string> = {
   passport: "Útlevél",
 }
 
-// Legal form mapping
-const LEGAL_FORM_LABELS: Record<string, string> = {
-  kft: "Kft.",
-  bt: "Bt.",
-  zrt: "Zrt.",
-  nyrt: "Nyrt.",
-  kkt: "Kkt.",
-  ev: "Egyéni vállalkozó",
-  other: "Egyéb",
-}
+// Legal form mapping: the labels are kept in one place (docx-data.ts), the new DOCX templates use them too
 
 // Service type mapping
 const SERVICE_TYPE_LABELS: Record<string, string> = {

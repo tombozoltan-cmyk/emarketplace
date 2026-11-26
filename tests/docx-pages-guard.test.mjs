@@ -39,6 +39,15 @@ describe("the contracts page", () => {
   });
 });
 
+describe("the legal form labels", () => {
+  it("are kept in one place: the shortcode mapper uses the table of docx-data.ts and holds none of its own (code review 3899 J1, owner 3901)", () => {
+    const mapper = read("src/lib/contract-shortcode-mapper.ts");
+    assert.ok(mapper.includes('import { LEGAL_FORM_LABELS } from "./docx-data"'));
+    assert.ok(!/const LEGAL_FORM_LABELS/.test(mapper), "no second table");
+    assert.ok(read("src/lib/docx-data.ts").includes("export const LEGAL_FORM_LABELS"));
+  });
+});
+
 describe("the provider's name in the documents", () => {
   it("is the register name in the DOCX data, the postal authorisation and the generated PDFs", () => {
     assert.ok(read("src/app/ops/nova/contracts/page.tsx").includes('"{{SZOLGALTATO_NEV}}": PROVIDER_NAME'));

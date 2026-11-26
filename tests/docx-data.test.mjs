@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { DELIVERY_FEE, OFFICE_ADDRESS, PROVIDER_NAME, buildDocxData, canonicalPackageId, docxContractProblem, feesOf, packageDocuments } from "../src/lib/docx-data.ts";
+import { DELIVERY_FEE, LEGAL_FORM_LABELS, OFFICE_ADDRESS, PROVIDER_NAME, buildDocxData, canonicalPackageId, docxContractProblem, feesOf, packageDocuments } from "../src/lib/docx-data.ts";
 
 // The data of the DOCX templates beyond the old builder of the contracts page. All the data here is made up (no real person, no real company).
 
@@ -117,6 +117,8 @@ describe("the company", () => {
   it("the legal form is its label, not the code of the wizard: Kft., Bt., Zrt., Nyrt., Kkt., Egyéni vállalkozó; \"other\" adds nothing", () => {
     const form = (legalForm, name = "Minta Kereskedelmi") => buildDocxData(contract({ company: { name, legalForm } }), helpers).CEG_FORMA;
     assert.deepEqual(["kft", "bt", "zrt", "nyrt", "kkt", "ev", "other"].map((code) => form(code)), ["Kft.", "Bt.", "Zrt.", "Nyrt.", "Kkt.", "Egyéni vállalkozó", ""]);
+    // the labels the shortcode mapper prints for CEG_FORMA of the old templates are the same table ("other" is "Egyéb" there, and adds nothing to a name here)
+    assert.deepEqual(LEGAL_FORM_LABELS, { kft: "Kft.", bt: "Bt.", zrt: "Zrt.", nyrt: "Nyrt.", kkt: "Kkt.", ev: "Egyéni vállalkozó", other: "Egyéb" });
     assert.equal(form("KFT"), "Kft.", "a code in capitals is the same code");
     assert.equal(form("kft", "Minta Kft"), "", "the name already ends with it, with or without the dot");
     assert.equal(form("bt", "Minta Bt."), "");

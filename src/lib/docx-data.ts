@@ -126,15 +126,18 @@ function idText(person: Person): string {
   return [ID_TYPE_NAMES[person.idType || ""] || person.idType || "", person.idNumber || ""].map((s) => s.trim()).filter(Boolean).join(" ");
 }
 
-/** The label of the legal forms the wizard stores by a code (src/lib/contract-shortcode-mapper.ts has the same labels); "other" has none to write. */
-const LEGAL_FORM_LABELS: Record<string, string> = {
+/**
+ * The label of the legal forms the wizard stores by a code, in one place (src/lib/contract-shortcode-mapper.ts uses this table too). "other" is "Egyéb" as a
+ * label, but it is not a form to add to a company name (see legalFormToAdd).
+ */
+export const LEGAL_FORM_LABELS: Record<string, string> = {
   kft: "Kft.",
   bt: "Bt.",
   zrt: "Zrt.",
   nyrt: "Nyrt.",
   kkt: "Kkt.",
   ev: "Egyéni vállalkozó",
-  other: "",
+  other: "Egyéb",
 };
 
 /**
@@ -144,6 +147,7 @@ const LEGAL_FORM_LABELS: Record<string, string> = {
 function legalFormToAdd(name: string | undefined, legalForm: string | undefined): string {
   const code = (legalForm || "").trim();
   if (!code) return "";
+  if (code.toLowerCase() === "other") return "";
   const form = Object.prototype.hasOwnProperty.call(LEGAL_FORM_LABELS, code.toLowerCase()) ? LEGAL_FORM_LABELS[code.toLowerCase()] : code;
   if (!form) return "";
   const plain = (s: string) => s.toLowerCase().replace(/[.\s]/g, "");
