@@ -191,7 +191,38 @@ describe("the data of one owner under the tags without a number", () => {
   it("the unnumbered keys of the old builder (the first owner) are replaced by this owner's, other keys are untouched", () => {
     const base = { TULAJDONOS_NEV: "első", TULAJDONOS_2_NEV: "második", CEG_NEV: "Minta" };
     assert.deepEqual(ownerDataAliases(base, 2), { TULAJDONOS_NEV: "második", TULAJDONOS_2_NEV: "második", CEG_NEV: "Minta" });
-    // an owner with no data leaves the unnumbered keys as they were (the page does not ask for such an owner)
-    assert.equal(ownerDataAliases(base, 9).TULAJDONOS_NEV, "első");
+    // an owner with no data gets the unnumbered keys EMPTIED, never the first owner's value (the page does not ask for such an owner)
+    assert.equal(ownerDataAliases(base, 9).TULAJDONOS_NEV, "");
+    assert.deepEqual(ownerDataAliases(base, 9), { TULAJDONOS_NEV: "", TULAJDONOS_2_NEV: "második", CEG_NEV: "Minta" });
+  });
+
+  it("5 owners, the old builder of the page (unnumbered keys of the first owner; SZUL_HELY, SZUL_DATUM, ANYJA_NEVE, OKMANY_TIPUS, OKMANY_SZAM numbered only up to the third): the fourth and the fifth owner never get the first owner's value", () => {
+    const OLD_ONLY = ["SZUL_HELY", "SZUL_DATUM", "ANYJA_NEVE", "OKMANY_TIPUS", "OKMANY_SZAM"];
+    const contract = contractOf(5);
+    const data = buildDocxData(contract, helpers);
+    // what the page's old builder adds (src/app/ops/nova/contracts/page.tsx, the first natural owner under the unnumbered keys, the first three under the numbered ones)
+    contract.owners.forEach((owner, index) => {
+      for (const key of OLD_ONLY) {
+        const value = `${key} of ${owner.natural.fullName}`;
+        if (index === 0) data[`TULAJDONOS_${key}`] = value;
+        if (index < 3) data[`TULAJDONOS_${index + 1}_${key}`] = value;
+      }
+    });
+    data.TULAJDONOS_SZAM = "5";
+    data.TULAJDONOS_NEV = NAMES[0];
+    data.TULAJDONOS_ARANY = "100";
+    for (let n = 1; n <= 5; n++) {
+      const own = ownerDataAliases(data, n);
+      const owner = contract.owners[n - 1];
+      assert.equal(own.TULAJDONOS_NEV, NAMES[n - 1], `owner ${n}: name`);
+      assert.equal(own.TULAJDONOS_LAKCIM, owner.natural.address, `owner ${n}: address`);
+      assert.equal(own.TULAJDONOS_ARANY, String(owner.ownershipPercent), `owner ${n}: share`);
+      assert.equal(own.TULAJDONOS_SZAM, "5", `owner ${n}: the number of the owners is not a per-owner key`);
+      for (const key of OLD_ONLY) {
+        // the first three have their own value (numbered key); the fourth and the fifth are empty, not the first owner's
+        assert.equal(own[`TULAJDONOS_${key}`], n <= 3 ? `${key} of ${NAMES[n - 1]}` : "", `owner ${n}: ${key}`);
+        assert.notEqual(own[`TULAJDONOS_${key}`], n === 1 ? undefined : `${key} of ${NAMES[0]}`, `owner ${n}: ${key} is not the first owner's`);
+      }
+    }
   });
 });

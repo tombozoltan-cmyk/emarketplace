@@ -106,14 +106,22 @@ export function docxContractProblem(contract: DocxContractInput): string | null 
   return null;
 }
 
+/** The unnumbered "TULAJDONOS_*" keys that describe the contract and not one owner (the number of the owners): ownerDataAliases leaves them as they are. */
+const OWNER_KEYS_NOT_PER_OWNER = ["TULAJDONOS_SZAM"];
+
 /**
  * The data of one owner under the tags without a number: {TULAJDONOS_NEV} for the name of owner n, {TULAJDONOS_SZUL_HELY_IDO}, ... A template with the role
  * "kyc" or "pep" uses them and is filled once per owner, so it serves any number of owners. Every key "TULAJDONOS_<n>_<REST>" becomes "TULAJDONOS_<REST>"; the
- * other keys are kept; the unnumbered keys that the old builder gave for the first owner are replaced by this owner's values.
+ * other keys are kept. The unnumbered per-owner keys that the old builder of the page gave for the first owner are first EMPTIED and then filled with this
+ * owner's values only: a value this owner has no numbered key for (the old builder numbers some of them only up to the third owner) stays empty and never
+ * shows the first owner's data under another owner's name.
  */
 export function ownerDataAliases(data: Record<string, string>, ownerNumber: number): Record<string, string> {
   const prefix = `TULAJDONOS_${ownerNumber}_`;
   const result: Record<string, string> = { ...data };
+  for (const key of Object.keys(result)) {
+    if (key.startsWith("TULAJDONOS_") && !/^TULAJDONOS_\d/.test(key) && !OWNER_KEYS_NOT_PER_OWNER.includes(key)) result[key] = "";
+  }
   for (const [key, value] of Object.entries(data)) {
     if (key.startsWith(prefix)) result[`TULAJDONOS_${key.slice(prefix.length)}`] = value;
   }
