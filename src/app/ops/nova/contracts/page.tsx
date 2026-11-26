@@ -40,7 +40,7 @@ import { firestoreDb } from "@/lib/firebase";
 import { firebaseAuth } from "@/lib/firebase-auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import type { ContractData, ContractStatus } from "@/lib/contract-types";
+import { NATIONALITIES, type ContractData, type ContractStatus } from "@/lib/contract-types";
 import Link from "next/link";
 import {
   AdminLayout,
@@ -58,6 +58,7 @@ import {
 import { buildConditionalContext, replaceShortcodes } from "@/lib/contract-shortcodes";
 import { fillOfficialPostalAuthPDF, type OfficialPostalAuthData } from "@/lib/pdf-generators/postal-authorization";
 import { planDownloads, type DownloadItem, type DownloadKind } from "@/lib/docx-selection";
+import { buildDocxData, packageDocuments } from "@/lib/docx-data";
 
 const FUNCTIONS_BASE_URL = process.env.NEXT_PUBLIC_FUNCTIONS_URL || "https://us-central1-emarketplace-8aab1.cloudfunctions.net";
 
@@ -109,7 +110,7 @@ export default function ContractsPage() {
   const [previewPdf, setPreviewPdf] = useState<{ url: string; title: string } | null>(null);
   const [templatePreviewHtml, setTemplatePreviewHtml] = useState<string | null>(null);
   const [templatePreviewTitle, setTemplatePreviewTitle] = useState<string>("");
-  const [docxTemplates, setDocxTemplates] = useState<{ id: string; name: string; category: string }[]>([]);
+  const [docxTemplates, setDocxTemplates] = useState<{ id: string; name: string; category: string; docKey?: string }[]>([]);
   
   // Inline editing state
   const [editingSection, setEditingSection] = useState<string | null>(null);
@@ -135,6 +136,7 @@ export default function ContractsPage() {
           id: d.id,
           name: d.data().name as string,
           category: d.data().category as string,
+          docKey: (d.data().docKey as string | undefined) || undefined,
         }));
         setDocxTemplates(docs);
       }
@@ -503,7 +505,7 @@ export default function ContractsPage() {
   // "Összes letöltése": the same documents, from the same templates, as the single buttons (the contract, the data sheet and the declaration
   // of every owner), then the postal authorisation PDFs.
   const handleGenerateAll = async () => {
-    await runDocxDownloads(["contract", "kyc", "pep"]);
+    await runDocxDownloads(["contract", "delivery", "kyc", "pep"]);
     await new Promise((r) => setTimeout(r, 500));
     await generatePostalAuthDoc();
   };
@@ -561,6 +563,10 @@ export default function ContractsPage() {
     Object.entries(buildShortcodeDataFromContract(contract)).forEach(([key, value]) => {
       data[key.replace(/^\{\{|\}\}$/g, "")] = value;
     });
+    // the tags of the new templates (and the corrected values of the old ones: the address of the seat, the nationality as a name, the legal form once)
+    // come from src/lib/docx-data.ts and win over the old values
+    const nationalityLabel = (value: string) => NATIONALITIES.find((n) => n.value === value)?.label.hu ?? value;
+    Object.assign(data, buildDocxData(contract, { nationalityLabel }));
     return data;
   };
 
@@ -570,6 +576,11 @@ export default function ContractsPage() {
     if (item.kind === "contract") {
       const slug = contract.company?.name?.replace(/\s+/g, "_") || "ceg";
       await generateSingleDocx(item.template, data, `szerzodes_${slug}_${date}.docx`);
+      return;
+    }
+    if (item.kind === "delivery") {
+      const slug = contract.company?.name?.replace(/\s+/g, "_") || "ceg";
+      await generateSingleDocx(item.template, data, `kezbesitesi_${slug}_${date}.docx`);
       return;
     }
     const ownerNumber = item.ownerNumber ?? 1;
@@ -591,9 +602,13 @@ export default function ContractsPage() {
     }
     setIsGeneratingPdf(true);
     try {
-      const plan = planDownloads(docxTemplates, owners.length);
+      const plan = planDownloads(docxTemplates, owners.length, packageDocuments(selectedContract.packageId));
       const items = plan.items.filter((item) => kinds.includes(item.kind));
       const problems = plan.problems.filter((problem) => kinds.includes(problem.kind)).map((problem) => problem.message);
+      if (items.length === 0 && problems.length === 0) {
+        alert("Ehhez a csomaghoz nincs ilyen dokumentum.");
+        return;
+      }
       const data = docxDataOf(selectedContract);
       let downloaded = 0;
       for (const item of items) {
@@ -659,6 +674,10 @@ export default function ContractsPage() {
 
   const generateContract = async () => {
     await runDocxDownloads(["contract"]);
+  };
+
+  const generateDelivery = async () => {
+    await runDocxDownloads(["delivery"]);
   };
 
   const generateKyc = async () => {
@@ -995,6 +1014,12 @@ export default function ContractsPage() {
                   <Download className="w-4 h-4 mr-2" />
                   Szerződés
                 </Button>
+                {packageDocuments(selectedContract.packageId).delivery && (
+                  <Button variant="outline" size="sm" className="justify-start" onClick={generateDelivery} disabled={isGeneratingPdf}>
+                    <Download className="w-4 h-4 mr-2" />
+                    Kézbesítési szerződés
+                  </Button>
+                )}
                 <Button variant="outline" size="sm" className="justify-start" onClick={generateKyc} disabled={isGeneratingPdf}>
                   <Download className="w-4 h-4 mr-2" />
                   KYC adatlap

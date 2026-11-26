@@ -1225,11 +1225,16 @@ export const sendContractEmail = onDocumentCreated(
 // DOCX Document Generation Functions
 // ========================================
 
+// The roles a template can have; src/lib/docx-selection.ts (DOCKEY_LABELS) has the same list, a test keeps them equal.
+const DOCX_DOCKEYS = ["contract", "delivery-contract", "kyc-1", "kyc-2", "kyc-3", "pep-1", "pep-2", "pep-3"];
+
 type DocxTemplateData = {
   id: string;
   name: string;
   description?: string;
   category: string;
+  /** The role of the template (src/lib/docx-selection.ts): a template with a role is chosen by the role only. */
+  docKey?: string;
   filename: string;
   storagePath: string;
   detectedShortcodes: string[];
@@ -1637,6 +1642,19 @@ export const uploadDocxTemplate = onRequest(
       const name = fields.name || fileName.replace(".docx", "");
       const description = fields.description || "";
       const category = fields.category || "Egyéb";
+      const docKey = (fields.docKey || "").trim();
+      if (docKey && !DOCX_DOCKEYS.includes(docKey)) {
+        res.status(400).json({ error: `Ismeretlen sablon-szerep: ${docKey}` });
+        return;
+      }
+      if (docKey) {
+        // two templates with one role would be an error at every download: the old one has to be deleted first
+        const existing = await admin.firestore().collection("docxTemplates").where("docKey", "==", docKey).limit(1).get();
+        if (!existing.empty) {
+          res.status(409).json({ error: `A(z) ${docKey} szerephez már van sablon (${existing.docs[0].data().name}). Töröld előbb.` });
+          return;
+        }
+      }
 
       const detectedShortcodes = detectShortcodesFromDocx(uploadedBuffer);
       const templateId = uuidv4();
@@ -1654,6 +1672,7 @@ export const uploadDocxTemplate = onRequest(
         name,
         description,
         category,
+        ...(docKey ? { docKey } : {}),
         filename: `${slugName}.docx`,
         storagePath,
         detectedShortcodes,
@@ -1741,7 +1760,6 @@ export const generateDocument = onRequest(
       console.log("Template:", templateData.name, "ID:", templateId);
       console.log("Data keys:", Object.keys(finalData).slice(0, 20));
       console.log("Sample data values:", {
-        TULAJDONOS_1_NEV: finalData.TULAJDONOS_1_NEV,
         EV: finalData.EV,
         NAP: finalData.NAP,
         HONAP: finalData.HONAP,
