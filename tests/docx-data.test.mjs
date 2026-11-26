@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { DELIVERY_FEE, OFFICE_ADDRESS, buildDocxData, feesOf, packageDocuments } from "../src/lib/docx-data.ts";
+import { DELIVERY_FEE, OFFICE_ADDRESS, PROVIDER_NAME, buildDocxData, canonicalPackageId, docxContractProblem, feesOf, packageDocuments } from "../src/lib/docx-data.ts";
 
 // The data of the DOCX templates beyond the old builder of the contracts page. All the data here is made up (no real person, no real company).
 
@@ -32,12 +32,57 @@ const contract = (extra = {}) => ({
 
 describe("the packages and their fees", () => {
   it("which contracts a package needs", () => {
-    assert.deepEqual(packageDocuments("szekhely-hu"), { seat: true, delivery: false });
-    assert.deepEqual(packageDocuments("szekhely-kulfoldi"), { seat: true, delivery: false });
-    assert.deepEqual(packageDocuments("szekhely-kezbesitesi-hu"), { seat: true, delivery: true });
-    assert.deepEqual(packageDocuments("szekhely-kezbesitesi-kulfoldi"), { seat: true, delivery: true });
-    assert.deepEqual(packageDocuments("kezbesitesi"), { seat: false, delivery: true });
-    assert.deepEqual(packageDocuments(undefined), { seat: true, delivery: false });
+    assert.deepEqual(packageDocuments("szekhely-hu"), { seat: true, delivery: false, known: true });
+    assert.deepEqual(packageDocuments("szekhely-kulfoldi"), { seat: true, delivery: false, known: true });
+    assert.deepEqual(packageDocuments("szekhely-kezbesitesi-hu"), { seat: true, delivery: true, known: true });
+    assert.deepEqual(packageDocuments("szekhely-kezbesitesi-kulfoldi"), { seat: true, delivery: true, known: true });
+    assert.deepEqual(packageDocuments("kezbesitesi"), { seat: false, delivery: true, known: true });
+    assert.deepEqual(packageDocuments("iroda-kezbesitesi-hu"), { seat: true, delivery: true, known: true });
+    assert.deepEqual(packageDocuments("iroda-hu"), { seat: true, delivery: false, known: true });
+  });
+
+  // code review 3899 J2: the wizard stores the id of the price CARD when the card has no packageId field
+  it("the ids of the price cards are known too (a contract made from a card without a packageId field)", () => {
+    const expected = { "basic-hu": [true, false], "basic-foreign": [true, false], "basic-delivery-agent": [false, true], "basic-virtual-office": [true, false], "bundle-hu": [true, true], "bundle-foreign": [true, true], "office-hu": [true, false], "office-foreign": [true, false], "full-hu": [true, true], "full-foreign": [true, true] };
+    for (const [id, [seat, delivery]] of Object.entries(expected)) assert.deepEqual(packageDocuments(id), { seat, delivery, known: true }, id);
+    assert.equal(canonicalPackageId("bundle-foreign"), "szekhely-kezbesitesi-kulfoldi");
+  });
+
+  it("an unknown package is not guessed: it is reported as unknown (the pages stop), and the service type only helps when there is no package id", () => {
+    assert.equal(packageDocuments(undefined).known, false);
+    assert.equal(packageDocuments("").known, false);
+    assert.equal(packageDocuments("valami-uj-csomag").known, false);
+    // an unknown package id is not rescued by the service type (it is the fallback "szekhely-hu" of the wizard for ids it does not know)
+    assert.equal(packageDocuments("valami-uj-csomag", "szekhely-hu").known, false);
+    // no package id at all: the service type decides
+    assert.deepEqual(packageDocuments(undefined, "szekhely-kezbesitesi-hu"), { seat: true, delivery: true, known: true });
+    // a package id wins over the service type
+    assert.deepEqual(packageDocuments("szekhely-kezbesitesi-kulfoldi", "szekhely-hu"), { seat: true, delivery: true, known: true });
+  });
+
+  it("the documents are not made when the company is new or existing is not said, or the package is unknown; the message says what is missing", () => {
+    assert.equal(docxContractProblem(contract()), null);
+    assert.equal(docxContractProblem(contract({ company: { name: "Minta Kft.", isNew: false } })), null, "an existing company is fine");
+    const noFlag = docxContractProblem(contract({ company: { name: "Minta Kft.", legalForm: "kft" } }));
+    assert.match(noFlag, /új \(alakuló\) vagy már meglévő/);
+    assert.match(docxContractProblem(contract({ packageId: "valami-uj-csomag", serviceType: "szekhely-hu" })), /A csomag nem ismerhető fel \(csomagazonosító: "valami-uj-csomag", szolgáltatástípus: "szekhely-hu"\)/);
+    assert.match(docxContractProblem(contract({ packageId: undefined, serviceType: undefined })), /A csomag nem ismerhető fel/);
+    // a string "false" or a missing flag is not a yes or a no
+    assert.ok(docxContractProblem(contract({ company: { name: "Minta Kft.", isNew: "false" } })));
+  });
+
+  it("the two conditions of the contract sections: a company in formation, and a package with the delivery agent mandate", () => {
+    const data = (extra) => buildDocxData(contract(extra), helpers);
+    assert.equal(data().UJ_CEG, "1");
+    assert.equal(data({ company: { name: "Minta Kft.", isNew: false } }).UJ_CEG, "");
+    assert.equal(data().KEZBESITESI_CSOMAG, "1");
+    assert.equal(data({ packageId: "szekhely-hu" }).KEZBESITESI_CSOMAG, "");
+    assert.equal(data({ packageId: "bundle-hu" }).KEZBESITESI_CSOMAG, "1");
+  });
+
+  it("the service provider is written with its register name in every document", () => {
+    assert.equal(PROVIDER_NAME, "E-Marketplace Szolgáltató Kft.");
+    assert.equal(buildDocxData(contract(), helpers).SZOLGALTATO_NEV, PROVIDER_NAME);
   });
 
   it("a full package: the seat fee is the package price minus the delivery fee (the seat is not billed twice)", () => {
@@ -63,14 +108,27 @@ describe("the packages and their fees", () => {
 describe("the company", () => {
   it("the legal form is written once: not added when the name already ends with it, added when it does not", () => {
     assert.equal(buildDocxData(contract(), helpers).CEG_FORMA, "");
-    assert.equal(buildDocxData(contract({ company: { name: "Minta Kereskedelmi", legalForm: "kft", isNew: false } }), helpers).CEG_FORMA, "kft");
+    assert.equal(buildDocxData(contract({ company: { name: "Minta Kereskedelmi", legalForm: "kft", isNew: false } }), helpers).CEG_FORMA, "Kft.");
     assert.equal(buildDocxData(contract({ company: { name: "Minta Zrt.", legalForm: "zrt" } }), helpers).CEG_FORMA, "");
     assert.equal(buildDocxData(contract({ company: { name: "Minta", legalForm: "" } }), helpers).CEG_FORMA, "");
   });
 
+  // code review 3899 J1: the wizard stores the legal form as a code ("kft", "ev", "other"); the document gets its label, never the code
+  it("the legal form is its label, not the code of the wizard: Kft., Bt., Zrt., Nyrt., Kkt., Egyéni vállalkozó; \"other\" adds nothing", () => {
+    const form = (legalForm, name = "Minta Kereskedelmi") => buildDocxData(contract({ company: { name, legalForm } }), helpers).CEG_FORMA;
+    assert.deepEqual(["kft", "bt", "zrt", "nyrt", "kkt", "ev", "other"].map((code) => form(code)), ["Kft.", "Bt.", "Zrt.", "Nyrt.", "Kkt.", "Egyéni vállalkozó", ""]);
+    assert.equal(form("KFT"), "Kft.", "a code in capitals is the same code");
+    assert.equal(form("kft", "Minta Kft"), "", "the name already ends with it, with or without the dot");
+    assert.equal(form("bt", "Minta Bt."), "");
+    assert.equal(form("Kft.", "Minta Kft."), "", "a label typed as it is is a form the name may already carry");
+    assert.equal(form("Kft.", "Minta"), "Kft.", "a value that is not a code is taken as it was typed");
+    for (const code of ["kft", "bt", "zrt", "nyrt", "kkt", "ev", "other"]) assert.ok(!new RegExp(`(^| )${code}$`).test(buildDocxData(contract({ company: { name: "Minta", legalForm: code } }), helpers).CEG_TELJES_NEV), `${code} is not printed as a code`);
+  });
+
   it("the whole company name has the legal form once, with no stray space", () => {
     const whole = (company) => buildDocxData(contract({ company }), helpers).CEG_TELJES_NEV;
-    assert.equal(whole({ name: "Minta Kereskedelmi", legalForm: "kft" }), "Minta Kereskedelmi kft");
+    assert.equal(whole({ name: "Minta Kereskedelmi", legalForm: "kft" }), "Minta Kereskedelmi Kft.");
+    assert.equal(whole({ name: "Minta Kereskedelmi", legalForm: "other" }), "Minta Kereskedelmi");
     assert.equal(whole({ name: "Minta Zrt.", legalForm: "zrt" }), "Minta Zrt.");
     assert.equal(whole({ name: "  Minta  ", legalForm: "" }), "Minta");
     assert.equal(whole({ name: "", legalForm: "" }), "");

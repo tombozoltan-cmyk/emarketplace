@@ -77,7 +77,7 @@ export const SZEKHELY_CIM = "1064 Budapest, Izabella utca 68/B. A lh. Fsz/5.";
 
 // E-Marketplace Kft. fix adatok
 const EMARKETPLACE = {
-  name: "E-Marketplace Kft.",
+  name: "E-Marketplace Szolgáltató Kft.",
   address: SZEKHELY_CIM,
   registrationNumber: "01-09-296567",
 };

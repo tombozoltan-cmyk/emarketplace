@@ -260,7 +260,7 @@ export function generateKycFormHTML(data: KycFormData): string {
     <li>
       <div class="field-row">
         <span class="field-label">– ha ilyennel rendelkezik – kézbesítési megbízottjának az azonosítására alkalmas adatai:</span>
-        <span class="field-value">${data.company.deliveryAgent || "E-Marketplace Kft."}</span>
+        <span class="field-value">${data.company.deliveryAgent || "E-Marketplace Szolgáltató Kft."}</span>
       </div>
     </li>
     <li>
@@ -444,7 +444,7 @@ export function generateKycFormHTML(data: KycFormData): string {
   </div>
   <div class="signature-box">
     <div class="signature-line">
-      E-Marketplace Kft. aláírása
+      E-Marketplace Szolgáltató Kft. aláírása
     </div>
   </div>
 </div>

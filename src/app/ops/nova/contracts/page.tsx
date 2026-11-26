@@ -58,7 +58,7 @@ import {
 import { buildConditionalContext, replaceShortcodes } from "@/lib/contract-shortcodes";
 import { fillOfficialPostalAuthPDF, type OfficialPostalAuthData } from "@/lib/pdf-generators/postal-authorization";
 import { planDownloads, type DownloadItem, type DownloadKind } from "@/lib/docx-selection";
-import { buildDocxData, packageDocuments } from "@/lib/docx-data";
+import { PROVIDER_NAME, buildDocxData, docxContractProblem, packageDocuments } from "@/lib/docx-data";
 
 const FUNCTIONS_BASE_URL = process.env.NEXT_PUBLIC_FUNCTIONS_URL || "https://us-central1-emarketplace-8aab1.cloudfunctions.net";
 
@@ -276,7 +276,7 @@ export default function ContractsPage() {
       companyRegistrationNumber: contract.company?.registrationNumber,
       companyTaxNumber: contract.company?.taxNumber,
       companyMainActivity: contract.company?.mainActivity,
-      isNewCompany: contract.company?.isNew ?? true,
+      isNewCompany: contract.company?.isNew === true,
       owners: (contract.owners || []).map((o) => ({
         fullName: o.natural?.fullName || "",
         birthName: o.natural?.birthName,
@@ -402,7 +402,7 @@ export default function ContractsPage() {
       "{{EVES_DIJ_SZOVEG}}": annualFee.toLocaleString("hu-HU"),
       "{{SZOLGALTATAS_TIPUS}}": PACKAGE_NAMES[contract.packageId || ""] || contract.packageId || "",
       // Szolgáltató
-      "{{SZOLGALTATO_NEV}}": "E-Marketplace Kft.",
+      "{{SZOLGALTATO_NEV}}": PROVIDER_NAME,
       "{{SZOLGALTATO_CIM}}": "1064 Budapest, Izabella utca 68/b.",
       // Dátumok
       "{{DATUM}}": date.toLocaleDateString("hu-HU"),
@@ -596,6 +596,12 @@ export default function ContractsPage() {
   // one function. What cannot be planned (no template, an ambiguous category) is told; nothing is downloaded from a guessed template.
   const runDocxDownloads = async (kinds: DownloadKind[]) => {
     if (!selectedContract) return;
+    // the text of the contracts depends on whether the company is new and on the package: not guessed, the download stops with the reason
+    const problem = docxContractProblem(selectedContract);
+    if (problem) {
+      alert(problem);
+      return;
+    }
     const owners = selectedContract.owners || [];
     if (owners.length === 0 && kinds.some((kind) => kind !== "contract")) {
       alert("Nincs tulajdonos megadva a szerződésben!");
@@ -603,11 +609,16 @@ export default function ContractsPage() {
     }
     setIsGeneratingPdf(true);
     try {
-      const plan = planDownloads(docxTemplates, owners.length, packageDocuments(selectedContract.packageId));
+      const plan = planDownloads(docxTemplates, owners.length, packageDocuments(selectedContract.packageId, selectedContract.serviceType));
       const items = plan.items.filter((item) => kinds.includes(item.kind));
       const problems = plan.problems.filter((problem) => kinds.includes(problem.kind)).map((problem) => problem.message);
       if (items.length === 0 && problems.length === 0) {
-        alert("Ehhez a csomaghoz nincs ilyen dokumentum.");
+        // a package with delivery whose delivery template is not uploaded yet is not "no document for this package"
+        alert(
+          kinds.includes("delivery") && packageDocuments(selectedContract.packageId, selectedContract.serviceType).delivery
+            ? "A kézbesítési szerződés sablonja még nincs feltöltve."
+            : "Ehhez a csomaghoz nincs ilyen dokumentum."
+        );
         return;
       }
       const data = docxDataOf(selectedContract);
@@ -705,7 +716,7 @@ export default function ContractsPage() {
       
       // E-Marketplace Kft. adatai (meghatalmazott)
       const emarketplaceData = {
-        name: "E-Marketplace Kft.",
+        name: PROVIDER_NAME,
         address: "1064 Budapest, Izabella utca 68/b.",
         registrationNumber: "01-09-296567",
       };
@@ -1015,7 +1026,7 @@ export default function ContractsPage() {
                   <Download className="w-4 h-4 mr-2" />
                   Szerződés
                 </Button>
-                {packageDocuments(selectedContract.packageId).delivery && (
+                {packageDocuments(selectedContract.packageId, selectedContract.serviceType).delivery && (
                   <Button variant="outline" size="sm" className="justify-start" onClick={generateDelivery} disabled={isGeneratingPdf}>
                     <Download className="w-4 h-4 mr-2" />
                     Kézbesítési szerződés

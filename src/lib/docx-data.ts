@@ -22,6 +22,7 @@ type Person = {
 /** What this module reads of a contract: a ContractData (the wizard's data) fits. */
 export type DocxContractInput = {
   packageId?: string;
+  serviceType?: string;
   monthlyPrice?: number;
   company?: { name?: string; legalForm?: string; registrationNumber?: string; taxNumber?: string; isNew?: boolean };
   owners?: { type?: string; ownershipPercent?: number; natural?: Person }[];
@@ -54,16 +55,61 @@ const ID_TYPE_NAMES: Record<string, string> = {
   drivers_license: "Vezetői engedély",
 };
 
-/** Which documents a package needs: the seat contract (all but the delivery-only package) and the delivery agent contract (the packages with delivery). */
-export function packageDocuments(packageId: string | undefined): { seat: boolean; delivery: boolean } {
-  const id = packageId || "";
-  return { seat: id !== "kezbesitesi", delivery: id.includes("kezbesitesi") };
+/** The name of the service provider as the company register has it (legal review 2026-11-26, msg 3896); "E-Marketplace Kft." is only a short form of the code. */
+export const PROVIDER_NAME = "E-Marketplace Szolgáltató Kft.";
+
+/** The packages of the price list by their package id (src/lib/pricing-data.ts), and the ids of the price cards (documents of pricingCards) they come from. */
+const PACKAGE_IDS = [
+  "szekhely-hu", "szekhely-kulfoldi", "kezbesitesi", "szerzodeses-irodaberles", "szekhely-kezbesitesi-hu", "szekhely-kezbesitesi-kulfoldi",
+  "iroda-hu", "iroda-kulfoldi", "iroda-kezbesitesi-hu", "iroda-kezbesitesi-kulfoldi",
+];
+const CARD_IDS: Record<string, string> = {
+  "basic-hu": "szekhely-hu", "basic-foreign": "szekhely-kulfoldi", "basic-delivery-agent": "kezbesitesi", "basic-virtual-office": "szerzodeses-irodaberles",
+  "bundle-hu": "szekhely-kezbesitesi-hu", "bundle-foreign": "szekhely-kezbesitesi-kulfoldi",
+  "office-hu": "iroda-hu", "office-foreign": "iroda-kulfoldi", "full-hu": "iroda-kezbesitesi-hu", "full-foreign": "iroda-kezbesitesi-kulfoldi",
+};
+
+/**
+ * The package id in its one canonical form, or null when it is not a package of the price list. The wizard stores the package id of the price card, and
+ * when a card has no `packageId` field it stores the id of the card document ("bundle-hu"): both forms are known. The service type is looked at only when
+ * the contract has no package id at all: the wizard derives it from the card ids, so for a canonical package id it is the fallback "szekhely-hu", never a
+ * reason to trust it over the package id.
+ */
+export function canonicalPackageId(packageId: string | undefined, serviceType?: string | undefined): string | null {
+  const own = (packageId || "").trim();
+  const candidate = own || (serviceType || "").trim();
+  if (PACKAGE_IDS.includes(candidate)) return candidate;
+  return CARD_IDS[candidate] || null;
+}
+
+/**
+ * Which documents a package needs: the seat contract (all but the delivery-only package) and the delivery agent contract (the packages with delivery).
+ * `known` is false when the package cannot be recognised: the pages stop then (docxContractProblem) instead of treating it as "seat only" in silence.
+ */
+export function packageDocuments(packageId: string | undefined, serviceType?: string | undefined): { seat: boolean; delivery: boolean; known: boolean } {
+  const id = canonicalPackageId(packageId, serviceType);
+  if (id === null) return { seat: true, delivery: false, known: false };
+  return { seat: id !== "kezbesitesi", delivery: id.includes("kezbesitesi"), known: true };
+}
+
+/**
+ * Why the documents cannot be made from this contract (a text for the admin), or null when they can. The text of the contracts depends on two facts that
+ * must not be guessed: whether the company is new (in formation) or existing, and which package it has.
+ */
+export function docxContractProblem(contract: DocxContractInput): string | null {
+  if (typeof contract.company?.isNew !== "boolean") {
+    return "A beadványban nincs megadva, hogy a cég új (alakuló) vagy már meglévő. A szerződések szövege ettől függ, ezért a letöltés megállt. Egészítsd ki a beadvány cégadatait (új cég: igen/nem), és próbáld újra.";
+  }
+  if (!packageDocuments(contract.packageId, contract.serviceType).known) {
+    return `A csomag nem ismerhető fel (csomagazonosító: "${contract.packageId || ""}", szolgáltatástípus: "${contract.serviceType || ""}"). A szerződések szövege a csomagtól függ, ezért a letöltés megállt.`;
+  }
+  return null;
 }
 
 /** The monthly net fees of the two contracts of a package, from the monthly price of the package. */
-export function feesOf(packageId: string | undefined, monthlyPrice: number | undefined): { seatMonthly: number; deliveryMonthly: number } {
+export function feesOf(packageId: string | undefined, monthlyPrice: number | undefined, serviceType?: string | undefined): { seatMonthly: number; deliveryMonthly: number } {
   const monthly = monthlyPrice && monthlyPrice > 0 ? monthlyPrice : 0;
-  const { seat, delivery } = packageDocuments(packageId);
+  const { seat, delivery } = packageDocuments(packageId, serviceType);
   if (seat && delivery) return { seatMonthly: Math.max(0, monthly - DELIVERY_FEE), deliveryMonthly: Math.min(monthly, DELIVERY_FEE) };
   if (delivery) return { seatMonthly: 0, deliveryMonthly: monthly };
   return { seatMonthly: monthly, deliveryMonthly: 0 };
@@ -80,12 +126,29 @@ function idText(person: Person): string {
   return [ID_TYPE_NAMES[person.idType || ""] || person.idType || "", person.idNumber || ""].map((s) => s.trim()).filter(Boolean).join(" ");
 }
 
-/** The legal form is written once: the name of a company already ends with it ("... Kft."), so the form is added only when the name lacks it. */
+/** The label of the legal forms the wizard stores by a code (src/lib/contract-shortcode-mapper.ts has the same labels); "other" has none to write. */
+const LEGAL_FORM_LABELS: Record<string, string> = {
+  kft: "Kft.",
+  bt: "Bt.",
+  zrt: "Zrt.",
+  nyrt: "Nyrt.",
+  kkt: "Kkt.",
+  ev: "Egyéni vállalkozó",
+  other: "",
+};
+
+/**
+ * The legal form is written once, as its label (never the code of the wizard: "kft", "other"): the name of a company already ends with it
+ * ("... Kft."), so the form is added only when the name lacks it. A value that is not a code of the wizard is taken as it was typed.
+ */
 function legalFormToAdd(name: string | undefined, legalForm: string | undefined): string {
-  const form = (legalForm || "").trim();
+  const code = (legalForm || "").trim();
+  if (!code) return "";
+  const form = Object.prototype.hasOwnProperty.call(LEGAL_FORM_LABELS, code.toLowerCase()) ? LEGAL_FORM_LABELS[code.toLowerCase()] : code;
   if (!form) return "";
   const plain = (s: string) => s.toLowerCase().replace(/[.\s]/g, "");
-  return plain(name || "").endsWith(plain(form)) ? "" : form;
+  const ownName = plain(name || "");
+  return ownName.endsWith(plain(form)) || ownName.endsWith(plain(code)) ? "" : form;
 }
 
 function personData(prefix: string, person: Person, helpers: DocxDataHelpers): Record<string, string> {
@@ -104,10 +167,16 @@ export function buildDocxData(contract: DocxContractInput, helpers: DocxDataHelp
   const representative = contract.representative || {};
   const pending = Boolean(company.isNew) || !(company.registrationNumber || "").trim();
   const taxPending = Boolean(company.isNew) || !(company.taxNumber || "").trim();
-  const fees = feesOf(contract.packageId, contract.monthlyPrice);
+  const fees = feesOf(contract.packageId, contract.monthlyPrice, contract.serviceType);
+  const documents = packageDocuments(contract.packageId, contract.serviceType);
   const firstNatural = owners.find((o) => o.type !== "legal")?.natural;
 
   const data: Record<string, string> = {
+    // the two conditions of the sections of the contracts (a value is "1" or "": docxtemplater {#UJ_CEG}...{/UJ_CEG} and {^UJ_CEG}...{/UJ_CEG}): the
+    // company is new (in formation), the package has the delivery agent mandate. The pages stop before this when either is not known (docxContractProblem).
+    UJ_CEG: company.isNew === true ? "1" : "",
+    KEZBESITESI_CSOMAG: documents.delivery ? "1" : "",
+    SZOLGALTATO_NEV: PROVIDER_NAME,
     // the address of the seat (the old code carried the address of the former one)
     SZEKHELY: OFFICE_ADDRESS,
     KEZBESITESI_CIM: OFFICE_ADDRESS,
