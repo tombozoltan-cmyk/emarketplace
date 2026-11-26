@@ -566,7 +566,8 @@ export default function ContractsPage() {
     // the tags of the new templates (and the corrected values of the old ones: the address of the seat, the nationality as a name, the legal form once)
     // come from src/lib/docx-data.ts and win over the old values
     const nationalityLabel = (value: string) => NATIONALITIES.find((n) => n.value === value)?.label.hu ?? value;
-    Object.assign(data, buildDocxData(contract, { nationalityLabel }));
+    const nationalityLabelEn = (value: string) => NATIONALITIES.find((n) => n.value === value)?.label.en ?? value;
+    Object.assign(data, buildDocxData(contract, { nationalityLabel, nationalityLabelEn }));
     return data;
   };
 

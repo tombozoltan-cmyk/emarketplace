@@ -68,6 +68,14 @@ describe("the company", () => {
     assert.equal(buildDocxData(contract({ company: { name: "Minta", legalForm: "" } }), helpers).CEG_FORMA, "");
   });
 
+  it("the whole company name has the legal form once, with no stray space", () => {
+    const whole = (company) => buildDocxData(contract({ company }), helpers).CEG_TELJES_NEV;
+    assert.equal(whole({ name: "Minta Kereskedelmi", legalForm: "kft" }), "Minta Kereskedelmi kft");
+    assert.equal(whole({ name: "Minta Zrt.", legalForm: "zrt" }), "Minta Zrt.");
+    assert.equal(whole({ name: "  Minta  ", legalForm: "" }), "Minta");
+    assert.equal(whole({ name: "", legalForm: "" }), "");
+  });
+
   it("a company in formation has no registration and tax number: the contracts say so in both languages, the data sheet in Hungarian", () => {
     const data = buildDocxData(contract(), helpers);
     assert.equal(data.CEGJEGYZEKSZAM_SZOVEG, "…………………… (bejegyzés alatt / registration pending)");
@@ -102,6 +110,16 @@ describe("the persons", () => {
     assert.equal(data.KEPVISELO_ALLAMPOLGARSAG, "Német");
     assert.equal(data.TULAJDONOS_1_ALLAMPOLGARSAG, "Német");
     assert.equal(buildDocxData(contract({ representative: person({ nationality: "magyar" }) }), helpers).KEPVISELO_ALLAMPOLGARSAG, "Magyar");
+  });
+
+  it("the English name of the nationality comes from its own helper; without one the Hungarian name is used, and no nationality is empty", () => {
+    const withEn = { nationalityLabel: (value) => NATIONALITIES[value] || value, nationalityLabelEn: (value) => ({ nemet: "German", magyar: "Hungarian" })[value] || value };
+    const data = buildDocxData(contract(), withEn);
+    assert.equal(data.KEPVISELO_ALLAMPOLGARSAG, "Német");
+    assert.equal(data.KEPVISELO_ALLAMPOLGARSAG_EN, "German");
+    assert.equal(data.TULAJDONOS_1_ALLAMPOLGARSAG_EN, "German");
+    assert.equal(buildDocxData(contract(), helpers).KEPVISELO_ALLAMPOLGARSAG_EN, "Német");
+    assert.equal(buildDocxData(contract(), withEn).TULAJDONOS_3_ALLAMPOLGARSAG_EN, "");
   });
 
   it("the birth name is the name itself when the applicant gave none", () => {

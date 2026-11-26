@@ -32,6 +32,8 @@ export type DocxContractInput = {
 export type DocxDataHelpers = {
   /** The name of a nationality by the value of the wizard's select ("nemet" gives "Német"); an unknown value is returned as it is. */
   nationalityLabel: (value: string) => string;
+  /** The English name of a nationality ("nemet" gives "German"); without it the Hungarian name is used. */
+  nationalityLabelEn?: (value: string) => string;
 };
 
 /** The address of the registered seat the company provides (the one of the contracts and the PDF): not the old address the page had in its code. */
@@ -90,6 +92,7 @@ function personData(prefix: string, person: Person, helpers: DocxDataHelpers): R
   return {
     [`${prefix}_SZUL_NEV`]: (person.birthName || "").trim() || (person.fullName || "").trim(),
     [`${prefix}_ALLAMPOLGARSAG`]: person.nationality ? helpers.nationalityLabel(person.nationality) : "",
+    [`${prefix}_ALLAMPOLGARSAG_EN`]: person.nationality ? (helpers.nationalityLabelEn || helpers.nationalityLabel)(person.nationality) : "",
     [`${prefix}_SZUL_HELY_IDO`]: join(person.birthPlace, person.birthDate),
     [`${prefix}_OKMANY`]: idText(person),
   };
@@ -111,6 +114,8 @@ export function buildDocxData(contract: DocxContractInput, helpers: DocxDataHelp
     TELJESITES_HELY: OFFICE_ADDRESS,
     // the legal form once ("... Kft. kft" before)
     CEG_FORMA: legalFormToAdd(company.name, company.legalForm),
+    // the whole name of the company with its legal form once: what the new templates print where the document names the company
+    CEG_TELJES_NEV: [(company.name || "").trim(), legalFormToAdd(company.name, company.legalForm)].filter(Boolean).join(" "),
     // a company in formation has no registration and tax number yet: the contracts say so in both languages, the data sheet in Hungarian
     CEGJEGYZEKSZAM_SZOVEG: pending ? REGISTRATION_PENDING_BILINGUAL : (company.registrationNumber || "").trim(),
     ADOSZAM_SZOVEG: taxPending ? REGISTRATION_PENDING_BILINGUAL : (company.taxNumber || "").trim(),
