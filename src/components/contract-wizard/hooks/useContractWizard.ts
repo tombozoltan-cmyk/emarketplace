@@ -3,6 +3,7 @@
 import { useState, useCallback, useMemo } from "react";
 import type {
   ContractData,
+  ContractDocumentPaths,
   ContractLanguage,
   WizardStep,
   ServiceType,
@@ -10,6 +11,30 @@ import type {
 } from "@/lib/contract-types";
 import { WIZARD_STEPS } from "@/lib/contract-types";
 import { validIdType, withoutIdImages } from "@/lib/id-documents";
+import { dropUndefined, resolveContact } from "@/lib/contract-submission";
+import { legalPdfUrl, currentLegalVersion, legalVersionRef, LEGAL_DOCUMENTS } from "@/lib/legal/registry";
+
+/** Az összegző lépés két jelölőnégyzete. A beküldés csak akkor fut le, ha mindkettő be van jelölve. */
+export type ConsentInput = { terms: boolean; privacy: boolean };
+
+/**
+ * Melyik jogi szöveget fogadta el az ügyfél. A `legalVersionRef` és a verzióhoz
+ * tartozó, soha nem felülírt PDF épp ezért készült (lásd `src/lib/legal/registry.ts`):
+ * e nélkül a beküldés nem mondja meg, MIT fogadtak el, csak azt, hogy valamit.
+ */
+function acceptedLegalVersions(language: ContractLanguage) {
+  const terms = currentLegalVersion("terms");
+  const privacy = currentLegalVersion("privacy");
+  return dropUndefined({
+    termsVersion: legalVersionRef("terms"),
+    privacyVersion: legalVersionRef("privacy"),
+    termsPath: LEGAL_DOCUMENTS.terms.path[language],
+    privacyPath: LEGAL_DOCUMENTS.privacy.path[language],
+    termsPdf: legalPdfUrl(terms, language) ?? undefined,
+    privacyPdf: legalPdfUrl(privacy, language) ?? undefined,
+    language,
+  });
+}
 
 // Alapértelmezett szerződés adatok
 const getDefaultOwner = (): OwnerData => ({
@@ -137,36 +162,39 @@ const validateStep = (
         errors.push(t ? `A tulajdonosi arányok összege ${totalPercent}%, de pontosan 100% kell legyen` : `Total ownership is ${totalPercent}%, but must be exactly 100%`);
       }
       
-      // Minden tulajdonos adatainak validációja
+      // Minden tulajdonos adatainak validációja.
+      // The sub-object is not required to exist: switching an owner to a company only sets `type`, so `owner.legal` is missing until the
+      // applicant types into it. Guarding the checks with `&& owner.legal` skipped all of them, and an owner with no company data at all
+      // passed the step and was stored that way.
       data.owners.forEach((owner, idx) => {
         const ownerNum = data.owners.length > 1 ? ` (#${idx + 1})` : "";
-        if (owner.type === "natural" && owner.natural) {
-          if (!owner.natural.fullName.trim()) {
-            errors.push(t ? `Tulajdonos${ownerNum} neve kötelező` : `Owner${ownerNum} name is required`);
-          }
-          if (!owner.natural.birthDate) {
-            errors.push(t ? `Tulajdonos${ownerNum} születési dátuma kötelező` : `Owner${ownerNum} birth date is required`);
-          }
-          if (!owner.natural.address.trim()) {
-            errors.push(t ? `Tulajdonos${ownerNum} lakcíme kötelező` : `Owner${ownerNum} address is required`);
-          }
-          if (!owner.natural.idNumber.trim()) {
-            errors.push(t ? `Tulajdonos${ownerNum} okmányszáma kötelező` : `Owner${ownerNum} ID number is required`);
-          }
-        }
-
-        if (owner.type === "legal" && owner.legal) {
-          if (!owner.legal.companyName.trim()) {
+        if (owner.type === "legal") {
+          const legal = owner.legal;
+          if (!legal?.companyName.trim()) {
             errors.push(t ? `Tulajdonos${ownerNum} cégnév megadása kötelező` : `Owner${ownerNum} company name is required`);
           }
-          if (!owner.legal.registrationNumber.trim()) {
+          if (!legal?.registrationNumber.trim()) {
             errors.push(t ? `Tulajdonos${ownerNum} cégjegyzékszám megadása kötelező` : `Owner${ownerNum} registration number is required`);
           }
-          if (!owner.legal.address.trim()) {
+          if (!legal?.address.trim()) {
             errors.push(t ? `Tulajdonos${ownerNum} székhely megadása kötelező` : `Owner${ownerNum} registered address is required`);
           }
-          if (!owner.legal.representativeName.trim()) {
+          if (!legal?.representativeName.trim()) {
             errors.push(t ? `Tulajdonos${ownerNum} képviselő nevének megadása kötelező` : `Owner${ownerNum} representative name is required`);
+          }
+        } else {
+          const natural = owner.natural;
+          if (!natural?.fullName.trim()) {
+            errors.push(t ? `Tulajdonos${ownerNum} neve kötelező` : `Owner${ownerNum} name is required`);
+          }
+          if (!natural?.birthDate) {
+            errors.push(t ? `Tulajdonos${ownerNum} születési dátuma kötelező` : `Owner${ownerNum} birth date is required`);
+          }
+          if (!natural?.address.trim()) {
+            errors.push(t ? `Tulajdonos${ownerNum} lakcíme kötelező` : `Owner${ownerNum} address is required`);
+          }
+          if (!natural?.idNumber.trim()) {
+            errors.push(t ? `Tulajdonos${ownerNum} okmányszáma kötelező` : `Owner${ownerNum} ID number is required`);
           }
         }
       });
@@ -254,6 +282,7 @@ export type UseContractWizardReturn = {
   updateContact: (updates: Partial<ContractData["contact"]>) => void;
   updatePepDeclaration: (updates: Partial<ContractData["pepDeclaration"]>) => void;
   updateDocuments: (updates: Partial<ContractData["uploadedDocuments"]>) => void;
+  updateDocumentPaths: (updates: Partial<ContractDocumentPaths>) => void;
   setServiceType: (serviceType: ServiceType, packageId: string, monthlyPrice: number, annualPrice: number) => void;
 
   // Validáció
@@ -264,7 +293,7 @@ export type UseContractWizardReturn = {
   // Beküldés
   isSubmitting: boolean;
   submitError: string | null;
-  submit: () => Promise<string | null>;
+  submit: (consent: ConsentInput) => Promise<string | null>;
 
   // Reset
   reset: () => void;
@@ -414,7 +443,12 @@ export function useContractWizard(
         return {
           ...prev,
           representative: merged,
-          ...(typeChanged ? { uploadedDocuments: withoutIdImages(prev.uploadedDocuments) } : {}),
+          ...(typeChanged
+            ? {
+                uploadedDocuments: withoutIdImages(prev.uploadedDocuments),
+                uploadedDocumentPaths: withoutIdImages(prev.uploadedDocumentPaths ?? {}),
+              }
+            : {}),
         };
       });
     },
@@ -441,11 +475,32 @@ export function useContractWizard(
     []
   );
 
+  // an update whose value is `undefined` (the remove button of the upload step) REMOVES the key instead of storing `undefined`: Firestore
+  // refuses a document that has such a field, and the whole submission failed with the SDK's own message
+  const mergeDropping = <T extends object>(previous: T, updates: Partial<T>): T => {
+    const merged = { ...previous } as Record<string, unknown>;
+    for (const [key, value] of Object.entries(updates as Record<string, unknown>)) {
+      if (value === undefined) delete merged[key];
+      else merged[key] = value;
+    }
+    return merged as T;
+  };
+
   const updateDocuments = useCallback(
     (updates: Partial<ContractData["uploadedDocuments"]>) => {
       setData((prev) => ({
         ...prev,
-        uploadedDocuments: { ...prev.uploadedDocuments, ...updates },
+        uploadedDocuments: mergeDropping(prev.uploadedDocuments, updates),
+      }));
+    },
+    []
+  );
+
+  const updateDocumentPaths = useCallback(
+    (updates: Partial<ContractDocumentPaths>) => {
+      setData((prev) => ({
+        ...prev,
+        uploadedDocumentPaths: mergeDropping(prev.uploadedDocumentPaths ?? {}, updates),
       }));
     },
     []
@@ -470,11 +525,21 @@ export function useContractWizard(
   );
 
   // Beküldés
-  const submit = useCallback(async (): Promise<string | null> => {
+  const submit = useCallback(async (consent: ConsentInput): Promise<string | null> => {
     setIsSubmitting(true);
     setSubmitError(null);
 
     try {
+      // A két elfogadó jelölőnégyzet nélkül nincs beküldés. Az összegző gomb is ezt
+      // kéri, de a nyomot a beküldés írja ki, ezért itt is ellenőrizzük.
+      if (!consent.terms || !consent.privacy) {
+        throw new Error(
+          language === "hu"
+            ? "Az ÁSZF és az adatkezelési tájékoztató elfogadása kötelező."
+            : "Accepting the Terms and the Privacy Policy is required."
+        );
+      }
+
       // Validáljuk az összes lépést
       for (const step of WIZARD_STEPS) {
         const validation = validateStep(step, data, language);
@@ -488,7 +553,14 @@ export function useContractWizard(
       const { firestoreDb } = await import("@/lib/firebase");
 
       const contractData = {
-        ...data,
+        // `dropUndefined`: a Firestore visszadobja azt a dokumentumot, amelyben egy mező értéke `undefined`
+        ...dropUndefined({
+          ...data,
+          // a rejtett kapcsolattartó-mezők kitöltése az első tulajdonosból, ha az ügyfél a "megegyezik a tulajdonossal" alapértelmezést hagyta
+          contact: resolveContact(data.contact, data.owners[0]),
+        }),
+        // a hozzájárulás időpontja a szerver órája szerint, nem a böngészőé
+        consent: { ...acceptedLegalVersions(language), acceptedAt: serverTimestamp() },
         status: "pending_review",
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
@@ -536,6 +608,7 @@ export function useContractWizard(
     updateContact,
     updatePepDeclaration,
     updateDocuments,
+    updateDocumentPaths,
     setServiceType,
     validateCurrentStep,
     getStepValidation,

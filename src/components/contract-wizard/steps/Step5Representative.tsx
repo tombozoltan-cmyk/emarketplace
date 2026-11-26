@@ -43,10 +43,13 @@ export function Step5Representative({
   const isForeignNationality = data.nationality !== "magyar";
 
   useEffect(() => {
-    // Csak akkor állítjuk be automatikusan, ha külföldi állampolgárságot választott
-    // és még nem volt manuálisan beállítva a checkbox
-    if (isForeignNationality && !data.isForeign) {
-      onChange({ isForeign: true });
+    // Az állampolgárság váltása MINDKÉT irányban átállítja a jelölőt, ugyanazzal a
+    // szabállyal, amit a "másolás a tulajdonostól" is használ. Korábban csak bekapcsolni
+    // tudta: aki véletlenül külföldit választott, majd visszajavította magyarra, annál
+    // bejelölve maradt, és a szerződés kézbesítési megbízottat írt egy magyar képviselőnek.
+    // A jelölő ezután is kézzel átállítható, csak az állampolgárság váltása írja felül.
+    if (data.isForeign !== isForeignNationality) {
+      onChange({ isForeign: isForeignNationality });
     }
   }, [data.nationality]); // eslint-disable-line react-hooks/exhaustive-deps
 

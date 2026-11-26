@@ -104,6 +104,45 @@ export type ContractDocuments = {
   otherDocuments?: string[];           // Egyéb dokumentumok
 };
 
+/**
+ * Ugyanazok a kulcsok, mint a `ContractDocuments`-ben, de a Storage-objektum
+ * útvonalával, nem a letöltési URL-lel.
+ *
+ * Miért kell mindkettő: a `getDownloadURL()` adta URL (`?alt=media&token=…`) a
+ * Storage-szabályokat megkerülő, lejárat nélküli hivatkozás, és csak az URL
+ * szövegéből lehetne visszafejteni, melyik objektumra mutat. Szerveroldali
+ * olvasáshoz (Admin SDK) az útvonal kell, ezért feltöltéskor azt is eltároljuk.
+ */
+export type ContractDocumentPaths = {
+  idFront?: string;
+  idBack?: string;
+  passport?: string;
+  addressCard?: string;
+  companyExtract?: string;
+};
+
+/**
+ * Melyik jogi dokumentum melyik verzióját fogadta el az ügyfél, és mikor.
+ * A wizard összegző lépésén lévő két jelölőnégyzet nyoma: e nélkül a
+ * beküldésről nem derül ki, hogy az ügyfél elfogadta-e az ÁSZF-et és az
+ * adatkezelési tájékoztatót.
+ */
+export type ContractConsent = {
+  /** `legalVersionRef("terms")`, pl. "terms-v3.0-2026-01-01". */
+  termsVersion: string;
+  /** `legalVersionRef("privacy")`, pl. "privacy-v2.0-2026-01-01". */
+  privacyVersion: string;
+  /** Az elfogadáskor megjelenített oldal útvonala, nyelv szerint. */
+  termsPath: string;
+  privacyPath: string;
+  /** A verzióhoz tartozó, soha nem felülírt PDF URL-je, ha van. */
+  termsPdf?: string;
+  privacyPdf?: string;
+  /** A beküldés nyelve: az ügyfél ezen a nyelven olvasta a szöveget. */
+  language: ContractLanguage;
+  acceptedAt?: Date;
+};
+
 // Generált szerződések
 export type GeneratedDocuments = {
   contract?: string;                   // Székhelyszolgáltatási szerződés
@@ -147,6 +186,12 @@ export type ContractData = {
 
   // Dokumentumok (admin tölti fel)
   uploadedDocuments: ContractDocuments;
+
+  // A feltöltött fájlok Storage-útvonala (szerveroldali olvasáshoz)
+  uploadedDocumentPaths?: ContractDocumentPaths;
+
+  // Az elfogadott ÁSZF és adatkezelési tájékoztató verziója
+  consent?: ContractConsent;
 
   // Generált dokumentumok
   generatedDocuments: GeneratedDocuments;
