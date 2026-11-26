@@ -124,7 +124,9 @@ export type DownloadProblem = { kind: DownloadKind; message: string };
 export function planDownloads(
   templates: DocxTemplateRef[],
   ownerCount: number,
-  documents: { seat: boolean; delivery: boolean } = { seat: true, delivery: false }
+  documents: { seat: boolean; delivery: boolean } = { seat: true, delivery: false },
+  /** `pepOwners`: the owner numbers that get a declaration (the beneficial owners, see pepOwnersOf in docx-data.ts); without it every owner gets one. */
+  options: { pepOwners?: number[] } = {}
 ): { items: DownloadItem[]; problems: DownloadProblem[] } {
   const items: DownloadItem[] = [];
   const problems: DownloadProblem[] = [];
@@ -140,6 +142,7 @@ export function planDownloads(
   }
   for (let ownerNumber = 1; ownerNumber <= ownerCount; ownerNumber++) {
     for (const [kind, category] of [["kyc", CATEGORY_KYC], ["pep", CATEGORY_PEP]] as const) {
+      if (kind === "pep" && options.pepOwners && !options.pepOwners.includes(ownerNumber)) continue;
       const pick = pickOwnerTemplate(templates, category, ownerNumber);
       if (pick.template) items.push({ kind, ownerNumber, template: pick.template });
       else problems.push({ kind, message: pick.error });

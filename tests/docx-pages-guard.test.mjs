@@ -41,6 +41,14 @@ describe("the contracts page", () => {
     assert.ok(page.includes("`${title}_${ownerNumber}_${safeOwnerName}_${date}.docx`"));
   });
 
+  it("makes the declaration for the beneficial owners only, tells the rest in a note, and never stops for it", () => {
+    const run = page.slice(page.indexOf("const runDocxDownloads"));
+    assert.ok(run.includes("const pepRule = pepOwnersOf(owners);") && run.includes("{ pepOwners: pepRule.numbers }"));
+    assert.ok(/const pepNotes = kinds\.includes\("pep"\) \? pepRule\.notes : \[\];\n\s+if \(pepNotes\.length > 0\) alert\(pepNotes\.join/.test(run), "the notes are an alert, and the downloads go on (no return)");
+    // when there is no declaration at all, the notes explain it: the generic "no document for this package" is not added
+    assert.ok(/if \(pepNotes\.length === 0\) \{\n\s+alert\(/.test(run));
+  });
+
   it("recognises the package from the package id and the service type, in the plan and on the button", () => {
     assert.equal((page.match(/packageDocuments\(selectedContract\.packageId, selectedContract\.serviceType\)/g) || []).length, 3, "plan, empty-plan message, button");
     assert.ok(!/packageDocuments\(selectedContract\.packageId\)/.test(page));

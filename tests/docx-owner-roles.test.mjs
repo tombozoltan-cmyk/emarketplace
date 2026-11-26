@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { buildDocxData, ownerDataAliases } from "../src/lib/docx-data.ts";
+import { NO_BENEFICIAL_OWNER_WARNING, PEP_MIN_SHARE, buildDocxData, ownerDataAliases, pepOwnersOf } from "../src/lib/docx-data.ts";
 import { pickOwnerTemplate, planDownloads } from "../src/lib/docx-selection.ts";
 
 // Owner decision (tg 5059): the data sheet and the declaration of the owners for ANY number of owners: one template with the role "kyc" / "pep" (tags without a
@@ -62,6 +62,79 @@ describe("a template with the role kyc or pep serves every owner", () => {
     const twice = [KYC, { ...KYC, id: "kyc-all-2" }, PEP];
     assert.match(pickOwnerTemplate(twice, "Adatlap", 1).error, /'kyc' szerephez több sablon/);
     assert.equal(planDownloads(twice, 2, NO_CONTRACTS).problems.length, 2);
+  });
+});
+
+// legal review 2026-11-26 (msg 3933), owner message 3936: the declaration of public figure status is for the BENEFICIAL owners (25 per cent or more); the data
+// sheet stays for every member; what the admin should know is a note (a warning), never a stop
+describe("the declaration is made for the members with 25 per cent or more", () => {
+  const owners = (...shares) => shares.map((ownershipPercent) => ({ type: "natural", ownershipPercent }));
+  const plan = (shares) => {
+    const rule = pepOwnersOf(owners(...shares));
+    return { rule, plan: planDownloads([KYC, PEP], shares.length, NO_CONTRACTS, { pepOwners: rule.numbers }) };
+  };
+  const count = (result, kind) => result.plan.items.filter((item) => item.kind === kind).length;
+
+  it("3 members 60/30/10: 3 data sheets, 2 declarations (the 10 per cent member has none) and a note about the third", () => {
+    const result = plan([60, 30, 10]);
+    assert.deepEqual(result.rule.numbers, [1, 2]);
+    assert.equal(count(result, "kyc"), 3);
+    assert.equal(count(result, "pep"), 2);
+    assert.deepEqual(result.plan.items.filter((item) => item.kind === "pep").map((item) => item.ownerNumber), [1, 2]);
+    assert.equal(result.rule.notes.length, 1);
+    assert.match(result.rule.notes[0], /3\. tulajdonos aránya 10%: PEP-nyilatkozat nem készül/);
+  });
+
+  it("4 members 20/20/20/40: 1 declaration (the fourth), 4 data sheets", () => {
+    const result = plan([20, 20, 20, 40]);
+    assert.deepEqual(result.rule.numbers, [4]);
+    assert.equal(count(result, "kyc"), 4);
+    assert.equal(count(result, "pep"), 1);
+    assert.equal(result.plan.items.find((item) => item.kind === "pep").ownerNumber, 4);
+    assert.ok(!result.rule.notes.includes(NO_BENEFICIAL_OWNER_WARNING));
+  });
+
+  it("5 members of 20 per cent: no declaration, 5 data sheets, and the warning that the managing director is the beneficial owner", () => {
+    const result = plan([20, 20, 20, 20, 20]);
+    assert.deepEqual(result.rule.numbers, []);
+    assert.equal(count(result, "kyc"), 5);
+    assert.equal(count(result, "pep"), 0);
+    assert.ok(result.rule.notes.includes(NO_BENEFICIAL_OWNER_WARNING));
+    assert.equal(NO_BENEFICIAL_OWNER_WARNING, "Nincs 25%-os tulajdonos: a vezető tisztségviselő a tényleges tulajdonos, a PEP-nyilatkozatot és az adatlap II./2. rovatát rá kell kitölteni. Ezt a generátor nem kezeli.");
+  });
+
+  it("the limit is 25 per cent and over: 25 gets one, 24.9 does not; one owner of 100 gets one and no note", () => {
+    assert.deepEqual(pepOwnersOf(owners(25, 75)).numbers, [1, 2]);
+    assert.deepEqual(pepOwnersOf(owners(24.9, 75.1)).numbers, [2]);
+    assert.deepEqual(pepOwnersOf(owners(100)), { numbers: [1], notes: [] });
+    assert.equal(PEP_MIN_SHARE, 25);
+  });
+
+  it("a share that is missing or not a number is not dropped on a guess: the declaration is made, with a note to check; \"40%\" and \"40,5\" are read as numbers", () => {
+    for (const bad of [undefined, null, "", "sok", NaN, -5, 250]) {
+      const rule = pepOwnersOf(owners(bad, 30));
+      assert.deepEqual(rule.numbers, [1, 2], String(bad));
+      assert.match(rule.notes.join(" "), /1\. tulajdonos tulajdoni aránya hiányzik vagy nem szám/, String(bad));
+    }
+    assert.deepEqual(pepOwnersOf(owners("40%", "10")).numbers, [1]);
+    assert.deepEqual(pepOwnersOf(owners("40,5", 10)).numbers, [1]);
+    // an unknown share is no proof that nobody reaches 25: no "no beneficial owner" warning then
+    assert.ok(!pepOwnersOf(owners(undefined, 10)).notes.includes(NO_BENEFICIAL_OWNER_WARNING));
+  });
+
+  it("a legal person among the members gets a note (the natural person behind it, by hand); the rest of the rule is the same", () => {
+    const rule = pepOwnersOf([{ type: "legal", ownershipPercent: 60 }, { type: "natural", ownershipPercent: 40 }]);
+    assert.deepEqual(rule.numbers, [1, 2]);
+    assert.match(rule.notes.join(" "), /1\. tulajdonos jogi személy: a tényleges tulajdonos a mögötte álló természetes személy/);
+  });
+
+  it("no owners: nothing, and no warning (the page tells that there is no owner)", () => {
+    assert.deepEqual(pepOwnersOf([]), { numbers: [], notes: [] });
+    assert.deepEqual(pepOwnersOf(undefined), { numbers: [], notes: [] });
+  });
+
+  it("without the option every owner gets a declaration, as before (the plan does not decide who is a beneficial owner)", () => {
+    assert.equal(planDownloads([KYC, PEP], 4, NO_CONTRACTS).items.filter((item) => item.kind === "pep").length, 4);
   });
 });
 

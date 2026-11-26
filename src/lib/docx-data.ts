@@ -120,6 +120,56 @@ export function ownerDataAliases(data: Record<string, string>, ownerNumber: numb
   return result;
 }
 
+/** The smallest share that makes a member a beneficial owner (Pmt. 3. § 38. a): 25 per cent. */
+export const PEP_MIN_SHARE = 25;
+
+export const NO_BENEFICIAL_OWNER_WARNING =
+  "Nincs 25%-os tulajdonos: a vezető tisztségviselő a tényleges tulajdonos, a PEP-nyilatkozatot és az adatlap II./2. rovatát rá kell kitölteni. Ezt a generátor nem kezeli.";
+
+/** The share of a member as a number between 0 and 100, or null when it is missing or not a number (a string such as "40" or "40%" is read). */
+function shareOf(value: unknown): number | null {
+  let share: number | null = null;
+  if (typeof value === "number") share = value;
+  else if (typeof value === "string" && /^\s*\d+([.,]\d+)?\s*%?\s*$/.test(value)) share = parseFloat(value.replace(",", "."));
+  return share !== null && Number.isFinite(share) && share >= 0 && share <= 100 ? share : null;
+}
+
+/**
+ * Who gets a declaration of public figure status (legal review 2026-11-26, msg 3933, owner message 3936): the BENEFICIAL owners, that is the members with
+ * 25 per cent or more, not every member (the data sheet stays per member). `numbers` are the owner numbers (from 1); `notes` are what the admin should
+ * be told, as a warning and never as a stop:
+ * - a member under 25 per cent gets none (and the note says so, since another way of control is not in the data);
+ * - a member whose share is missing or not a number gets one (nothing is dropped on a guess), and the note says to check;
+ * - a legal person among the members: the beneficial owner is the natural person behind it, by hand;
+ * - nobody reaches 25 per cent (and every share is known): the managing director is the beneficial owner (Pmt. 3. § 38. f), by hand.
+ */
+export function pepOwnersOf(owners: { type?: string; ownershipPercent?: unknown }[] | undefined): { numbers: number[]; notes: string[] } {
+  const list = owners || [];
+  const numbers: number[] = [];
+  const notes: string[] = [];
+  let someShareUnknown = false;
+  let someReaches = false;
+  list.forEach((owner, index) => {
+    const number = index + 1;
+    const share = shareOf(owner.ownershipPercent);
+    if (owner.type === "legal") {
+      notes.push(`A(z) ${number}. tulajdonos jogi személy: a tényleges tulajdonos a mögötte álló természetes személy (közvetett tulajdon), az ő PEP-nyilatkozatát és adatlapját kézzel kell elkészíteni. Ezt a generátor nem kezeli.`);
+    }
+    if (share === null) {
+      someShareUnknown = true;
+      numbers.push(number);
+      notes.push(`A(z) ${number}. tulajdonos tulajdoni aránya hiányzik vagy nem szám: a PEP-nyilatkozat elkészül hozzá, ellenőrizd, hogy 25% vagy több-e (tényleges tulajdonos).`);
+    } else if (share >= PEP_MIN_SHARE) {
+      someReaches = true;
+      numbers.push(number);
+    } else {
+      notes.push(`A(z) ${number}. tulajdonos aránya ${String(share).replace(".", ",")}%: PEP-nyilatkozat nem készül hozzá (a 25% alatti tag nem tényleges tulajdonos; ha mégis meghatározó befolyása van, kézzel kell).`);
+    }
+  });
+  if (list.length > 0 && !someReaches && !someShareUnknown) notes.push(NO_BENEFICIAL_OWNER_WARNING);
+  return { numbers, notes };
+}
+
 /** A name compared as a person's name: case, spaces and the edges do not matter. */
 const sameName = (a: string | undefined, b: string | undefined): boolean => {
   const plain = (s: string | undefined) => (s || "").toLowerCase().replace(/\s+/g, " ").trim();

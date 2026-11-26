@@ -58,7 +58,7 @@ import {
 import { buildConditionalContext, replaceShortcodes } from "@/lib/contract-shortcodes";
 import { fillOfficialPostalAuthPDF, type OfficialPostalAuthData } from "@/lib/pdf-generators/postal-authorization";
 import { planDownloads, type DownloadItem, type DownloadKind } from "@/lib/docx-selection";
-import { PROVIDER_NAME, buildDocxData, deliveryContractWarning, docxContractProblem, ownerDataAliases, packageDocuments } from "@/lib/docx-data";
+import { PROVIDER_NAME, buildDocxData, deliveryContractWarning, docxContractProblem, ownerDataAliases, packageDocuments, pepOwnersOf } from "@/lib/docx-data";
 
 const FUNCTIONS_BASE_URL = process.env.NEXT_PUBLIC_FUNCTIONS_URL || "https://us-central1-emarketplace-8aab1.cloudfunctions.net";
 
@@ -609,16 +609,23 @@ export default function ContractsPage() {
     }
     setIsGeneratingPdf(true);
     try {
-      const plan = planDownloads(docxTemplates, owners.length, packageDocuments(selectedContract.packageId, selectedContract.serviceType));
+      // a declaration of public figure status is made for the beneficial owners (25 per cent or more), the data sheet for every member (legal review 2026-11-26, msg 3933)
+      const pepRule = pepOwnersOf(owners);
+      const plan = planDownloads(docxTemplates, owners.length, packageDocuments(selectedContract.packageId, selectedContract.serviceType), { pepOwners: pepRule.numbers });
       const items = plan.items.filter((item) => kinds.includes(item.kind));
       const problems = plan.problems.filter((problem) => kinds.includes(problem.kind)).map((problem) => problem.message);
+      // what the admin should know about who gets a declaration and who does not: a warning, never a stop
+      const pepNotes = kinds.includes("pep") ? pepRule.notes : [];
+      if (pepNotes.length > 0) alert(pepNotes.join("\n\n"));
       if (items.length === 0 && problems.length === 0) {
-        // a package with delivery whose delivery template is not uploaded yet is not "no document for this package"
-        alert(
-          kinds.includes("delivery") && packageDocuments(selectedContract.packageId, selectedContract.serviceType).delivery
-            ? "A kézbesítési szerződés sablonja még nincs feltöltve."
-            : "Ehhez a csomaghoz nincs ilyen dokumentum."
-        );
+        // a package with delivery whose delivery template is not uploaded yet is not "no document for this package"; no declaration at all is told by the notes above
+        if (pepNotes.length === 0) {
+          alert(
+            kinds.includes("delivery") && packageDocuments(selectedContract.packageId, selectedContract.serviceType).delivery
+              ? "A kézbesítési szerződés sablonja még nincs feltöltve."
+              : "Ehhez a csomaghoz nincs ilyen dokumentum."
+          );
+        }
         return;
       }
       // the delivery agent template has the representative as the Principal: a warning, never a stop (legal review 2026-11-26, msg 3896 1/e)
