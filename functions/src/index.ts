@@ -229,6 +229,33 @@ type ContractData = {
   updatedAt?: unknown;
 };
 
+// A szolgáltatás megnevezése, ahogy az ügyfélnek és az adminnak kimenő levélben
+// szerepel. Ugyanaz a tíz érték, mint a src/lib/service-types.ts-ben; a functions
+// külön csomag, nem importálhat onnan, ezért a tests/service-types.test.mjs tartja
+// egyenlőként a kettőt.
+//
+// Korábban három, egymással egyező tábla állt itt egy régi, német piacra szánt
+// termékből ("szekhely-de", "virtual-de"), és a tíz valódi szolgáltatás közül egyet
+// ismert: ami nem volt benne, nyers azonosítóként ment ki a levélbe.
+const SERVICE_TYPE_LABELS: Record<string, string> = {
+  "szekhely-hu": "Székhelyszolgáltatás (magyar)",
+  "szekhely-kulfoldi": "Székhelyszolgáltatás (külföldi)",
+  "kezbesitesi": "Kézbesítési megbízott",
+  "szerzodeses-irodaberles": "Virtuális iroda",
+  "szekhely-kezbesitesi-hu": "Székhely + Kézbesítési (magyar)",
+  "szekhely-kezbesitesi-kulfoldi": "Székhely + Kézbesítési (külföldi)",
+  "iroda-hu": "Iroda csomag (magyar)",
+  "iroda-kulfoldi": "Iroda csomag (külföldi)",
+  "iroda-kezbesitesi-hu": "Teljes csomag (magyar)",
+  "iroda-kezbesitesi-kulfoldi": "Teljes csomag (külföldi)",
+};
+
+const serviceTypeLabel = (serviceType: string | undefined | null): string => {
+  const id = (serviceType || "").trim();
+  if (!id) return "";
+  return SERVICE_TYPE_LABELS[id] || id;
+};
+
 const safeString = (value: unknown): string =>
   typeof value === "string" ? value.trim() : "";
 
@@ -317,11 +344,6 @@ const buildContractHtml = (data: ContractData): string => {
   }
 
   const companyTypeLabel = company.isNew ? "Új cég alapítása" : "Meglévő cég székhelyének áthelyezése";
-  const serviceTypeMap: Record<string, string> = {
-    "szekhely-hu": "Magyarországi székhelyszolgáltatás",
-    "szekhely-de": "Németországi székhelyszolgáltatás",
-    "virtual-de": "Virtuális iroda Németországban"
-  };
 
   return `
     <div style="font-family: Arial, sans-serif; line-height: 1.5">
@@ -338,7 +360,7 @@ const buildContractHtml = (data: ContractData): string => {
       <p><strong>Főtevékenység:</strong> ${escapeHtml(company.mainActivityCode)} ${escapeHtml(company.mainActivity)}</p>
 
       <h3 style="color: #3f3f46; margin-top: 24px;">Szolgáltatás</h3>
-      <p><strong>Típus:</strong> ${serviceTypeMap[data.serviceType ?? ""] || escapeHtml(data.serviceType)}</p>
+      <p><strong>Típus:</strong> ${escapeHtml(serviceTypeLabel(data.serviceType))}</p>
       <p><strong>Csomag:</strong> ${escapeHtml(data.packageId)}</p>
       <p><strong>Havi díj:</strong> ${data.monthlyPrice?.toLocaleString("hu-HU")} Ft</p>
       <p><strong>Éves díj:</strong> ${data.annualPrice?.toLocaleString("hu-HU")} Ft</p>
@@ -550,18 +572,13 @@ const compileContractAdminTemplate = (
   const rawMjml = safeString(template.mjml);
   if (!rawMjml) return null;
 
-  const serviceTypeMap: Record<string, string> = {
-    "szekhely-hu": "Magyarországi székhelyszolgáltatás",
-    "szekhely-de": "Németországi székhelyszolgáltatás",
-    "virtual-de": "Virtuális iroda Németországban",
-  };
 
   const variables: Record<string, string> = {
     companyName: escapeHtml(data.company?.name),
     shortName: escapeHtml(data.company?.shortName),
     legalForm: escapeHtml(data.company?.legalForm),
     isNewCompany: escapeHtml(data.company?.isNew ? "Új cég alapítása" : "Meglévő cég székhelyének áthelyezése"),
-    serviceType: escapeHtml(serviceTypeMap[data.serviceType ?? ""] || data.serviceType),
+    serviceType: escapeHtml(serviceTypeLabel(data.serviceType)),
     packageId: escapeHtml(data.packageId),
     monthlyPrice: data.monthlyPrice?.toLocaleString("hu-HU") ?? "",
     annualPrice: data.annualPrice?.toLocaleString("hu-HU") ?? "",
@@ -1112,11 +1129,6 @@ export const sendContractEmail = onDocumentCreated(
       const tpl = settings.contractTemplateHu;
 
       // Create contract-specific template variables with all available fields
-      const serviceTypeMap: Record<string, string> = {
-        "szekhely-hu": "Magyarországi székhelyszolgáltatás",
-        "szekhely-de": "Németországi székhelyszolgáltatás",
-        "virtual-de": "Virtuális iroda Németországban"
-      };
 
       const isNewCompany = data.company?.isNew
         ? "Új cég alapítása"
@@ -1129,7 +1141,7 @@ export const sendContractEmail = onDocumentCreated(
         companyName: escapeHtml(data.company?.name),
         shortName: escapeHtml(data.company?.shortName),
         legalForm: escapeHtml(data.company?.legalForm),
-        serviceType: escapeHtml(serviceTypeMap[data.serviceType ?? ""] || data.serviceType),
+        serviceType: escapeHtml(serviceTypeLabel(data.serviceType)),
         packageId: escapeHtml(data.packageId),
         monthlyPrice: data.monthlyPrice?.toLocaleString("hu-HU") ?? "",
         annualPrice: data.annualPrice?.toLocaleString("hu-HU") ?? "",

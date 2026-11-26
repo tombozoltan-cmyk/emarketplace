@@ -37,6 +37,7 @@ import {
   Check,
 } from "lucide-react";
 import { firestoreDb } from "@/lib/firebase";
+import { SERVICE_TYPE_LABELS } from "@/lib/service-types";
 import { firebaseAuth } from "@/lib/firebase-auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -68,14 +69,12 @@ type ContractDoc = ContractData & {
   updatedAt?: Timestamp;
 };
 
-const PACKAGE_NAMES: Record<string, string> = {
-  "szekhely-hu": "Székhely - Magyar",
-  "szekhely-kulfoldi": "Székhely - Külföldi",
-  "kezbesitesi": "Kézbesítési megbízott",
-  "szerzodeses-irodaberles": "Virtuális iroda",
-  "szekhely-kezbesitesi-hu": "Teljes csomag - Magyar",
-  "szekhely-kezbesitesi-kulfoldi": "Teljes csomag - Külföldi",
-};
+// A csomag neve az ügyfélnek kimenő iratba is bekerül ({{SZOLGALTATAS_TIPUS}}), ezért
+// a megnevezés a src/lib/service-types.ts közös táblájából jön. Az itteni, hiányos
+// változatból épp a négy legdrágább csomag maradt ki (iroda-hu, iroda-kulfoldi,
+// iroda-kezbesitesi-hu, iroda-kezbesitesi-kulfoldi), így azoknál a nyers azonosító
+// került az iratba szolgáltatásnévként.
+const PACKAGE_NAMES = SERVICE_TYPE_LABELS;
 
 const FALLBACK_STATUS = { label: "Ismeretlen", variant: "default" as const };
 const STATUS_CONFIG: Record<string, { label: string; variant: "default" | "success" | "warning" | "error" | "info" }> = {
