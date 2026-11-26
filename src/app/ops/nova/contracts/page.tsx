@@ -57,6 +57,7 @@ import {
 } from "@/components/admin";
 import { buildConditionalContext, replaceShortcodes } from "@/lib/contract-shortcodes";
 import { fillOfficialPostalAuthPDF, type OfficialPostalAuthData } from "@/lib/pdf-generators/postal-authorization";
+import { planDownloads, type DownloadItem, type DownloadKind } from "@/lib/docx-selection";
 
 const FUNCTIONS_BASE_URL = process.env.NEXT_PUBLIC_FUNCTIONS_URL || "https://us-central1-emarketplace-8aab1.cloudfunctions.net";
 
@@ -499,24 +500,12 @@ export default function ContractsPage() {
   };
 
 
+  // "Összes letöltése": the same documents, from the same templates, as the single buttons (the contract, the data sheet and the declaration
+  // of every owner), then the postal authorisation PDFs.
   const handleGenerateAll = async () => {
-    if (!selectedContract) return;
-    setIsGeneratingPdf(true);
-    try {
-      // Generate all documents using DOCX templates
-      await generateDocxByCategory("Szerződés", "Szerzodes");
-      await new Promise((r) => setTimeout(r, 500));
-      await generateDocxByCategory("Adatlap", "Atvilagitas");
-      await new Promise((r) => setTimeout(r, 500));
-      await generateDocxByCategory("Nyilatkozat", "PEP_nyilatkozat");
-      await new Promise((r) => setTimeout(r, 500));
-      await generateDocxByCategory("Egyéb", "Meghatalmazas");
-    } catch (error) {
-      console.error("DOCX generation error:", error);
-      alert("Hiba a dokumentum generálás során!");
-    } finally {
-      setIsGeneratingPdf(false);
-    }
+    await runDocxDownloads(["contract", "kyc", "pep"]);
+    await new Promise((r) => setTimeout(r, 500));
+    await generatePostalAuthDoc();
   };
 
   const handlePrint = () => {
@@ -527,12 +516,6 @@ export default function ContractsPage() {
   const createPdfBlobUrl = (pdfBytes: Uint8Array): string => {
     const blob = new Blob([new Uint8Array(pdfBytes)], { type: "application/pdf" });
     return URL.createObjectURL(blob);
-  };
-
-  // Helper: Extract owner number from template name (e.g., "{TULAJDONOS_2_NEV}" -> 2)
-  const getOwnerNumberFromTemplateName = (templateName: string): number | null => {
-    const match = templateName.match(/\{TULAJDONOS_(\d)_NEV\}/);
-    return match ? parseInt(match[1], 10) : null;
   };
 
   // Generate single DOCX document from a specific template
@@ -572,107 +555,55 @@ export default function ContractsPage() {
     URL.revokeObjectURL(url);
   };
 
-  // Generate DOCX documents for all owners (finds matching templates by owner number in name)
-  const generateDocxForAllOwners = async (category: string, fallbackTitle: string) => {
-    if (!selectedContract) return;
-    setIsGeneratingPdf(true);
-    try {
-      const owners = selectedContract.owners || [];
-      const ownerCount = owners.length;
-
-      if (ownerCount === 0) {
-        alert("Nincs tulajdonos megadva a szerződésben!");
-        return;
-      }
-
-      // Find all templates in this category
-      const templatesInCategory = docxTemplates.filter((t) => t.category === category);
-      if (templatesInCategory.length === 0) {
-        alert(`Nincs '${category}' kategóriájú DOCX sablon feltöltve.\n\nMenj a Sablonok menüpontra és tölts fel egy .docx fájlt ezzel a kategóriával!`);
-        return;
-      }
-
-      const shortcodeData = buildShortcodeDataFromContract(selectedContract);
-      const data: Record<string, string> = {};
-      Object.entries(shortcodeData).forEach(([key, value]) => {
-        const cleanKey = key.replace(/^\{\{|\}\}$/g, "");
-        data[cleanKey] = value;
-      });
-
-      const slug = selectedContract.company?.name?.replace(/\s+/g, "_") || "ceg";
-      let generatedCount = 0;
-
-      // Generate document for each owner that has a matching template
-      for (let ownerNum = 1; ownerNum <= ownerCount; ownerNum++) {
-        // Find template for this owner number
-        const template = templatesInCategory.find((t) => {
-          const templateOwnerNum = getOwnerNumberFromTemplateName(t.name);
-          return templateOwnerNum === ownerNum;
-        });
-
-        if (template) {
-          const ownerName = owners[ownerNum - 1]?.natural?.fullName || 
-                           owners[ownerNum - 1]?.legal?.companyName || 
-                           `tulajdonos_${ownerNum}`;
-          const safeOwnerName = ownerName.replace(/\s+/g, "_").replace(/[^a-zA-Z0-9_áéíóöőúüűÁÉÍÓÖŐÚÜŰ]/g, "");
-          const filename = `${fallbackTitle.toLowerCase()}_${ownerNum}_${safeOwnerName}_${new Date().toISOString().slice(0, 10)}.docx`;
-          
-          await generateSingleDocx(template, data, filename);
-          generatedCount++;
-        }
-      }
-
-      if (generatedCount === 0) {
-        // Fallback: try to find any template without owner number pattern
-        const genericTemplate = templatesInCategory.find((t) => !getOwnerNumberFromTemplateName(t.name));
-        if (genericTemplate) {
-          const filename = `${fallbackTitle.toLowerCase()}_${slug}_${new Date().toISOString().slice(0, 10)}.docx`;
-          await generateSingleDocx(genericTemplate, data, filename);
-          generatedCount = 1;
-        }
-      }
-
-      if (generatedCount === 0) {
-        alert(`Nem található megfelelő sablon a(z) ${ownerCount} tulajdonoshoz.\n\nEllenőrizd, hogy a sablon nevében szerepel-e a {TULAJDONOS_X_NEV} minta!`);
-      } else if (generatedCount < ownerCount) {
-        alert(`${generatedCount} dokumentum generálva ${ownerCount} tulajdonosból.\n\nHiányzó sablonok lehetnek!`);
-      }
-    } catch (error) {
-      console.error("DOCX generation error:", error);
-      alert(`Hiba a dokumentum generálásakor: ${error instanceof Error ? error.message : "Ismeretlen hiba"}`);
-    } finally {
-      setIsGeneratingPdf(false);
-    }
+  // The data of the contract for the templates: the shortcodes without their braces (the keys the server fills the {NAME} tags with)
+  const docxDataOf = (contract: ContractDoc): Record<string, string> => {
+    const data: Record<string, string> = {};
+    Object.entries(buildShortcodeDataFromContract(contract)).forEach(([key, value]) => {
+      data[key.replace(/^\{\{|\}\}$/g, "")] = value;
+    });
+    return data;
   };
 
-  // Generate DOCX document from template by category (for single-owner docs like contract)
-  const generateDocxByCategory = async (category: string, fallbackTitle: string) => {
+  // One document of the plan; the file name of an owner's document carries the owner's number and name
+  const downloadDocxItem = async (item: DownloadItem, contract: ContractDoc, data: Record<string, string>) => {
+    const date = new Date().toISOString().slice(0, 10);
+    if (item.kind === "contract") {
+      const slug = contract.company?.name?.replace(/\s+/g, "_") || "ceg";
+      await generateSingleDocx(item.template, data, `szerzodes_${slug}_${date}.docx`);
+      return;
+    }
+    const ownerNumber = item.ownerNumber ?? 1;
+    const owner = (contract.owners || [])[ownerNumber - 1];
+    const ownerName = owner?.natural?.fullName || owner?.legal?.companyName || `tulajdonos_${ownerNumber}`;
+    const safeOwnerName = ownerName.replace(/\s+/g, "_").replace(/[^a-zA-Z0-9_áéíóöőúüűÁÉÍÓÖŐÚÜŰ]/g, "");
+    const title = item.kind === "kyc" ? "atvilagitas" : "pep_nyilatkozat";
+    await generateSingleDocx(item.template, data, `${title}_${ownerNumber}_${safeOwnerName}_${date}.docx`);
+  };
+
+  // The DOCX documents of the given kinds, always from the plan of src/lib/docx-selection.ts: the single buttons and "Összes letöltése" use this
+  // one function. What cannot be planned (no template, an ambiguous category) is told; nothing is downloaded from a guessed template.
+  const runDocxDownloads = async (kinds: DownloadKind[]) => {
     if (!selectedContract) return;
+    const owners = selectedContract.owners || [];
+    if (owners.length === 0 && kinds.some((kind) => kind !== "contract")) {
+      alert("Nincs tulajdonos megadva a szerződésben!");
+      return;
+    }
     setIsGeneratingPdf(true);
     try {
-      // Find template by category (use first one, or one without owner pattern)
-      console.log("Looking for category:", category);
-      console.log("Available templates:", docxTemplates.map(t => ({ name: t.name, category: t.category })));
-      const templatesInCategory = docxTemplates.filter((t) => t.category === category);
-      console.log("Found templates:", templatesInCategory);
-      const template = templatesInCategory.find((t) => !getOwnerNumberFromTemplateName(t.name)) || templatesInCategory[0];
-      
-      if (!template) {
-        alert(`Nincs '${category}' kategóriájú DOCX sablon feltöltve.\n\nMenj a Sablonok menüpontra és tölts fel egy .docx fájlt ezzel a kategóriával!\n\nElérhető kategóriák: ${[...new Set(docxTemplates.map(t => t.category))].join(", ")}`);
-        return;
+      const plan = planDownloads(docxTemplates, owners.length);
+      const items = plan.items.filter((item) => kinds.includes(item.kind));
+      const problems = plan.problems.filter((problem) => kinds.includes(problem.kind)).map((problem) => problem.message);
+      const data = docxDataOf(selectedContract);
+      let downloaded = 0;
+      for (const item of items) {
+        if (downloaded > 0) await new Promise((r) => setTimeout(r, 500));
+        await downloadDocxItem(item, selectedContract, data);
+        downloaded++;
       }
-
-      const shortcodeData = buildShortcodeDataFromContract(selectedContract);
-      const data: Record<string, string> = {};
-      Object.entries(shortcodeData).forEach(([key, value]) => {
-        const cleanKey = key.replace(/^\{\{|\}\}$/g, "");
-        data[cleanKey] = value;
-      });
-
-      const slug = selectedContract.company?.name?.replace(/\s+/g, "_") || "ceg";
-      const filename = `${fallbackTitle.toLowerCase().replace(/\s+/g, "_")}_${slug}_${new Date().toISOString().slice(0, 10)}.docx`;
-
-      await generateSingleDocx(template, data, filename);
+      if (problems.length > 0) {
+        alert(`${downloaded} dokumentum letöltve.\n\nNem készült el:\n- ${problems.join("\n- ")}`);
+      }
     } catch (error) {
       console.error("DOCX generation error:", error);
       alert(`Hiba a dokumentum generálásakor: ${error instanceof Error ? error.message : "Ismeretlen hiba"}`);
@@ -727,30 +658,15 @@ export default function ContractsPage() {
   };
 
   const generateContract = async () => {
-    await generateDocxByCategory("Szerződés", "Szerzodes");
+    await runDocxDownloads(["contract"]);
   };
 
   const generateKyc = async () => {
-    await generateDocxForAllOwners("Adatlap", "atvilagitas");
+    await runDocxDownloads(["kyc"]);
   };
 
   const generatePepDoc = async () => {
-    await generateDocxForAllOwners("Nyilatkozat", "pep_nyilatkozat");
-  };
-
-  const generateConsentDoc = async () => {
-    // Try exact category match first, then fallback to name-based search
-    const exactMatch = docxTemplates.find((t) => t.category === "Hozzájáruló nyilatkozat");
-    const nameMatch = docxTemplates.find((t) => t.name.toLowerCase().includes("hozzájárul"));
-    const template = exactMatch || nameMatch;
-    
-    if (!template) {
-      alert(`Nincs 'Hozzájáruló nyilatkozat' sablon feltöltve.\n\nMenj a Sablonok menüpontra és tölts fel egy .docx fájlt ezzel a kategóriával!`);
-      return;
-    }
-    
-    // Use the found template's category for generation
-    await generateDocxByCategory(template.category, "Hozzajarulo_nyilatkozat");
+    await runDocxDownloads(["pep"]);
   };
 
   const generatePostalAuthDoc = async () => {
@@ -1086,10 +1002,6 @@ export default function ContractsPage() {
                 <Button variant="outline" size="sm" className="justify-start" onClick={generatePepDoc} disabled={isGeneratingPdf}>
                   <Download className="w-4 h-4 mr-2" />
                   PEP nyilatkozat
-                </Button>
-                <Button variant="outline" size="sm" className="justify-start" onClick={generateConsentDoc} disabled={isGeneratingPdf}>
-                  <Download className="w-4 h-4 mr-2" />
-                  Hozzájáruló nyil.
                 </Button>
                 <Button variant="outline" size="sm" className="justify-start" onClick={generatePostalAuthDoc} disabled={isGeneratingPdf}>
                   <Download className="w-4 h-4 mr-2" />
