@@ -37,10 +37,11 @@ import {
   Check,
 } from "lucide-react";
 import { firestoreDb } from "@/lib/firebase";
+import { SERVICE_TYPE_LABELS } from "@/lib/service-types";
 import { firebaseAuth } from "@/lib/firebase-auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import type { ContractData, ContractStatus } from "@/lib/contract-types";
+import { NATIONALITIES, type ContractData, type ContractStatus } from "@/lib/contract-types";
 import Link from "next/link";
 import {
   AdminLayout,
@@ -58,6 +59,8 @@ import {
 import { buildConditionalContext, replaceShortcodes } from "@/lib/contract-shortcodes";
 import { fillOfficialPostalAuthPDF, type OfficialPostalAuthData } from "@/lib/pdf-generators/postal-authorization";
 import { idTypeLabel, uploadedDocumentLabel } from "@/lib/id-documents";
+import { planDownloads, type DownloadItem, type DownloadKind } from "@/lib/docx-selection";
+import { PROVIDER_NAME, buildDocxData, deliveryContractWarning, docxContractProblem, ownerDataAliases, packageDocuments, pepOwnersOf } from "@/lib/docx-data";
 
 const FUNCTIONS_BASE_URL = process.env.NEXT_PUBLIC_FUNCTIONS_URL || "https://us-central1-emarketplace-8aab1.cloudfunctions.net";
 
@@ -67,14 +70,12 @@ type ContractDoc = ContractData & {
   updatedAt?: Timestamp;
 };
 
-const PACKAGE_NAMES: Record<string, string> = {
-  "szekhely-hu": "Székhely - Magyar",
-  "szekhely-kulfoldi": "Székhely - Külföldi",
-  "kezbesitesi": "Kézbesítési megbízott",
-  "szerzodeses-irodaberles": "Virtuális iroda",
-  "szekhely-kezbesitesi-hu": "Teljes csomag - Magyar",
-  "szekhely-kezbesitesi-kulfoldi": "Teljes csomag - Külföldi",
-};
+// A csomag neve az ügyfélnek kimenő iratba is bekerül ({{SZOLGALTATAS_TIPUS}}), ezért
+// a megnevezés a src/lib/service-types.ts közös táblájából jön. Az itteni, hiányos
+// változatból épp a négy legdrágább csomag maradt ki (iroda-hu, iroda-kulfoldi,
+// iroda-kezbesitesi-hu, iroda-kezbesitesi-kulfoldi), így azoknál a nyers azonosító
+// került az iratba szolgáltatásnévként.
+const PACKAGE_NAMES = SERVICE_TYPE_LABELS;
 
 const FALLBACK_STATUS = { label: "Ismeretlen", variant: "default" as const };
 const STATUS_CONFIG: Record<string, { label: string; variant: "default" | "success" | "warning" | "error" | "info" }> = {
@@ -109,7 +110,7 @@ export default function ContractsPage() {
   const [previewPdf, setPreviewPdf] = useState<{ url: string; title: string } | null>(null);
   const [templatePreviewHtml, setTemplatePreviewHtml] = useState<string | null>(null);
   const [templatePreviewTitle, setTemplatePreviewTitle] = useState<string>("");
-  const [docxTemplates, setDocxTemplates] = useState<{ id: string; name: string; category: string }[]>([]);
+  const [docxTemplates, setDocxTemplates] = useState<{ id: string; name: string; category: string; docKey?: string }[]>([]);
   
   // Inline editing state
   const [editingSection, setEditingSection] = useState<string | null>(null);
@@ -135,6 +136,7 @@ export default function ContractsPage() {
           id: d.id,
           name: d.data().name as string,
           category: d.data().category as string,
+          docKey: (d.data().docKey as string | undefined) || undefined,
         }));
         setDocxTemplates(docs);
       }
@@ -274,7 +276,7 @@ export default function ContractsPage() {
       companyRegistrationNumber: contract.company?.registrationNumber,
       companyTaxNumber: contract.company?.taxNumber,
       companyMainActivity: contract.company?.mainActivity,
-      isNewCompany: contract.company?.isNew ?? true,
+      isNewCompany: contract.company?.isNew === true,
       owners: (contract.owners || []).map((o) => ({
         fullName: o.natural?.fullName || "",
         birthName: o.natural?.birthName,
@@ -400,7 +402,7 @@ export default function ContractsPage() {
       "{{EVES_DIJ_SZOVEG}}": annualFee.toLocaleString("hu-HU"),
       "{{SZOLGALTATAS_TIPUS}}": PACKAGE_NAMES[contract.packageId || ""] || contract.packageId || "",
       // Szolgáltató
-      "{{SZOLGALTATO_NEV}}": "E-Marketplace Kft.",
+      "{{SZOLGALTATO_NEV}}": PROVIDER_NAME,
       "{{SZOLGALTATO_CIM}}": "1064 Budapest, Izabella utca 68/b.",
       // Dátumok
       "{{DATUM}}": date.toLocaleDateString("hu-HU"),
@@ -500,24 +502,12 @@ export default function ContractsPage() {
   };
 
 
+  // "Összes letöltése": the same documents, from the same templates, as the single buttons (the contract, the data sheet and the declaration
+  // of every owner), then the postal authorisation PDFs.
   const handleGenerateAll = async () => {
-    if (!selectedContract) return;
-    setIsGeneratingPdf(true);
-    try {
-      // Generate all documents using DOCX templates
-      await generateDocxByCategory("Szerződés", "Szerzodes");
-      await new Promise((r) => setTimeout(r, 500));
-      await generateDocxByCategory("Adatlap", "Atvilagitas");
-      await new Promise((r) => setTimeout(r, 500));
-      await generateDocxByCategory("Nyilatkozat", "PEP_nyilatkozat");
-      await new Promise((r) => setTimeout(r, 500));
-      await generateDocxByCategory("Egyéb", "Meghatalmazas");
-    } catch (error) {
-      console.error("DOCX generation error:", error);
-      alert("Hiba a dokumentum generálás során!");
-    } finally {
-      setIsGeneratingPdf(false);
-    }
+    await runDocxDownloads(["contract", "delivery", "kyc", "pep"]);
+    await new Promise((r) => setTimeout(r, 500));
+    await generatePostalAuthDoc();
   };
 
   const handlePrint = () => {
@@ -528,12 +518,6 @@ export default function ContractsPage() {
   const createPdfBlobUrl = (pdfBytes: Uint8Array): string => {
     const blob = new Blob([new Uint8Array(pdfBytes)], { type: "application/pdf" });
     return URL.createObjectURL(blob);
-  };
-
-  // Helper: Extract owner number from template name (e.g., "{TULAJDONOS_2_NEV}" -> 2)
-  const getOwnerNumberFromTemplateName = (templateName: string): number | null => {
-    const match = templateName.match(/\{TULAJDONOS_(\d)_NEV\}/);
-    return match ? parseInt(match[1], 10) : null;
   };
 
   // Generate single DOCX document from a specific template
@@ -573,107 +557,91 @@ export default function ContractsPage() {
     URL.revokeObjectURL(url);
   };
 
-  // Generate DOCX documents for all owners (finds matching templates by owner number in name)
-  const generateDocxForAllOwners = async (category: string, fallbackTitle: string) => {
-    if (!selectedContract) return;
-    setIsGeneratingPdf(true);
-    try {
-      const owners = selectedContract.owners || [];
-      const ownerCount = owners.length;
-
-      if (ownerCount === 0) {
-        alert("Nincs tulajdonos megadva a szerződésben!");
-        return;
-      }
-
-      // Find all templates in this category
-      const templatesInCategory = docxTemplates.filter((t) => t.category === category);
-      if (templatesInCategory.length === 0) {
-        alert(`Nincs '${category}' kategóriájú DOCX sablon feltöltve.\n\nMenj a Sablonok menüpontra és tölts fel egy .docx fájlt ezzel a kategóriával!`);
-        return;
-      }
-
-      const shortcodeData = buildShortcodeDataFromContract(selectedContract);
-      const data: Record<string, string> = {};
-      Object.entries(shortcodeData).forEach(([key, value]) => {
-        const cleanKey = key.replace(/^\{\{|\}\}$/g, "");
-        data[cleanKey] = value;
-      });
-
-      const slug = selectedContract.company?.name?.replace(/\s+/g, "_") || "ceg";
-      let generatedCount = 0;
-
-      // Generate document for each owner that has a matching template
-      for (let ownerNum = 1; ownerNum <= ownerCount; ownerNum++) {
-        // Find template for this owner number
-        const template = templatesInCategory.find((t) => {
-          const templateOwnerNum = getOwnerNumberFromTemplateName(t.name);
-          return templateOwnerNum === ownerNum;
-        });
-
-        if (template) {
-          const ownerName = owners[ownerNum - 1]?.natural?.fullName || 
-                           owners[ownerNum - 1]?.legal?.companyName || 
-                           `tulajdonos_${ownerNum}`;
-          const safeOwnerName = ownerName.replace(/\s+/g, "_").replace(/[^a-zA-Z0-9_áéíóöőúüűÁÉÍÓÖŐÚÜŰ]/g, "");
-          const filename = `${fallbackTitle.toLowerCase()}_${ownerNum}_${safeOwnerName}_${new Date().toISOString().slice(0, 10)}.docx`;
-          
-          await generateSingleDocx(template, data, filename);
-          generatedCount++;
-        }
-      }
-
-      if (generatedCount === 0) {
-        // Fallback: try to find any template without owner number pattern
-        const genericTemplate = templatesInCategory.find((t) => !getOwnerNumberFromTemplateName(t.name));
-        if (genericTemplate) {
-          const filename = `${fallbackTitle.toLowerCase()}_${slug}_${new Date().toISOString().slice(0, 10)}.docx`;
-          await generateSingleDocx(genericTemplate, data, filename);
-          generatedCount = 1;
-        }
-      }
-
-      if (generatedCount === 0) {
-        alert(`Nem található megfelelő sablon a(z) ${ownerCount} tulajdonoshoz.\n\nEllenőrizd, hogy a sablon nevében szerepel-e a {TULAJDONOS_X_NEV} minta!`);
-      } else if (generatedCount < ownerCount) {
-        alert(`${generatedCount} dokumentum generálva ${ownerCount} tulajdonosból.\n\nHiányzó sablonok lehetnek!`);
-      }
-    } catch (error) {
-      console.error("DOCX generation error:", error);
-      alert(`Hiba a dokumentum generálásakor: ${error instanceof Error ? error.message : "Ismeretlen hiba"}`);
-    } finally {
-      setIsGeneratingPdf(false);
-    }
+  // The data of the contract for the templates: the shortcodes without their braces (the keys the server fills the {NAME} tags with)
+  const docxDataOf = (contract: ContractDoc): Record<string, string> => {
+    const data: Record<string, string> = {};
+    Object.entries(buildShortcodeDataFromContract(contract)).forEach(([key, value]) => {
+      data[key.replace(/^\{\{|\}\}$/g, "")] = value;
+    });
+    // the tags of the new templates (and the corrected values of the old ones: the address of the seat, the nationality as a name, the legal form once)
+    // come from src/lib/docx-data.ts and win over the old values
+    const nationalityLabel = (value: string) => NATIONALITIES.find((n) => n.value === value)?.label.hu ?? value;
+    const nationalityLabelEn = (value: string) => NATIONALITIES.find((n) => n.value === value)?.label.en ?? value;
+    Object.assign(data, buildDocxData(contract, { nationalityLabel, nationalityLabelEn }));
+    return data;
   };
 
-  // Generate DOCX document from template by category (for single-owner docs like contract)
-  const generateDocxByCategory = async (category: string, fallbackTitle: string) => {
+  // One document of the plan; the file name of an owner's document carries the owner's number and name
+  const downloadDocxItem = async (item: DownloadItem, contract: ContractDoc, data: Record<string, string>) => {
+    const date = new Date().toISOString().slice(0, 10);
+    if (item.kind === "contract") {
+      const slug = contract.company?.name?.replace(/\s+/g, "_") || "ceg";
+      await generateSingleDocx(item.template, data, `szerzodes_${slug}_${date}.docx`);
+      return;
+    }
+    if (item.kind === "delivery") {
+      const slug = contract.company?.name?.replace(/\s+/g, "_") || "ceg";
+      await generateSingleDocx(item.template, data, `kezbesitesi_${slug}_${date}.docx`);
+      return;
+    }
+    const ownerNumber = item.ownerNumber ?? 1;
+    const owner = (contract.owners || [])[ownerNumber - 1];
+    const ownerName = owner?.natural?.fullName || owner?.legal?.companyName || `tulajdonos_${ownerNumber}`;
+    const safeOwnerName = ownerName.replace(/\s+/g, "_").replace(/[^a-zA-Z0-9_áéíóöőúüűÁÉÍÓÖŐÚÜŰ]/g, "");
+    const title = item.kind === "kyc" ? "atvilagitas" : "pep_nyilatkozat";
+    await generateSingleDocx(item.template, data, `${title}_${ownerNumber}_${safeOwnerName}_${date}.docx`);
+  };
+
+  // The DOCX documents of the given kinds, always from the plan of src/lib/docx-selection.ts: the single buttons and "Összes letöltése" use this
+  // one function. What cannot be planned (no template, an ambiguous category) is told; nothing is downloaded from a guessed template.
+  const runDocxDownloads = async (kinds: DownloadKind[]) => {
     if (!selectedContract) return;
+    // the text of the contracts depends on whether the company is new and on the package: not guessed, the download stops with the reason
+    const problem = docxContractProblem(selectedContract);
+    if (problem) {
+      alert(problem);
+      return;
+    }
+    const owners = selectedContract.owners || [];
+    if (owners.length === 0 && kinds.some((kind) => kind !== "contract")) {
+      alert("Nincs tulajdonos megadva a szerződésben!");
+      return;
+    }
     setIsGeneratingPdf(true);
     try {
-      // Find template by category (use first one, or one without owner pattern)
-      console.log("Looking for category:", category);
-      console.log("Available templates:", docxTemplates.map(t => ({ name: t.name, category: t.category })));
-      const templatesInCategory = docxTemplates.filter((t) => t.category === category);
-      console.log("Found templates:", templatesInCategory);
-      const template = templatesInCategory.find((t) => !getOwnerNumberFromTemplateName(t.name)) || templatesInCategory[0];
-      
-      if (!template) {
-        alert(`Nincs '${category}' kategóriájú DOCX sablon feltöltve.\n\nMenj a Sablonok menüpontra és tölts fel egy .docx fájlt ezzel a kategóriával!\n\nElérhető kategóriák: ${[...new Set(docxTemplates.map(t => t.category))].join(", ")}`);
+      // a declaration of public figure status is made for the beneficial owners (25 per cent or more), the data sheet for every member (legal review 2026-11-26, msg 3933)
+      const pepRule = pepOwnersOf(owners);
+      const plan = planDownloads(docxTemplates, owners.length, packageDocuments(selectedContract.packageId, selectedContract.serviceType), { pepOwners: pepRule.numbers });
+      const items = plan.items.filter((item) => kinds.includes(item.kind));
+      const problems = plan.problems.filter((problem) => kinds.includes(problem.kind)).map((problem) => problem.message);
+      // what the admin should know about who gets a declaration and who does not: a warning, never a stop
+      const pepNotes = kinds.includes("pep") ? pepRule.notes : [];
+      if (pepNotes.length > 0) alert(pepNotes.join("\n\n"));
+      if (items.length === 0 && problems.length === 0) {
+        // a package with delivery whose delivery template is not uploaded yet is not "no document for this package"; no declaration at all is told by the notes above
+        if (pepNotes.length === 0) {
+          alert(
+            kinds.includes("delivery") && packageDocuments(selectedContract.packageId, selectedContract.serviceType).delivery
+              ? "A kézbesítési szerződés sablonja még nincs feltöltve."
+              : "Ehhez a csomaghoz nincs ilyen dokumentum."
+          );
+        }
         return;
       }
-
-      const shortcodeData = buildShortcodeDataFromContract(selectedContract);
-      const data: Record<string, string> = {};
-      Object.entries(shortcodeData).forEach(([key, value]) => {
-        const cleanKey = key.replace(/^\{\{|\}\}$/g, "");
-        data[cleanKey] = value;
-      });
-
-      const slug = selectedContract.company?.name?.replace(/\s+/g, "_") || "ceg";
-      const filename = `${fallbackTitle.toLowerCase().replace(/\s+/g, "_")}_${slug}_${new Date().toISOString().slice(0, 10)}.docx`;
-
-      await generateSingleDocx(template, data, filename);
+      // the delivery agent template has the representative as the Principal: a warning, never a stop (legal review 2026-11-26, msg 3896 1/e)
+      const deliveryWarning = items.some((item) => item.kind === "delivery") ? deliveryContractWarning(selectedContract) : null;
+      if (deliveryWarning) alert(deliveryWarning);
+      const data = docxDataOf(selectedContract);
+      let downloaded = 0;
+      for (const item of items) {
+        if (downloaded > 0) await new Promise((r) => setTimeout(r, 500));
+        // the data sheet and the declaration are filled once per owner, with that owner's data under the tags without a number ({TULAJDONOS_NEV})
+        await downloadDocxItem(item, selectedContract, item.kind === "kyc" || item.kind === "pep" ? ownerDataAliases(data, item.ownerNumber ?? 1) : data);
+        downloaded++;
+      }
+      if (problems.length > 0) {
+        alert(`${downloaded} dokumentum letöltve.\n\nNem készült el:\n- ${problems.join("\n- ")}`);
+      }
     } catch (error) {
       console.error("DOCX generation error:", error);
       alert(`Hiba a dokumentum generálásakor: ${error instanceof Error ? error.message : "Ismeretlen hiba"}`);
@@ -728,30 +696,19 @@ export default function ContractsPage() {
   };
 
   const generateContract = async () => {
-    await generateDocxByCategory("Szerződés", "Szerzodes");
+    await runDocxDownloads(["contract"]);
+  };
+
+  const generateDelivery = async () => {
+    await runDocxDownloads(["delivery"]);
   };
 
   const generateKyc = async () => {
-    await generateDocxForAllOwners("Adatlap", "atvilagitas");
+    await runDocxDownloads(["kyc"]);
   };
 
   const generatePepDoc = async () => {
-    await generateDocxForAllOwners("Nyilatkozat", "pep_nyilatkozat");
-  };
-
-  const generateConsentDoc = async () => {
-    // Try exact category match first, then fallback to name-based search
-    const exactMatch = docxTemplates.find((t) => t.category === "Hozzájáruló nyilatkozat");
-    const nameMatch = docxTemplates.find((t) => t.name.toLowerCase().includes("hozzájárul"));
-    const template = exactMatch || nameMatch;
-    
-    if (!template) {
-      alert(`Nincs 'Hozzájáruló nyilatkozat' sablon feltöltve.\n\nMenj a Sablonok menüpontra és tölts fel egy .docx fájlt ezzel a kategóriával!`);
-      return;
-    }
-    
-    // Use the found template's category for generation
-    await generateDocxByCategory(template.category, "Hozzajarulo_nyilatkozat");
+    await runDocxDownloads(["pep"]);
   };
 
   const generatePostalAuthDoc = async () => {
@@ -770,7 +727,7 @@ export default function ContractsPage() {
       
       // E-Marketplace Kft. adatai (meghatalmazott)
       const emarketplaceData = {
-        name: "E-Marketplace Kft.",
+        name: PROVIDER_NAME,
         address: "1064 Budapest, Izabella utca 68/b.",
         registrationNumber: "01-09-296567",
       };
@@ -1080,6 +1037,12 @@ export default function ContractsPage() {
                   <Download className="w-4 h-4 mr-2" />
                   Szerződés
                 </Button>
+                {packageDocuments(selectedContract.packageId, selectedContract.serviceType).delivery && (
+                  <Button variant="outline" size="sm" className="justify-start" onClick={generateDelivery} disabled={isGeneratingPdf}>
+                    <Download className="w-4 h-4 mr-2" />
+                    Kézbesítési szerződés
+                  </Button>
+                )}
                 <Button variant="outline" size="sm" className="justify-start" onClick={generateKyc} disabled={isGeneratingPdf}>
                   <Download className="w-4 h-4 mr-2" />
                   KYC adatlap
@@ -1087,10 +1050,6 @@ export default function ContractsPage() {
                 <Button variant="outline" size="sm" className="justify-start" onClick={generatePepDoc} disabled={isGeneratingPdf}>
                   <Download className="w-4 h-4 mr-2" />
                   PEP nyilatkozat
-                </Button>
-                <Button variant="outline" size="sm" className="justify-start" onClick={generateConsentDoc} disabled={isGeneratingPdf}>
-                  <Download className="w-4 h-4 mr-2" />
-                  Hozzájáruló nyil.
                 </Button>
                 <Button variant="outline" size="sm" className="justify-start" onClick={generatePostalAuthDoc} disabled={isGeneratingPdf}>
                   <Download className="w-4 h-4 mr-2" />
@@ -1143,6 +1102,23 @@ export default function ContractsPage() {
                         </div>
                       </div>
                       <div>
+                        <label className="text-[color:var(--muted-foreground)] text-xs">Új (alakuló) cég? A szerződések szövege ettől függ</label>
+                        <select
+                          value={editedCompany?.isNew === true ? "new" : editedCompany?.isNew === false ? "existing" : ""}
+                          onChange={(e) => {
+                            // "Nincs megadva" removes the field (Firestore does not take undefined); the type has it as required, the stored data may not
+                            const next: Partial<ContractDoc["company"]> = { ...editedCompany };
+                            delete next.isNew;
+                            setEditedCompany((e.target.value === "" ? next : { ...next, isNew: e.target.value === "new" }) as ContractDoc["company"]);
+                          }}
+                          className="h-8 w-full rounded-md border border-[color:var(--border)] bg-[color:var(--background)] px-2 text-sm"
+                        >
+                          <option value="">Nincs megadva</option>
+                          <option value="new">Új (alakuló) cég</option>
+                          <option value="existing">Meglévő cég</option>
+                        </select>
+                      </div>
+                      <div>
                         <label className="text-[color:var(--muted-foreground)] text-xs">Főtevékenység</label>
                         <Input value={editedCompany?.mainActivity || ""} onChange={(e) => setEditedCompany({ ...editedCompany, mainActivity: e.target.value })} className="h-8 text-sm" />
                       </div>
@@ -1170,6 +1146,10 @@ export default function ContractsPage() {
                       <div>
                         <dt className="text-[color:var(--muted-foreground)]">Főtevékenység</dt>
                         <dd>{selectedContract.company?.mainActivity || "-"}</dd>
+                      </div>
+                      <div>
+                        <dt className="text-[color:var(--muted-foreground)]">Cég típusa</dt>
+                        <dd>{selectedContract.company?.isNew === true ? "Új (alakuló) cég" : selectedContract.company?.isNew === false ? "Meglévő cég" : "Nincs megadva"}</dd>
                       </div>
                     </dl>
                   )}

@@ -7,6 +7,7 @@ import { firestoreDb } from "@/lib/firebase";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import type { ContractLanguage, ServiceType } from "@/lib/contract-types";
+import { serviceTypeForCard } from "@/lib/service-types";
 
 type PricingCard = {
   id: string;
@@ -23,23 +24,11 @@ type PricingCard = {
   features: { hu: string[]; en: string[] };
 };
 
-// Szolgáltatás típus mapping packageId alapján (Firestore doc ID-k)
-const PACKAGE_TO_SERVICE: Record<string, ServiceType> = {
-  // Alap csomagok
-  "basic-hu": "szekhely-hu",
-  "basic-foreign": "szekhely-kulfoldi",
-  "basic-delivery-agent": "kezbesitesi",
-  "basic-virtual-office": "szekhely-hu",
-  // Kombinált csomagok
-  "bundle-hu": "szekhely-kezbesitesi-hu",
-  "bundle-foreign": "szekhely-kezbesitesi-kulfoldi",
-  // Teljes csomagok
-  "full-hu": "iroda-kezbesitesi-hu",
-  "full-foreign": "iroda-kezbesitesi-kulfoldi",
-  // Iroda csomagok
-  "office-hu": "iroda-hu",
-  "office-foreign": "iroda-kulfoldi",
-};
+// A szolgáltatástípus leképezése a src/lib/service-types.ts-ben él, egy helyen.
+// Korábban itt állt egy tábla, ami az ár-kártyák DOKUMENTUM-AZONOSÍTÓIVAL volt
+// kulcsozva ("basic-hu"), a keresés viszont a kártya `packageId` MEZŐJÉVEL ment,
+// ami kanonikus ("szekhely-hu"). A két készlet metszete üres, tehát a keresés
+// mindig elvétett, és minden beküldés "szekhely-hu" típussal jött létre.
 
 // Ár kinyerése stringből (pl. "8 000 Ft" -> 8000)
 const parsePrice = (priceStr: string): number => {
@@ -106,7 +95,11 @@ export function Step2ServiceSelect({
   // TODO: később visszaállítható a csoportosítás ha a Firestore adatok rendben vannak
 
   const handleSelect = (card: PricingCard) => {
-    const serviceType = PACKAGE_TO_SERVICE[card.packageId] || "szekhely-hu";
+    // ha egyik alakot sem ismerjük fel, a régi alapértelmezés marad, de a konzolra kiírjuk:
+    // így egy új ár-kártya nem csendben lesz "székhely", hanem látszik, hogy be kell venni
+    const resolved = serviceTypeForCard(card.packageId, card.id);
+    if (!resolved) console.warn("[szerződés-wizard] Ismeretlen ár-kártya, a szolgáltatástípus alapértelmezett lesz:", card.packageId, card.id);
+    const serviceType = (resolved || "szekhely-hu") as ServiceType;
     const monthlyPrice = parsePrice(card.price.hu);
     // Éves ár = havi * 12 (egyszerűsítve)
     const annualPrice = monthlyPrice * 12;

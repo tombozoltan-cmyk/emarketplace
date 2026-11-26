@@ -3,6 +3,12 @@
  *
  * Environment configuration:
  * - CEGJELZO_API_URL: Base URL (defaults to CEGJELZO_BASE_URL below)
+ *
+ * Mindhárom szerveroldali: `NEXT_PUBLIC_` előtaggal egyiket se állítsd be, mert
+ * azt a Next a kliens-csomagba fordítja. A `getBaseUrl()` még elfogad egy
+ * `NEXT_PUBLIC_CEGJELZO_API_URL`-t (a hoszt nem titok), de az ELŐBB jön, mint a
+ * `CEGJELZO_API_URL`, tehát egy ilyen beállítás leárnyékolná az
+ * apphosting.yaml-ben lévő éles hosztot. Ne használd.
  * - CEGJELZO_API_KEY: API key, sent as X-Api-Key (server-side only)
  * - CEGJELZO_CLIENT_ID: Client id, sent as X-Client-Id (server-side only)
  *
@@ -41,15 +47,15 @@ function getBaseUrl(): string {
  * Get API key from environment
  */
 function getApiKey(): string {
-  const apiKey =
-    process.env.CEGJELZO_API_KEY ||
-    process.env.NEXT_PUBLIC_CEGJELZO_API_KEY ||
-    ''
-  
+  // Csak a szerveroldali változó. A `NEXT_PUBLIC_` előtagú nevet a Next a
+  // kliens-csomagba fordítja, tehát egy ilyen tartalék a kulcsot kiküldte volna
+  // a böngészőbe - és a példafájl korábban épp ezt tanácsolta.
+  const apiKey = process.env.CEGJELZO_API_KEY || ''
+
   if (!apiKey) {
-    console.warn('[Cégjelző API] No API key configured. Set CEGJELZO_API_KEY or NEXT_PUBLIC_CEGJELZO_API_KEY.')
+    console.warn('[Cégjelző API] No API key configured. Set CEGJELZO_API_KEY (server-side only).')
   }
-  
+
   return apiKey
 }
 
@@ -57,11 +63,9 @@ function getApiKey(): string {
  * Get Client ID from environment
  */
 function getClientId(): string {
-  return (
-    process.env.CEGJELZO_CLIENT_ID ||
-    process.env.NEXT_PUBLIC_CEGJELZO_CLIENT_ID ||
-    ''
-  )
+  // Szerveroldali változó, ugyanazon okból, mint a kulcs: a kettő együtt
+  // azonosítja a szerződésünket, és együtt is ér valamit.
+  return process.env.CEGJELZO_CLIENT_ID || ''
 }
 
 // =============================================================================
@@ -413,7 +417,7 @@ export function formatCompanySummary(company: CegjelzoCompany): string {
  * Check if the API is configured (has API key)
  */
 export function isCegjelzoApiConfigured(): boolean {
-  return !!(process.env.CEGJELZO_API_KEY || process.env.NEXT_PUBLIC_CEGJELZO_API_KEY)
+  return !!process.env.CEGJELZO_API_KEY
 }
 
 /**
