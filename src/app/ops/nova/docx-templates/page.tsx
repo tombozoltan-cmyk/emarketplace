@@ -45,11 +45,14 @@ import {
   useAdminAuth,
 } from "@/components/admin"
 
+import { DOCKEYS, DOCKEY_LABELS } from "@/lib/docx-selection"
+
 type DocxTemplate = {
   id: string
   name: string
   description?: string
   category: string
+  docKey?: string
   filename: string
   storagePath: string
   detectedShortcodes: string[]
@@ -84,6 +87,7 @@ export default function DocxTemplatesPage() {
     name: "",
     description: "",
     category: "Szerződés",
+    docKey: "",
     file: null as File | null,
   })
 
@@ -166,6 +170,7 @@ export default function DocxTemplatesPage() {
       formData.append("name", uploadForm.name || uploadForm.file.name.replace(".docx", ""))
       formData.append("description", uploadForm.description)
       formData.append("category", uploadForm.category)
+      if (uploadForm.docKey) formData.append("docKey", uploadForm.docKey)
 
       const res = await fetch(`${FUNCTIONS_BASE_URL}/uploadDocxTemplate`, {
         method: "POST",
@@ -178,7 +183,7 @@ export default function DocxTemplatesPage() {
 
       alert(`Sablon feltöltve! ${data.template.detectedShortcodes.length} shortcode találva.`)
       setIsUploadModalOpen(false)
-      setUploadForm({ name: "", description: "", category: "Szerződés", file: null })
+      setUploadForm({ name: "", description: "", category: "Szerződés", docKey: "", file: null })
     } catch (error) {
       alert(error instanceof Error ? error.message : "Ismeretlen hiba")
     } finally {
@@ -377,6 +382,11 @@ export default function DocxTemplatesPage() {
                         <Pencil className="w-3 h-3 opacity-0 group-hover:opacity-50" />
                       </button>
                     )}
+                    {template.docKey && (
+                      <div className="mt-1">
+                        <StatusBadge status={`szerep: ${DOCKEY_LABELS[template.docKey] || template.docKey}`} variant="default" />
+                      </div>
+                    )}
                   </td>
                   <td className="py-3 px-2 hidden md:table-cell">
                     <button
@@ -523,6 +533,24 @@ export default function DocxTemplatesPage() {
                 <option key={cat} value={cat}>{cat}</option>
               ))}
             </select>
+          </div>
+
+          <div>
+            <Label htmlFor="docKey">Szerep (az új iratsablonoknál)</Label>
+            <select
+              id="docKey"
+              value={uploadForm.docKey}
+              onChange={(e) => setUploadForm({ ...uploadForm, docKey: e.target.value })}
+              className="mt-1 w-full h-10 px-3 rounded-md border border-[color:var(--border)] bg-[color:var(--background)] text-sm"
+            >
+              <option value="">Nincs (a régi szabály szerint)</option>
+              {DOCKEYS.map((key) => (
+                <option key={key} value={key}>{DOCKEY_LABELS[key]}</option>
+              ))}
+            </select>
+            <p className="text-xs text-[color:var(--muted-foreground)] mt-1">
+              A szereppel feltöltött sablon a letöltéskor a régi sablon helyett él. Szerepenként egy sablon lehet; a visszaút a sablon törlése.
+            </p>
           </div>
 
           <div>

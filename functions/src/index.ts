@@ -4,11 +4,10 @@ import { defineSecret, defineString } from "firebase-functions/params";
 import admin from "firebase-admin";
 import Busboy from "busboy";
 import { v4 as uuidv4 } from "uuid";
+import { generateDocxFromTemplate } from "./docx";
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const PizZip = require("pizzip");
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const Docxtemplater = require("docxtemplater");
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const archiver = require("archiver");
 // eslint-disable-next-line @typescript-eslint/no-var-requires
@@ -230,6 +229,33 @@ type ContractData = {
   updatedAt?: unknown;
 };
 
+// A szolgáltatás megnevezése, ahogy az ügyfélnek és az adminnak kimenő levélben
+// szerepel. Ugyanaz a tíz érték, mint a src/lib/service-types.ts-ben; a functions
+// külön csomag, nem importálhat onnan, ezért a tests/service-types.test.mjs tartja
+// egyenlőként a kettőt.
+//
+// Korábban három, egymással egyező tábla állt itt egy régi, német piacra szánt
+// termékből ("szekhely-de", "virtual-de"), és a tíz valódi szolgáltatás közül egyet
+// ismert: ami nem volt benne, nyers azonosítóként ment ki a levélbe.
+const SERVICE_TYPE_LABELS: Record<string, string> = {
+  "szekhely-hu": "Székhelyszolgáltatás (magyar)",
+  "szekhely-kulfoldi": "Székhelyszolgáltatás (külföldi)",
+  "kezbesitesi": "Kézbesítési megbízott",
+  "szerzodeses-irodaberles": "Virtuális iroda",
+  "szekhely-kezbesitesi-hu": "Székhely + Kézbesítési (magyar)",
+  "szekhely-kezbesitesi-kulfoldi": "Székhely + Kézbesítési (külföldi)",
+  "iroda-hu": "Iroda csomag (magyar)",
+  "iroda-kulfoldi": "Iroda csomag (külföldi)",
+  "iroda-kezbesitesi-hu": "Teljes csomag (magyar)",
+  "iroda-kezbesitesi-kulfoldi": "Teljes csomag (külföldi)",
+};
+
+const serviceTypeLabel = (serviceType: string | undefined | null): string => {
+  const id = (serviceType || "").trim();
+  if (!id) return "";
+  return SERVICE_TYPE_LABELS[id] || id;
+};
+
 const safeString = (value: unknown): string =>
   typeof value === "string" ? value.trim() : "";
 
@@ -318,11 +344,6 @@ const buildContractHtml = (data: ContractData): string => {
   }
 
   const companyTypeLabel = company.isNew ? "Új cég alapítása" : "Meglévő cég székhelyének áthelyezése";
-  const serviceTypeMap: Record<string, string> = {
-    "szekhely-hu": "Magyarországi székhelyszolgáltatás",
-    "szekhely-de": "Németországi székhelyszolgáltatás",
-    "virtual-de": "Virtuális iroda Németországban"
-  };
 
   return `
     <div style="font-family: Arial, sans-serif; line-height: 1.5">
@@ -339,7 +360,7 @@ const buildContractHtml = (data: ContractData): string => {
       <p><strong>Főtevékenység:</strong> ${escapeHtml(company.mainActivityCode)} ${escapeHtml(company.mainActivity)}</p>
 
       <h3 style="color: #3f3f46; margin-top: 24px;">Szolgáltatás</h3>
-      <p><strong>Típus:</strong> ${serviceTypeMap[data.serviceType ?? ""] || escapeHtml(data.serviceType)}</p>
+      <p><strong>Típus:</strong> ${escapeHtml(serviceTypeLabel(data.serviceType))}</p>
       <p><strong>Csomag:</strong> ${escapeHtml(data.packageId)}</p>
       <p><strong>Havi díj:</strong> ${data.monthlyPrice?.toLocaleString("hu-HU")} Ft</p>
       <p><strong>Éves díj:</strong> ${data.annualPrice?.toLocaleString("hu-HU")} Ft</p>
@@ -551,18 +572,13 @@ const compileContractAdminTemplate = (
   const rawMjml = safeString(template.mjml);
   if (!rawMjml) return null;
 
-  const serviceTypeMap: Record<string, string> = {
-    "szekhely-hu": "Magyarországi székhelyszolgáltatás",
-    "szekhely-de": "Németországi székhelyszolgáltatás",
-    "virtual-de": "Virtuális iroda Németországban",
-  };
 
   const variables: Record<string, string> = {
     companyName: escapeHtml(data.company?.name),
     shortName: escapeHtml(data.company?.shortName),
     legalForm: escapeHtml(data.company?.legalForm),
     isNewCompany: escapeHtml(data.company?.isNew ? "Új cég alapítása" : "Meglévő cég székhelyének áthelyezése"),
-    serviceType: escapeHtml(serviceTypeMap[data.serviceType ?? ""] || data.serviceType),
+    serviceType: escapeHtml(serviceTypeLabel(data.serviceType)),
     packageId: escapeHtml(data.packageId),
     monthlyPrice: data.monthlyPrice?.toLocaleString("hu-HU") ?? "",
     annualPrice: data.annualPrice?.toLocaleString("hu-HU") ?? "",
@@ -1113,11 +1129,6 @@ export const sendContractEmail = onDocumentCreated(
       const tpl = settings.contractTemplateHu;
 
       // Create contract-specific template variables with all available fields
-      const serviceTypeMap: Record<string, string> = {
-        "szekhely-hu": "Magyarországi székhelyszolgáltatás",
-        "szekhely-de": "Németországi székhelyszolgáltatás",
-        "virtual-de": "Virtuális iroda Németországban"
-      };
 
       const isNewCompany = data.company?.isNew
         ? "Új cég alapítása"
@@ -1130,7 +1141,7 @@ export const sendContractEmail = onDocumentCreated(
         companyName: escapeHtml(data.company?.name),
         shortName: escapeHtml(data.company?.shortName),
         legalForm: escapeHtml(data.company?.legalForm),
-        serviceType: escapeHtml(serviceTypeMap[data.serviceType ?? ""] || data.serviceType),
+        serviceType: escapeHtml(serviceTypeLabel(data.serviceType)),
         packageId: escapeHtml(data.packageId),
         monthlyPrice: data.monthlyPrice?.toLocaleString("hu-HU") ?? "",
         annualPrice: data.annualPrice?.toLocaleString("hu-HU") ?? "",
@@ -1226,11 +1237,16 @@ export const sendContractEmail = onDocumentCreated(
 // DOCX Document Generation Functions
 // ========================================
 
+// The roles a template can have; src/lib/docx-selection.ts (DOCKEY_LABELS) has the same list, a test keeps them equal.
+const DOCX_DOCKEYS = ["contract", "delivery-contract", "kyc", "pep", "kyc-1", "kyc-2", "kyc-3", "pep-1", "pep-2", "pep-3"];
+
 type DocxTemplateData = {
   id: string;
   name: string;
   description?: string;
   category: string;
+  /** The role of the template (src/lib/docx-selection.ts): a template with a role is chosen by the role only. */
+  docKey?: string;
   filename: string;
   storagePath: string;
   detectedShortcodes: string[];
@@ -1541,122 +1557,6 @@ function detectShortcodesFromDocx(docxBuffer: Buffer): string[] {
   }
 }
 
-function cleanDocxXml(xmlContent: string): string {
-  // Fix Word's tendency to split placeholders across multiple XML tags
-  // Strategy: Find and merge split placeholders by processing w:r (run) elements
-  
-  let result = xmlContent;
-  
-  // Step 1: Find all w:r elements and merge adjacent ones that form a placeholder
-  // Word often splits {PLACEHOLDER} into multiple runs like:
-  // <w:r><w:t>{</w:t></w:r><w:r><w:t>PLACEHOLDER</w:t></w:r><w:r><w:t>}</w:t></w:r>
-  
-  // More aggressive approach: temporarily remove all XML tags between { and }
-  // Then reconstruct with the full placeholder in a single text node
-  
-  // Find potential placeholder boundaries in the XML
-  const openBracePattern = /<w:t[^>]*>\{<\/w:t>/g;
-  const closeBracePattern = /<w:t[^>]*>\}<\/w:t>/g;
-  
-  // Get plain text to find all valid placeholders
-  const plainText = result.replace(/<[^>]+>/g, "");
-  const placeholderMatches = plainText.match(/\{[A-Z][A-Z0-9_]*\}/g) || [];
-  
-  console.log("Plain text placeholders found:", placeholderMatches);
-  
-  // For each placeholder, find it in the XML (even if split) and replace with unified version
-  for (const placeholder of placeholderMatches) {
-    const code = placeholder.slice(1, -1);
-    
-    // Build pattern that matches the placeholder split across any XML tags
-    // This matches { followed by optional tags, then each char of the code with optional tags between
-    let patternParts = ["\\{"];
-    for (const char of code) {
-      // Allow any XML tags (including </w:t>, </w:r>, <w:r>, <w:t>, etc.) between characters
-      patternParts.push(`(?:</w:t>)?(?:</w:r>)?(?:<w:r[^>]*>)?(?:<w:rPr>.*?</w:rPr>)?(?:<w:t[^>]*>)?`);
-      patternParts.push(char.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
-    }
-    patternParts.push(`(?:</w:t>)?(?:</w:r>)?(?:<w:r[^>]*>)?(?:<w:rPr>.*?</w:rPr>)?(?:<w:t[^>]*>)?`);
-    patternParts.push("\\}");
-    
-    const fullPattern = patternParts.join("");
-    
-    try {
-      const regex = new RegExp(fullPattern, "gs");
-      const beforeReplace = result;
-      result = result.replace(regex, `{${code}}`);
-      if (beforeReplace !== result) {
-        console.log(`Fixed split placeholder: {${code}}`);
-      }
-    } catch (e) {
-      console.log(`Regex error for ${code}:`, e);
-    }
-  }
-  
-  return result;
-}
-
-function generateDocxFromTemplate(docxBuffer: Buffer, data: Record<string, string>): Buffer {
-  const zip = new PizZip(docxBuffer);
-  
-  // Pre-process XML files to fix split placeholders
-  const xmlFiles = ["word/document.xml", "word/header1.xml", "word/header2.xml", "word/header3.xml", 
-                    "word/footer1.xml", "word/footer2.xml", "word/footer3.xml"];
-  
-  for (const fileName of xmlFiles) {
-    if (zip.files[fileName]) {
-      const content = zip.files[fileName].asText();
-      const cleanedContent = cleanDocxXml(content);
-      zip.file(fileName, cleanedContent);
-      
-      // Debug: Log found placeholders before and after cleanup
-      if (fileName === "word/document.xml") {
-        const plainTextBefore = content.replace(/<[^>]+>/g, "");
-        
-        // Log sample of plain text to see content
-        console.log("Plain text sample (first 500 chars):", plainTextBefore.substring(0, 500));
-        
-        // Try both regex patterns
-        const placeholdersBefore1 = plainTextBefore.match(/\{[A-Z][A-Z0-9_]*\}/g) || [];
-        const placeholdersBefore2 = plainTextBefore.match(/\{([A-Z0-9_]+)\}/g) || [];
-        console.log("Placeholders BEFORE (pattern 1):", placeholdersBefore1);
-        console.log("Placeholders BEFORE (pattern 2):", placeholdersBefore2);
-        
-        // Check for any curly brace patterns
-        const anyBraces = plainTextBefore.match(/\{[^{}]+\}/g) || [];
-        console.log("Any brace patterns found:", anyBraces.slice(0, 10));
-      }
-    }
-  }
-  
-  const now = new Date();
-  const fullData: Record<string, string> = {
-    ...data,
-    DATUM: data.DATUM || now.toLocaleDateString("hu-HU"),
-    DATUM_SZO: data.DATUM_SZO || now.toLocaleDateString("hu-HU", { year: "numeric", month: "long", day: "numeric" }),
-    EV: data.EV || now.getFullYear().toString(),
-    HONAP: data.HONAP || now.toLocaleDateString("hu-HU", { month: "long" }),
-    NAP: data.NAP || now.getDate().toString(),
-  };
-
-  console.log("Full data being applied:", JSON.stringify(Object.keys(fullData).slice(0, 15)));
-
-  const doc = new Docxtemplater(zip, {
-    paragraphLoop: true,
-    linebreaks: true,
-    delimiters: { start: "{", end: "}" },
-  });
-
-  try {
-    doc.render(fullData);
-  } catch (error) {
-    console.error("Docxtemplater render error:", error);
-    throw error;
-  }
-
-  return doc.getZip().generate({ type: "nodebuffer" });
-}
-
 function slugify(text: string): string {
   return text
     .toLowerCase()
@@ -1754,6 +1654,19 @@ export const uploadDocxTemplate = onRequest(
       const name = fields.name || fileName.replace(".docx", "");
       const description = fields.description || "";
       const category = fields.category || "Egyéb";
+      const docKey = (fields.docKey || "").trim();
+      if (docKey && !DOCX_DOCKEYS.includes(docKey)) {
+        res.status(400).json({ error: `Ismeretlen sablon-szerep: ${docKey}` });
+        return;
+      }
+      if (docKey) {
+        // two templates with one role would be an error at every download: the old one has to be deleted first
+        const existing = await admin.firestore().collection("docxTemplates").where("docKey", "==", docKey).limit(1).get();
+        if (!existing.empty) {
+          res.status(409).json({ error: `A(z) ${docKey} szerephez már van sablon (${existing.docs[0].data().name}). Töröld előbb.` });
+          return;
+        }
+      }
 
       const detectedShortcodes = detectShortcodesFromDocx(uploadedBuffer);
       const templateId = uuidv4();
@@ -1771,6 +1684,7 @@ export const uploadDocxTemplate = onRequest(
         name,
         description,
         category,
+        ...(docKey ? { docKey } : {}),
         filename: `${slugName}.docx`,
         storagePath,
         detectedShortcodes,
@@ -1858,7 +1772,6 @@ export const generateDocument = onRequest(
       console.log("Template:", templateData.name, "ID:", templateId);
       console.log("Data keys:", Object.keys(finalData).slice(0, 20));
       console.log("Sample data values:", {
-        TULAJDONOS_1_NEV: finalData.TULAJDONOS_1_NEV,
         EV: finalData.EV,
         NAP: finalData.NAP,
         HONAP: finalData.HONAP,

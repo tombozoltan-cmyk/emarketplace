@@ -33,8 +33,20 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# env files (can opt-in for committing if needed)
-# .env*
+# env files. NEM opcionális: ez a repó NYILVÁNOS, és a kikommentelt szabály
+# miatt a .env.local titkokkal együtt bekerült a verziókövetésbe. Ha egy
+# futtatókörnyezetnek értékre van szüksége, az a Secret Manager vagy az
+# apphosting.yaml `secret:` bejegyzése, nem egy itt tárolt fájl.
+.env
+.env.*
+functions/.env
+functions/.env.*
+*.env
+# A példafájl kivétel: CSAK a változónevek vannak benne, érték nélkül.
+!src/lib/cegjelzo-api.example.env
+
+# graft helyi gráf-gyorsítótára - újragenerálható (`graft build`), nem commitoljuk
+/graft/
 
 # vercel
 .vercel

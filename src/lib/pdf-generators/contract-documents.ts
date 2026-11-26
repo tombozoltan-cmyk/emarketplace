@@ -274,7 +274,7 @@ export async function generateContractPDF(data: ContractPdfData): Promise<Uint8A
     color: rgb(0, 0, 0),
   });
   drawText(page, "Szolgáltató", MARGIN + 60, signY - 15, font, 9);
-  drawText(page, "E-Marketplace Kft.", MARGIN + 45, signY - 27, font, 8);
+  drawText(page, "E-Marketplace Szolgáltató Kft.", MARGIN + 45, signY - 27, font, 8);
 
   // Megrendelő
   page.drawLine({
