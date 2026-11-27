@@ -98,3 +98,72 @@ describe("a mai korlát, hogy ne felejtsük el", () => {
     assert.equal(adat.TULAJDONOS_3_PEP, "1");
   });
 });
+
+// --- a meg nem adott válasz nem fordulhat "nem"-re ---------------------------
+
+import { docxContractProblem } from "../src/lib/docx-data.ts";
+import { readFileSync } from "node:fs";
+
+const beadvanyPepNelkul = (pepDeclaration) => ({
+  packageId: "szekhely-hu",
+  serviceType: "szekhely-hu",
+  monthlyPrice: 10000,
+  company: { name: "Teszt Kft.", legalForm: "kft", isNew: false, registrationNumber: "01-09-000000" },
+  representative: szemely({ fullName: "Teszt Eljáró" }),
+  owners: [{ type: "natural", ownershipPercent: 100, natural: szemely() }],
+  pepDeclaration,
+});
+
+describe("az iratgenerálás megáll, ha a nyilatkozat nincs megadva", () => {
+  it("mindhárom válasz megvan: nincs PEP-miatti akadály", () => {
+    const gond = docxContractProblem(beadvanyPepNelkul({ isPep: false, isPepRelative: false, isPepAssociate: false }));
+    assert.equal(gond, null);
+  });
+
+  it("a kimondott 'nem' rendben van - ettől még készülhet irat", () => {
+    const gond = docxContractProblem(beadvanyPepNelkul({ isPep: true, isPepRelative: false, isPepAssociate: false }));
+    assert.equal(gond, null);
+  });
+
+  it("teljesen hiányzó nyilatkozatnál megáll, és megmondja, miért", () => {
+    const gond = docxContractProblem(beadvanyPepNelkul(undefined));
+    assert.match(String(gond), /PEP|közszerepl/);
+  });
+
+  it("egyetlen hiányzó válasz is megállítja - nem pótoljuk 'nem'-mel", () => {
+    const gond = docxContractProblem(beadvanyPepNelkul({ isPep: false, isPepRelative: false }));
+    assert.match(String(gond), /PEP|közszerepl/);
+  });
+});
+
+// --- forrás-őrök a wizardon (a hook aliasos importjai miatt nem tölthető be) --
+
+const WIZARD = readFileSync(new URL("../src/components/contract-wizard/hooks/useContractWizard.ts", import.meta.url), "utf8");
+const LEPES = readFileSync(new URL("../src/components/contract-wizard/steps/Step6PepDeclaration.tsx", import.meta.url), "utf8");
+
+describe("a wizard nem válaszol az ügyfél helyett", () => {
+  it("a kezdőállapot nem állít be PEP-választ", () => {
+    const kezdo = WIZARD.slice(WIZARD.indexOf("pepDeclaration: {"), WIZARD.indexOf("uploadedDocuments"));
+    assert.doesNotMatch(kezdo, /isPep(Relative|Associate)?:\s*(true|false)/);
+  });
+
+  it("a lépés mindhárom válasz meglétét megköveteli", () => {
+    for (const kulcs of ["isPep", "isPepRelative", "isPepAssociate"]) {
+      assert.match(
+        WIZARD,
+        new RegExp(`typeof data\\.pepDeclaration\\.${kulcs} !== "boolean"`),
+        `${kulcs}: nincs meglét-ellenőrzés, így üresen is tovább lehetne lépni`,
+      );
+    }
+  });
+
+  it("a rádiógombok üresek, amíg nincs válasz", () => {
+    for (const kulcs of ["isPep", "isPepRelative", "isPepAssociate"]) {
+      assert.match(
+        LEPES,
+        new RegExp(`data\\.${kulcs} === undefined \\? ""`),
+        `${kulcs}: a gomb előre kiválasztott állapotban jelenne meg`,
+      );
+    }
+  });
+});

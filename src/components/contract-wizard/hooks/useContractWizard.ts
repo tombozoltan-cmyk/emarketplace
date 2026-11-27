@@ -94,10 +94,9 @@ const getDefaultContractData = (language: ContractLanguage): ContractData => ({
     phone: "",
     address: "",
   },
+  // A három válasz szándékosan hiányzik: a rádiógombok üresen indulnak. Lásd a
+  // PepDeclaration típusnál - a csendes "nem" olyan állítás lenne, amit senki nem tett meg.
   pepDeclaration: {
-    isPep: false,
-    isPepRelative: false,
-    isPepAssociate: false,
     pepDetails: "",
   },
   uploadedDocuments: {},
@@ -230,6 +229,19 @@ const validateStep = (
       break;
 
     case "pep-declaration":
+      // Mindhárom kérdésre válaszolni kell. Alapértelmezés nincs: a Pmt. szerinti
+      // nyilatkozatot az ügyfélnek kell megtennie, nem az űrlapnak helyette.
+      if (
+        typeof data.pepDeclaration.isPep !== "boolean" ||
+        typeof data.pepDeclaration.isPepRelative !== "boolean" ||
+        typeof data.pepDeclaration.isPepAssociate !== "boolean"
+      ) {
+        errors.push(
+          t
+            ? "Kérjük, válaszoljon mind a három kérdésre - ez kötelező nyilatkozat"
+            : "Please answer all three questions - this is a mandatory declaration"
+        );
+      }
       // PEP részletek kötelezőek, ha igen-t jelölt
       if (
         (data.pepDeclaration.isPep ||

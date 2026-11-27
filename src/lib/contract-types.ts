@@ -74,10 +74,15 @@ export type ContactPersonData = {
 };
 
 // PEP (Politically Exposed Person) nyilatkozat
+// A három válasz azért NEM kötelező mező, mert a hiányzó választ meg kell tudni
+// különböztetni a kimondott "nem"-től: `undefined` = még nem válaszolt, `false` =
+// kijelentette, hogy nem. A nyilatkozat Pmt. szerinti kötelezettség, ezért az irat
+// és a ClientBoost-átadás is kimondott választ kíván - a csendes alapértelmezés
+// olyan állítást tenne az ügyfél nevében, amit ő nem tett meg.
 export type PepDeclaration = {
-  isPep: boolean;                      // Kiemelt közszereplő-e
-  isPepRelative: boolean;              // PEP közeli hozzátartozója-e
-  isPepAssociate: boolean;             // PEP-pel üzleti kapcsolatban áll-e
+  isPep?: boolean;                     // Kiemelt közszereplő-e (undefined: nem válaszolt)
+  isPepRelative?: boolean;             // PEP közeli hozzátartozója-e (undefined: nem válaszolt)
+  isPepAssociate?: boolean;            // PEP-pel üzleti kapcsolatban áll-e (undefined: nem válaszolt)
   pepDetails?: string;                 // Ha igen, részletek
 };
 

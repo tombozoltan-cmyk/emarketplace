@@ -104,6 +104,14 @@ export function docxContractProblem(contract: DocxContractInput): string | null 
   if (!packageDocuments(contract.packageId, contract.serviceType).known) {
     return `A csomag nem ismerhető fel (csomagazonosító: "${contract.packageId || ""}", szolgáltatástípus: "${contract.serviceType || ""}"). A szerződések szövege a csomagtól függ, ezért a letöltés megállt.`;
   }
+  const pep = contract.pepDeclaration;
+  if (
+    typeof pep?.isPep !== "boolean" ||
+    typeof pep?.isPepRelative !== "boolean" ||
+    typeof pep?.isPepAssociate !== "boolean"
+  ) {
+    return "A beadványban nincs megadva a kiemelt közszereplői (PEP) nyilatkozat mindhárom válasza. A nyilatkozat szövege ettől függ, és meg nem adott válaszból nem szabad „nem minősül kiemelt közszereplőnek” iratot készíteni, ezért a letöltés megállt. Kérd be a hiányzó választ az ügyféltől.";
+  }
   return null;
 }
 

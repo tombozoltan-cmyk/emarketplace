@@ -66,7 +66,7 @@ export function Step6PepDeclaration({
                   : "1. Are you a PEP, or were you one within the past year?"}
               </Label>
               <RadioGroup
-                value={data.isPep ? "yes" : "no"}
+                value={data.isPep === undefined ? "" : data.isPep ? "yes" : "no"}
                 onValueChange={(value) => onChange({ isPep: value === "yes" })}
                 className="flex gap-6"
               >
@@ -98,7 +98,7 @@ export function Step6PepDeclaration({
                   : "(Spouse, partner, child, parent, sibling, grandparent, grandchild)"}
               </p>
               <RadioGroup
-                value={data.isPepRelative ? "yes" : "no"}
+                value={data.isPepRelative === undefined ? "" : data.isPepRelative ? "yes" : "no"}
                 onValueChange={(value) =>
                   onChange({ isPepRelative: value === "yes" })
                 }
@@ -132,7 +132,7 @@ export function Step6PepDeclaration({
                   : "(Joint ownership, close business relationship, beneficiary)"}
               </p>
               <RadioGroup
-                value={data.isPepAssociate ? "yes" : "no"}
+                value={data.isPepAssociate === undefined ? "" : data.isPepAssociate ? "yes" : "no"}
                 onValueChange={(value) =>
                   onChange({ isPepAssociate: value === "yes" })
                 }

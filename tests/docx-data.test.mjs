@@ -27,6 +27,9 @@ const contract = (extra = {}) => ({
   owners: [{ type: "natural", ownershipPercent: 100, natural: person() }],
   representative: person(),
   contact: { isSameAsOwner: true, address: "" },
+  // Egy érvényes beadványban a PEP-nyilatkozat három válasza megvan. A hiányát a
+  // docxContractProblem megállítja - lásd tests/pep-nyilatkozat.test.mjs.
+  pepDeclaration: { isPep: false, isPepRelative: false, isPepAssociate: false },
   ...extra,
 });
 
