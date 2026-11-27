@@ -1,11 +1,22 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
+import { readFileSync } from "node:fs";
 
-import { buildDocxData, ownerDataAliases, pepFlagOf } from "../src/lib/docx-data.ts";
+import {
+  buildDocxData,
+  docxContractProblem,
+  ownerDataAliases,
+  pepAnswered,
+  pepDeclarantLabel,
+  pepDeclarantsOf,
+  pepDeclarationOf,
+  pepFlagOf,
+  pepMissingDeclarants,
+} from "../src/lib/docx-data.ts";
 
-// A PEP-nyilatkozat két, egymást kizáró mondatot hordoz: "nem minősül kiemelt közszereplőnek" és a másik.
-// A sablon `{^TULAJDONOS_PEP}` / `{#TULAJDONOS_PEP}` ága választ közülük, ezt a jelzőt a kód adja.
-// Minden adat kitalált: nincs benne valódi személy és valódi cég.
+// A PEP-nyilatkozat két, egymást kizáró mondatot hordoz: "nem minősül kiemelt közszereplőnek"
+// és a másik. A sablon `{^TULAJDONOS_PEP}` / `{#TULAJDONOS_PEP}` ága választ közülük, a jelzőt
+// a kód adja - nyilatkozónként. Minden adat kitalált: nincs benne valódi személy és valódi cég.
 
 const helpers = { nationalityLabel: (ertek) => ertek };
 
@@ -21,149 +32,232 @@ const szemely = (extra = {}) => ({
   ...extra,
 });
 
-const beadvany = (pepDeclaration, tulajdonosok = 1) => ({
+const tulajdonos = (szazalek, pep, extra = {}) => ({
+  type: "natural",
+  ownershipPercent: szazalek,
+  natural: szemely({ fullName: `Tulajdonos ${szazalek}` }),
+  ...(pep ? { pep } : {}),
+  ...extra,
+});
+
+const beadvany = (extra = {}) => ({
   packageId: "szekhely-hu",
+  serviceType: "szekhely-hu",
   monthlyPrice: 10000,
-  company: { name: "Teszt Kft.", legalForm: "kft" },
-  representative: szemely({ fullName: "Teszt Eljáró" }),
-  owners: Array.from({ length: tulajdonosok }, (_, i) => ({
-    type: "natural",
-    ownershipPercent: Math.round(100 / tulajdonosok),
-    natural: szemely({ fullName: `Teszt Tulajdonos ${i + 1}` }),
-  })),
-  pepDeclaration,
+  company: { name: "Teszt Kft.", legalForm: "kft", isNew: false, registrationNumber: "01-09-000000" },
+  representative: szemely({ fullName: "Teszt Ügyvezető" }),
+  owners: [tulajdonos(100, { isPep: false, isPepRelative: false, isPepAssociate: false })],
+  ...extra,
+});
+
+const NEM = { isPep: false, isPepRelative: false, isPepAssociate: false };
+const IGEN = { isPep: true, isPepRelative: false, isPepAssociate: false };
+
+// --- a válasz megléte ---------------------------------------------------------
+
+describe("mikor számít megválaszoltnak a nyilatkozat", () => {
+  it("hiányzó nyilatkozat: nincs megválaszolva", () => {
+    assert.equal(pepAnswered(undefined), false);
+  });
+
+  it("két válasz a háromból: még nincs megválaszolva", () => {
+    assert.equal(pepAnswered({ isPep: false, isPepRelative: false }), false);
+  });
+
+  it("mindhárom megvan: megválaszolva - a kimondott 'nem' is válasz", () => {
+    assert.equal(pepAnswered(NEM), true);
+  });
 });
 
 describe("a PEP-jelző képzése", () => {
-  it("hiányzó nyilatkozatnál üres - az irat a 'nem minősül' mondatot írja ki", () => {
+  it("hiányzó nyilatkozatnál üres", () => {
     assert.equal(pepFlagOf(undefined), "");
   });
 
   it("mindhárom kérdésre nem: üres", () => {
-    assert.equal(pepFlagOf({ isPep: false, isPepRelative: false, isPepAssociate: false }), "");
+    assert.equal(pepFlagOf(NEM), "");
   });
 
-  it("maga a közszereplő: igaz", () => {
-    assert.equal(pepFlagOf({ isPep: true, isPepRelative: false, isPepAssociate: false }), "1");
-  });
-
-  it("közeli hozzátartozó is igaz - ez is a második mondat alá esik", () => {
+  it("bármelyik igen: a második mondat ága", () => {
+    assert.equal(pepFlagOf(IGEN), "1");
     assert.equal(pepFlagOf({ isPep: false, isPepRelative: true, isPepAssociate: false }), "1");
-  });
-
-  it("közeli kapcsolatban álló személy is igaz", () => {
     assert.equal(pepFlagOf({ isPep: false, isPepRelative: false, isPepAssociate: true }), "1");
   });
 });
 
+// --- ki nyilatkozik ----------------------------------------------------------
+
+describe("ki köteles nyilatkozni", () => {
+  it("egyedüli 100%-os tag: ő", () => {
+    const kik = pepDeclarantsOf(beadvany());
+    assert.deepEqual(kik, [{ kind: "owner", ownerNumber: 1 }]);
+  });
+
+  it("két 50%-os tag: mind a kettő - a státusz személyenként más lehet", () => {
+    const kik = pepDeclarantsOf(beadvany({ owners: [tulajdonos(50, NEM), tulajdonos(50, NEM)] }));
+    assert.deepEqual(kik, [
+      { kind: "owner", ownerNumber: 1 },
+      { kind: "owner", ownerNumber: 2 },
+    ]);
+  });
+
+  it("a 25% alatti tag nem tényleges tulajdonos: tőle nem kérünk nyilatkozatot", () => {
+    const kik = pepDeclarantsOf(beadvany({ owners: [tulajdonos(90, NEM), tulajdonos(10, NEM)] }));
+    assert.deepEqual(kik, [{ kind: "owner", ownerNumber: 1 }]);
+  });
+
+  it("pont 25% még tényleges tulajdonos", () => {
+    const kik = pepDeclarantsOf(beadvany({ owners: [tulajdonos(75, NEM), tulajdonos(25, NEM)] }));
+    assert.equal(kik.length, 2);
+  });
+
+  it("hiányzó tulajdoni aránynál inkább kérdezünk, mint hogy kihagyjuk", () => {
+    const kik = pepDeclarantsOf(beadvany({ owners: [{ type: "natural", natural: szemely() }] }));
+    assert.deepEqual(kik, [{ kind: "owner", ownerNumber: 1 }]);
+  });
+
+  it("ha senki nem éri el a 25%-ot, a vezető tisztségviselő nyilatkozik (Pmt. 3. § 38. f))", () => {
+    const ot = [tulajdonos(20, NEM), tulajdonos(20, NEM), tulajdonos(20, NEM), tulajdonos(20, NEM), tulajdonos(20, NEM)];
+    assert.deepEqual(pepDeclarantsOf(beadvany({ owners: ot })), [{ kind: "representative" }]);
+  });
+
+  it("jogi személy tag nem tud nyilatkozni: helyette a vezető tisztségviselőt kérdezzük", () => {
+    // A tényleges tulajdonos a mögötte álló természetes személy; azt a generátor nem kezeli
+    // (pepOwnersOf megjegyzést ad róla). Az ügyvezetőt kérdezni több, mint senkit.
+    const kik = pepDeclarantsOf(beadvany({ owners: [{ type: "legal", ownershipPercent: 100 }] }));
+    assert.deepEqual(kik, [{ kind: "representative" }]);
+  });
+
+  it("SOHA nem ad üres listát - különben az űrlap senkitől nem kérdezne", () => {
+    for (const owners of [[], undefined, [{ type: "legal", ownershipPercent: 100 }]]) {
+      assert.ok(pepDeclarantsOf(beadvany({ owners })).length > 0);
+    }
+  });
+
+  it("a megnevezés emberi szóval megy a hibaüzenetbe", () => {
+    assert.match(pepDeclarantLabel({ kind: "owner", ownerNumber: 2 }), /2\. tulajdonos/);
+    assert.match(pepDeclarantLabel({ kind: "representative" }), /vezető tisztségviselő/);
+  });
+});
+
+// --- kinek a válasza számít ---------------------------------------------------
+
+describe("melyik választ kapja a nyilatkozó", () => {
+  it("a saját válasza, nem a másiké", () => {
+    const b = beadvany({ owners: [tulajdonos(50, IGEN), tulajdonos(50, NEM)] });
+    assert.equal(pepFlagOf(pepDeclarationOf(b, { kind: "owner", ownerNumber: 1 })), "1");
+    assert.equal(pepFlagOf(pepDeclarationOf(b, { kind: "owner", ownerNumber: 2 })), "");
+  });
+
+  it("RÉGI beadványnál a beadvány-szintű nyilatkozat a tartalék", () => {
+    // Régen egyetlen nyilatkozat tartozott az egész beadványhoz. Azokból ma is kell iratot készíteni.
+    const regi = beadvany({ owners: [tulajdonos(50), tulajdonos(50)], pepDeclaration: IGEN });
+    assert.equal(pepFlagOf(pepDeclarationOf(regi, { kind: "owner", ownerNumber: 1 })), "1");
+    assert.equal(pepFlagOf(pepDeclarationOf(regi, { kind: "owner", ownerNumber: 2 })), "1");
+  });
+
+  it("a saját válasz erősebb az örökségnél", () => {
+    const vegyes = beadvany({ owners: [tulajdonos(50, NEM), tulajdonos(50)], pepDeclaration: IGEN });
+    assert.equal(pepFlagOf(pepDeclarationOf(vegyes, { kind: "owner", ownerNumber: 1 })), "", "a sajátja: nem");
+    assert.equal(pepFlagOf(pepDeclarationOf(vegyes, { kind: "owner", ownerNumber: 2 })), "1", "nincs sajátja: öröklés");
+  });
+
+  it("a vezető tisztségviselő a saját mezőjéből kapja", () => {
+    const ot = [tulajdonos(20, NEM), tulajdonos(20, NEM), tulajdonos(20, NEM), tulajdonos(20, NEM), tulajdonos(20, NEM)];
+    const b = beadvany({ owners: ot, representativePep: IGEN });
+    assert.equal(pepFlagOf(pepDeclarationOf(b, { kind: "representative" })), "1");
+  });
+});
+
+describe("kinek hiányzik még a válasza", () => {
+  it("minden válasz megvan: senkinek", () => {
+    assert.deepEqual(pepMissingDeclarants(beadvany({ owners: [tulajdonos(50, NEM), tulajdonos(50, IGEN)] })), []);
+  });
+
+  it("az egyiké hiányzik: csak őt nevezi meg", () => {
+    const hianyzik = pepMissingDeclarants(beadvany({ owners: [tulajdonos(50, NEM), tulajdonos(50)] }));
+    assert.deepEqual(hianyzik, [{ kind: "owner", ownerNumber: 2 }]);
+  });
+
+  it("régi beadványnál az öröklött nyilatkozat elég", () => {
+    const regi = beadvany({ owners: [tulajdonos(50), tulajdonos(50)], pepDeclaration: NEM });
+    assert.deepEqual(pepMissingDeclarants(regi), []);
+  });
+
+  it("semmi sincs: mindkettő hiányzik", () => {
+    assert.equal(pepMissingDeclarants(beadvany({ owners: [tulajdonos(50), tulajdonos(50)] })).length, 2);
+  });
+});
+
+// --- a sablonig -------------------------------------------------------------
+
 describe("a jelző eljut a sablonig", () => {
-  it("minden tulajdonos megkapja a számozott kulcsot", () => {
-    const adat = buildDocxData(beadvany({ isPep: true }, 2), helpers);
+  it("minden tulajdonos a SAJÁT válaszát kapja, nem a másikét", () => {
+    const adat = buildDocxData(beadvany({ owners: [tulajdonos(50, IGEN), tulajdonos(50, NEM)] }), helpers);
     assert.equal(adat.TULAJDONOS_1_PEP, "1");
-    assert.equal(adat.TULAJDONOS_2_PEP, "1");
+    assert.equal(adat.TULAJDONOS_2_PEP, "");
   });
 
   it("a sorszám nélküli sablon a saját tulajdonosa értékét kapja", () => {
-    const adat = buildDocxData(beadvany({ isPep: true }, 2), helpers);
+    const adat = buildDocxData(beadvany({ owners: [tulajdonos(50, IGEN), tulajdonos(50, NEM)] }), helpers);
     assert.equal(ownerDataAliases(adat, 1).TULAJDONOS_PEP, "1");
-    assert.equal(ownerDataAliases(adat, 2).TULAJDONOS_PEP, "1");
+    assert.equal(ownerDataAliases(adat, 2).TULAJDONOS_PEP, "");
   });
 
-  it("nem közszereplőnél üres, tehát a sablon a 'nem minősül' ágat választja", () => {
-    const adat = buildDocxData(beadvany({ isPep: false, isPepRelative: false, isPepAssociate: false }), helpers);
-    assert.equal(adat.TULAJDONOS_1_PEP, "");
-    assert.equal(ownerDataAliases(adat, 1).TULAJDONOS_PEP, "");
-  });
-
-  it("nyilatkozat nélküli beadványnál sem dől el magától: üres marad", () => {
-    const adat = buildDocxData(beadvany(undefined), helpers);
-    assert.equal(adat.TULAJDONOS_1_PEP, "");
-  });
-
-  it("a jelző sztring, mert a buildDocxData csak sztringeket ad - a docxtemplater az üreset veszi hamisnak", () => {
-    const adat = buildDocxData(beadvany({ isPep: true }), helpers);
+  it("minden érték sztring - a docxtemplater az üreset veszi hamisnak", () => {
+    const adat = buildDocxData(beadvany({ owners: [tulajdonos(100, IGEN)] }), helpers);
     for (const [kulcs, ertek] of Object.entries(adat)) {
       assert.equal(typeof ertek, "string", `${kulcs} nem sztring`);
     }
   });
 });
 
-describe("a mai korlát, hogy ne felejtsük el", () => {
-  it("a beadvány EGY nyilatkozatot tárol, ezért két tulajdonos ma ugyanazt kapja", () => {
-    // Ez nem kívánság, hanem a mai állapot rögzítése: a PEP-státusz személyenként más lehet,
-    // de a wizard egyszer kérdez. Ha egyszer tulajdonosonként kérdez, ez a teszt fog elbukni - jogosan.
-    const adat = buildDocxData(beadvany({ isPepRelative: true }, 3), helpers);
-    assert.equal(adat.TULAJDONOS_1_PEP, "1");
-    assert.equal(adat.TULAJDONOS_2_PEP, "1");
-    assert.equal(adat.TULAJDONOS_3_PEP, "1");
-  });
-});
-
-// --- a meg nem adott válasz nem fordulhat "nem"-re ---------------------------
-
-import { docxContractProblem } from "../src/lib/docx-data.ts";
-import { readFileSync } from "node:fs";
-
-const beadvanyPepNelkul = (pepDeclaration) => ({
-  packageId: "szekhely-hu",
-  serviceType: "szekhely-hu",
-  monthlyPrice: 10000,
-  company: { name: "Teszt Kft.", legalForm: "kft", isNew: false, registrationNumber: "01-09-000000" },
-  representative: szemely({ fullName: "Teszt Eljáró" }),
-  owners: [{ type: "natural", ownershipPercent: 100, natural: szemely() }],
-  pepDeclaration,
-});
+// --- az iratgenerálás megáll hiányzó válasznál -------------------------------
 
 describe("az iratgenerálás megáll, ha a nyilatkozat nincs megadva", () => {
-  it("mindhárom válasz megvan: nincs PEP-miatti akadály", () => {
-    const gond = docxContractProblem(beadvanyPepNelkul({ isPep: false, isPepRelative: false, isPepAssociate: false }));
-    assert.equal(gond, null);
+  it("minden válasz megvan: nincs PEP-miatti akadály", () => {
+    assert.equal(docxContractProblem(beadvany()), null);
   });
 
-  it("a kimondott 'nem' rendben van - ettől még készülhet irat", () => {
-    const gond = docxContractProblem(beadvanyPepNelkul({ isPep: true, isPepRelative: false, isPepAssociate: false }));
-    assert.equal(gond, null);
+  it("régi beadvány az öröklött nyilatkozattal: szintén rendben", () => {
+    const regi = beadvany({ owners: [tulajdonos(100)], pepDeclaration: NEM });
+    assert.equal(docxContractProblem(regi), null);
   });
 
-  it("teljesen hiányzó nyilatkozatnál megáll, és megmondja, miért", () => {
-    const gond = docxContractProblem(beadvanyPepNelkul(undefined));
-    assert.match(String(gond), /PEP|közszerepl/);
+  it("hiányzó válasznál megáll, és megnevezi, kinél", () => {
+    const gond = docxContractProblem(beadvany({ owners: [tulajdonos(50, NEM), tulajdonos(50)] }));
+    assert.match(String(gond), /2\. tulajdonos/);
+    assert.match(String(gond), /nem minősül kiemelt közszereplőnek/);
   });
 
   it("egyetlen hiányzó válasz is megállítja - nem pótoljuk 'nem'-mel", () => {
-    const gond = docxContractProblem(beadvanyPepNelkul({ isPep: false, isPepRelative: false }));
+    const gond = docxContractProblem(beadvany({ owners: [tulajdonos(100, { isPep: false, isPepRelative: false })] }));
     assert.match(String(gond), /PEP|közszerepl/);
   });
 });
 
-// --- forrás-őrök a wizardon (a hook aliasos importjai miatt nem tölthető be) --
+// --- forrás-őrök az űrlapon (a hook aliasos importjai miatt nem tölthető be) --
 
 const WIZARD = readFileSync(new URL("../src/components/contract-wizard/hooks/useContractWizard.ts", import.meta.url), "utf8");
 const LEPES = readFileSync(new URL("../src/components/contract-wizard/steps/Step6PepDeclaration.tsx", import.meta.url), "utf8");
 
 describe("a wizard nem válaszol az ügyfél helyett", () => {
-  it("a kezdőállapot nem állít be PEP-választ", () => {
-    const kezdo = WIZARD.slice(WIZARD.indexOf("pepDeclaration: {"), WIZARD.indexOf("uploadedDocuments"));
-    assert.doesNotMatch(kezdo, /isPep(Relative|Associate)?:\s*(true|false)/);
+  it("a kezdőállapot egyáltalán nem állít be PEP-választ", () => {
+    const kezdo = WIZARD.slice(WIZARD.indexOf("getDefaultContractData"), WIZARD.indexOf("// Lépés validációk"));
+    assert.doesNotMatch(kezdo, /isPep(Relative|Associate)?:/);
+    assert.doesNotMatch(kezdo, /pepDeclaration:/);
   });
 
-  it("a lépés mindhárom válasz meglétét megköveteli", () => {
-    for (const kulcs of ["isPep", "isPepRelative", "isPepAssociate"]) {
-      assert.match(
-        WIZARD,
-        new RegExp(`typeof data\\.pepDeclaration\\.${kulcs} !== "boolean"`),
-        `${kulcs}: nincs meglét-ellenőrzés, így üresen is tovább lehetne lépni`,
-      );
-    }
+  it("a lépés a közös szabályt kérdezi meg, nem saját másolatot tart", () => {
+    assert.match(WIZARD, /pepMissingDeclarants\(data\)/, "nincs meglét-ellenőrzés, így üresen is tovább lehetne lépni");
   });
 
-  it("a rádiógombok üresek, amíg nincs válasz", () => {
-    for (const kulcs of ["isPep", "isPepRelative", "isPepAssociate"]) {
-      assert.match(
-        LEPES,
-        new RegExp(`data\\.${kulcs} === undefined \\? ""`),
-        `${kulcs}: a gomb előre kiválasztott állapotban jelenne meg`,
-      );
-    }
+  it("a rádiógomb üres, amíg nincs válasz", () => {
+    assert.match(LEPES, /valasz === undefined \? ""/, "a gomb előre kiválasztott állapotban jelenne meg");
+  });
+
+  it("minden nyilatkozó külön azonosítót kap - különben a gombok összeakadnának", () => {
+    assert.match(LEPES, /\$\{sor\.azonosito\}-no/);
+    assert.match(LEPES, /pepDetails-\$\{key\}/);
   });
 });

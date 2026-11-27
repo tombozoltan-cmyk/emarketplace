@@ -16,6 +16,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import type { ContractData, ContractLanguage } from "@/lib/contract-types";
+import { pepDeclarantsOf, pepDeclarationOf } from "@/lib/docx-data";
 
 type Step7SummaryProps = {
   data: ContractData;
@@ -308,43 +309,34 @@ export function Step7Summary({
           onEdit={() => onEditStep("pep-declaration")}
           language={language}
         >
-          <div className="grid gap-2">
-            <SummaryRow
-              label={t ? "Kiemelt közszereplő" : "PEP status"}
-              value={
-                data.pepDeclaration.isPep
+          <div className="grid gap-5">
+            {pepDeclarantsOf(data).map((declarant) => {
+              const nyilatkozat = pepDeclarationOf(data, declarant);
+              const nev =
+                declarant.kind === "owner"
+                  ? (data.owners[declarant.ownerNumber - 1]?.natural?.fullName || "").trim()
+                  : (data.representative?.fullName || "").trim();
+              const szerep =
+                declarant.kind === "owner"
                   ? t
-                    ? "Igen"
-                    : "Yes"
+                    ? `${declarant.ownerNumber}. tulajdonos`
+                    : `Owner ${declarant.ownerNumber}`
                   : t
-                    ? "Nem"
-                    : "No"
-              }
-            />
-            <SummaryRow
-              label={t ? "PEP hozzátartozó" : "PEP relative"}
-              value={
-                data.pepDeclaration.isPepRelative
-                  ? t
-                    ? "Igen"
-                    : "Yes"
-                  : t
-                    ? "Nem"
-                    : "No"
-              }
-            />
-            <SummaryRow
-              label={t ? "PEP kapcsolat" : "PEP associate"}
-              value={
-                data.pepDeclaration.isPepAssociate
-                  ? t
-                    ? "Igen"
-                    : "Yes"
-                  : t
-                    ? "Nem"
-                    : "No"
-              }
-            />
+                    ? "Vezető tisztségviselő"
+                    : "Managing director";
+              // A meg nem adott válasz NEM "Nem": az összegző is ezt mutatja, különben az ügyfél
+              // olyan nyilatkozatot látna visszaigazolva, amit nem tett meg.
+              const valasz = (ertek: boolean | undefined) =>
+                ertek === undefined ? (t ? "Nincs megadva" : "Not answered") : ertek ? (t ? "Igen" : "Yes") : t ? "Nem" : "No";
+              return (
+                <div key={declarant.kind === "owner" ? `owner-${declarant.ownerNumber}` : "representative"} className="grid gap-2">
+                  <p className="text-sm font-semibold text-[color:var(--foreground)]">{nev ? `${szerep} - ${nev}` : szerep}</p>
+                  <SummaryRow label={t ? "Kiemelt közszereplő" : "PEP status"} value={valasz(nyilatkozat?.isPep)} />
+                  <SummaryRow label={t ? "PEP hozzátartozó" : "PEP relative"} value={valasz(nyilatkozat?.isPepRelative)} />
+                  <SummaryRow label={t ? "PEP kapcsolat" : "PEP associate"} value={valasz(nyilatkozat?.isPepAssociate)} />
+                </div>
+              );
+            })}
           </div>
         </SummaryCard>
 

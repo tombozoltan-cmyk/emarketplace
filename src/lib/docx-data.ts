@@ -25,9 +25,10 @@ export type DocxContractInput = {
   serviceType?: string;
   monthlyPrice?: number;
   company?: { name?: string; legalForm?: string; registrationNumber?: string; taxNumber?: string; isNew?: boolean };
-  owners?: { type?: string; ownershipPercent?: number; natural?: Person }[];
+  owners?: { type?: string; ownershipPercent?: number; natural?: Person; pep?: PepDeclarationInput }[];
   representative?: Person;
   contact?: { isSameAsOwner?: boolean; address?: string };
+  representativePep?: PepDeclarationInput;
   pepDeclaration?: PepDeclarationInput;
 };
 
@@ -104,13 +105,10 @@ export function docxContractProblem(contract: DocxContractInput): string | null 
   if (!packageDocuments(contract.packageId, contract.serviceType).known) {
     return `A csomag nem ismerhető fel (csomagazonosító: "${contract.packageId || ""}", szolgáltatástípus: "${contract.serviceType || ""}"). A szerződések szövege a csomagtól függ, ezért a letöltés megállt.`;
   }
-  const pep = contract.pepDeclaration;
-  if (
-    typeof pep?.isPep !== "boolean" ||
-    typeof pep?.isPepRelative !== "boolean" ||
-    typeof pep?.isPepAssociate !== "boolean"
-  ) {
-    return "A beadványban nincs megadva a kiemelt közszereplői (PEP) nyilatkozat mindhárom válasza. A nyilatkozat szövege ettől függ, és meg nem adott válaszból nem szabad „nem minősül kiemelt közszereplőnek” iratot készíteni, ezért a letöltés megállt. Kérd be a hiányzó választ az ügyféltől.";
+  const hianyzik = pepMissingDeclarants(contract);
+  if (hianyzik.length > 0) {
+    const kik = hianyzik.map(pepDeclarantLabel).join(", ");
+    return `A beadványban ${kik} nincs megadva a kiemelt közszereplői (PEP) nyilatkozat mindhárom válasza. A nyilatkozat szövege ettől függ, és meg nem adott válaszból nem szabad „nem minősül kiemelt közszereplőnek” iratot készíteni, ezért a letöltés megállt. Kérd be a hiányzó választ az ügyféltől.`;
   }
   return null;
 }
@@ -173,6 +171,68 @@ export type PepDeclarationInput = { isPep?: boolean; isPepRelative?: boolean; is
  * ki van töltve (alapértelmezésben hamis), de ha egy beadvány mégis nyilatkozat nélkül érkezne, az irat egy olyan állítást
  * tenne, amit senki nem jelentett ki. Ezt a beadvány oldalán kell kizárni, nem itt.
  */
+export function pepAnswered(declaration?: PepDeclarationInput): boolean {
+  return (
+    typeof declaration?.isPep === "boolean" &&
+    typeof declaration?.isPepRelative === "boolean" &&
+    typeof declaration?.isPepAssociate === "boolean"
+  );
+}
+
+/** Ki teszi a PEP-nyilatkozatot: egy tulajdonos (sorszámmal), vagy a vezető tisztségviselő. */
+export type PepDeclarant = { kind: "owner"; ownerNumber: number } | { kind: "representative" };
+
+type PepContractInput = {
+  owners?: { type?: string; ownershipPercent?: unknown; pep?: PepDeclarationInput }[];
+  representativePep?: PepDeclarationInput;
+  pepDeclaration?: PepDeclarationInput;
+};
+
+/**
+ * KIK kötelesek PEP-nyilatkozatot tenni. Ez az EGYETLEN hely, ahol ez eldől - az űrlap,
+ * az ellenőrzés és az iratgenerálás mind ezt kérdezi.
+ *
+ * A szabály a már jogilag átnézett `pepOwnersOf`-ból jön (2026-11-26): a legalább 25%-os
+ * természetes személy tagok a tényleges tulajdonosok. Jogi személy tag kimarad, mert ő nem
+ * tud nyilatkozni - a mögötte álló természetes személyt a generátor amúgy sem kezeli.
+ *
+ * Ha egyetlen tag sem éri el a 25%-ot, a Pmt. 3. § 38. f) szerint a VEZETŐ TISZTSÉGVISELŐ a
+ * tényleges tulajdonos, tehát ő nyilatkozik. Enélkül egy ilyen cégnél az űrlap senkitől nem
+ * kérdezne - az rosszabb lenne, mint a korábbi egyetlen nyilatkozat.
+ */
+export function pepDeclarantsOf(contract: PepContractInput): PepDeclarant[] {
+  const owners = contract.owners || [];
+  const declarants = pepOwnersOf(owners)
+    .numbers.filter((number) => owners[number - 1]?.type !== "legal")
+    .map((ownerNumber): PepDeclarant => ({ kind: "owner", ownerNumber }));
+  return declarants.length > 0 ? declarants : [{ kind: "representative" }];
+}
+
+/**
+ * Egy nyilatkozó válasza. Elsőként a sajátja; ha nincs, a beadvány-szintű
+ * (`contract.pepDeclaration`) a tartalék.
+ *
+ * A tartalékra a RÉGI beadványok miatt van szükség: azokban egyetlen nyilatkozat tartozott
+ * az egész beadványhoz, és azokból ma is kell iratot tudni készíteni. Új beadványban
+ * mindenki a sajátját kapja, mert a PEP-státusz személyenként más lehet - a ClientBoost
+ * agent-API is tulajdonosonként kéri (`beneficialOwners[].isPep`).
+ */
+export function pepDeclarationOf(contract: PepContractInput, declarant: PepDeclarant): PepDeclarationInput | undefined {
+  const sajat =
+    declarant.kind === "owner" ? contract.owners?.[declarant.ownerNumber - 1]?.pep : contract.representativePep;
+  return pepAnswered(sajat) ? sajat : contract.pepDeclaration;
+}
+
+/** Azok a nyilatkozók, akiknek még nincs megválaszolt nyilatkozatuk. */
+export function pepMissingDeclarants(contract: PepContractInput): PepDeclarant[] {
+  return pepDeclarantsOf(contract).filter((declarant) => !pepAnswered(pepDeclarationOf(contract, declarant)));
+}
+
+/** A nyilatkozó megnevezése hibaüzenethez: "a(z) 2. tulajdonosnál" vagy "a vezető tisztségviselőnél". */
+export function pepDeclarantLabel(declarant: PepDeclarant): string {
+  return declarant.kind === "owner" ? `a(z) ${declarant.ownerNumber}. tulajdonosnál` : "a vezető tisztségviselőnél";
+}
+
 export function pepFlagOf(declaration?: PepDeclarationInput): string {
   if (!declaration) return "";
   return declaration.isPep || declaration.isPepRelative || declaration.isPepAssociate ? "1" : "";
@@ -335,7 +395,6 @@ export function buildDocxData(contract: DocxContractInput, helpers: DocxDataHelp
   // (a legal owner has no person data), so a template with the role "kyc" or "pep" (ownerDataAliases) works for the fourth owner and the tenth.
   // A beadvany ma EGY PEP-nyilatkozatot tarol (ContractData.pepDeclaration), a nyilatkozat viszont tulajdonosonkent keszul,
   // ezert minden tulajdonos ugyanazt az erteket kapja. Ha a wizard egyszer tulajdonosonkent kerdez, csak ez a sor valtozik.
-  const pepFlag = pepFlagOf(contract.pepDeclaration);
   for (let index = 0; index < Math.max(3, owners.length); index++) {
     const owner = owners[index];
     const prefix = `TULAJDONOS_${index + 1}`;
@@ -344,7 +403,7 @@ export function buildDocxData(contract: DocxContractInput, helpers: DocxDataHelp
     data[`${prefix}_NEV`] = (natural?.fullName || "").trim();
     data[`${prefix}_LAKCIM`] = (natural?.address || "").trim();
     data[`${prefix}_ARANY`] = owner ? String(owner.ownershipPercent || 0) : "";
-    data[`${prefix}_PEP`] = pepFlag;
+    data[`${prefix}_PEP`] = pepFlagOf(pepDeclarationOf(contract, { kind: "owner", ownerNumber: index + 1 }));
   }
   return data;
 }

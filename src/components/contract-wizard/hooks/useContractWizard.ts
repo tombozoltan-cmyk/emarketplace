@@ -8,9 +8,12 @@ import type {
   WizardStep,
   ServiceType,
   OwnerData,
+  PepDeclaration,
 } from "@/lib/contract-types";
 import { WIZARD_STEPS } from "@/lib/contract-types";
 import { validIdType, withoutIdImages } from "@/lib/id-documents";
+import { pepDeclarantsOf, pepMissingDeclarants, pepDeclarantLabel } from "@/lib/docx-data";
+import type { PepDeclarant } from "@/lib/docx-data";
 import { dropUndefined, resolveContact } from "@/lib/contract-submission";
 import type { ServiceSelection } from "@/lib/service-types";
 import { legalPdfUrl, currentLegalVersion, legalVersionRef, LEGAL_DOCUMENTS } from "@/lib/legal/registry";
@@ -93,11 +96,6 @@ const getDefaultContractData = (language: ContractLanguage): ContractData => ({
     emailConfirm: "",
     phone: "",
     address: "",
-  },
-  // A három válasz szándékosan hiányzik: a rádiógombok üresen indulnak. Lásd a
-  // PepDeclaration típusnál - a csendes "nem" olyan állítás lenne, amit senki nem tett meg.
-  pepDeclaration: {
-    pepDetails: "",
   },
   uploadedDocuments: {},
   generatedDocuments: {},
@@ -231,29 +229,27 @@ const validateStep = (
     case "pep-declaration":
       // Mindhárom kérdésre válaszolni kell. Alapértelmezés nincs: a Pmt. szerinti
       // nyilatkozatot az ügyfélnek kell megtennie, nem az űrlapnak helyette.
-      if (
-        typeof data.pepDeclaration.isPep !== "boolean" ||
-        typeof data.pepDeclaration.isPepRelative !== "boolean" ||
-        typeof data.pepDeclaration.isPepAssociate !== "boolean"
-      ) {
+      for (const declarant of pepMissingDeclarants(data)) {
+        const kinel = pepDeclarantLabel(declarant);
         errors.push(
           t
-            ? "Kérjük, válaszoljon mind a három kérdésre - ez kötelező nyilatkozat"
-            : "Please answer all three questions - this is a mandatory declaration"
+            ? `Kérjük, válaszoljon mind a három kérdésre ${kinel} - ez kötelező nyilatkozat`
+            : "Please answer all three questions for every beneficial owner - this is a mandatory declaration"
         );
       }
-      // PEP részletek kötelezőek, ha igen-t jelölt
-      if (
-        (data.pepDeclaration.isPep ||
-          data.pepDeclaration.isPepRelative ||
-          data.pepDeclaration.isPepAssociate) &&
-        !data.pepDeclaration.pepDetails?.trim()
-      ) {
-        errors.push(
-          t
-            ? "Kérjük, adja meg a közszereplői státusz részleteit"
-            : "Please provide PEP status details"
-        );
+      // PEP részletek kötelezőek annál, aki igen-t jelölt
+      for (const declarant of pepDeclarantsOf(data)) {
+        const nyilatkozat =
+          declarant.kind === "owner" ? data.owners[declarant.ownerNumber - 1]?.pep : data.representativePep;
+        const erintett = nyilatkozat?.isPep || nyilatkozat?.isPepRelative || nyilatkozat?.isPepAssociate;
+        if (erintett && !nyilatkozat?.pepDetails?.trim()) {
+          const kinel = pepDeclarantLabel(declarant);
+          errors.push(
+            t
+              ? `Kérjük, adja meg a közszereplői státusz részleteit ${kinel}`
+              : "Please provide PEP status details"
+          );
+        }
       }
       break;
 
@@ -293,7 +289,7 @@ export type UseContractWizardReturn = {
   setOwnerCount: (count: number) => void;
   updateRepresentative: (updates: Partial<ContractData["representative"]>) => void;
   updateContact: (updates: Partial<ContractData["contact"]>) => void;
-  updatePepDeclaration: (updates: Partial<ContractData["pepDeclaration"]>) => void;
+  updatePepDeclaration: (declarant: PepDeclarant, updates: Partial<PepDeclaration>) => void;
   updateDocuments: (updates: Partial<ContractData["uploadedDocuments"]>) => void;
   updateDocumentPaths: (updates: Partial<ContractDocumentPaths>) => void;
   setServiceType: (selection: ServiceSelection) => void;
@@ -478,12 +474,20 @@ export function useContractWizard(
     []
   );
 
+  // A nyilatkozat oda kerül, akiről szól: a tulajdonoshoz vagy a vezető tisztségviselőhöz.
+  // A beadvány-szintű `pepDeclaration` örökség, új beadvány nem tölti.
   const updatePepDeclaration = useCallback(
-    (updates: Partial<ContractData["pepDeclaration"]>) => {
-      setData((prev) => ({
-        ...prev,
-        pepDeclaration: { ...prev.pepDeclaration, ...updates },
-      }));
+    (declarant: PepDeclarant, updates: Partial<PepDeclaration>) => {
+      setData((prev) => {
+        if (declarant.kind === "representative") {
+          return { ...prev, representativePep: { ...prev.representativePep, ...updates } };
+        }
+        const owners = [...prev.owners];
+        const index = declarant.ownerNumber - 1;
+        if (!owners[index]) return prev;
+        owners[index] = { ...owners[index], pep: { ...owners[index].pep, ...updates } };
+        return { ...prev, owners };
+      });
     },
     []
   );
