@@ -28,6 +28,7 @@ export type DocxContractInput = {
   owners?: { type?: string; ownershipPercent?: number; natural?: Person }[];
   representative?: Person;
   contact?: { isSameAsOwner?: boolean; address?: string };
+  pepDeclaration?: PepDeclarationInput;
 };
 
 export type DocxDataHelpers = {
@@ -151,6 +152,24 @@ function shareOf(value: unknown): number | null {
  * - a legal person among the members: the beneficial owner is the natural person behind it, by hand;
  * - nobody reaches 25 per cent (and every share is known): the managing director is the beneficial owner (Pmt. 3. § 38. f), by hand.
  */
+/** A wizard PEP-lépésének három kérdése. Mindhárom "igen" ugyanazt jelenti az iratban: a tulajdonos a nyilatkozat szerint érintett. */
+export type PepDeclarationInput = { isPep?: boolean; isPepRelative?: boolean; isPepAssociate?: boolean };
+
+/**
+ * A PEP-nyilatkozat sablon-feltételének értéke: üres sztring = NEM érintett, "1" = érintett.
+ *
+ * A sablon `{^TULAJDONOS_PEP}` ága a "nem minősül kiemelt közszereplőnek" mondatot írja ki, a `{#TULAJDONOS_PEP}` ága a másikat.
+ * A docxtemplater az üres sztringet hamisnak veszi, ezért elég sztringet adni: a `buildDocxData` amúgy is csak sztringeket ad.
+ *
+ * ⚠ Hiányzó nyilatkozat esetén üreset ad, tehát az irat a "nem minősül" mondatot írja ki. A wizardban a három érték mindig
+ * ki van töltve (alapértelmezésben hamis), de ha egy beadvány mégis nyilatkozat nélkül érkezne, az irat egy olyan állítást
+ * tenne, amit senki nem jelentett ki. Ezt a beadvány oldalán kell kizárni, nem itt.
+ */
+export function pepFlagOf(declaration?: PepDeclarationInput): string {
+  if (!declaration) return "";
+  return declaration.isPep || declaration.isPepRelative || declaration.isPepAssociate ? "1" : "";
+}
+
 export function pepOwnersOf(owners: { type?: string; ownershipPercent?: unknown }[] | undefined): { numbers: number[]; notes: string[] } {
   const list = owners || [];
   const numbers: number[] = [];
@@ -306,6 +325,9 @@ export function buildDocxData(contract: DocxContractInput, helpers: DocxDataHelp
   // every owner, however many there are (the wizard does not limit them; the old builder of the page stops at three): at least three, so the first three are
   // always defined even when empty. The name, the address and the share are given here for every owner as the old builder gives them for the first three
   // (a legal owner has no person data), so a template with the role "kyc" or "pep" (ownerDataAliases) works for the fourth owner and the tenth.
+  // A beadvany ma EGY PEP-nyilatkozatot tarol (ContractData.pepDeclaration), a nyilatkozat viszont tulajdonosonkent keszul,
+  // ezert minden tulajdonos ugyanazt az erteket kapja. Ha a wizard egyszer tulajdonosonkent kerdez, csak ez a sor valtozik.
+  const pepFlag = pepFlagOf(contract.pepDeclaration);
   for (let index = 0; index < Math.max(3, owners.length); index++) {
     const owner = owners[index];
     const prefix = `TULAJDONOS_${index + 1}`;
@@ -314,6 +336,7 @@ export function buildDocxData(contract: DocxContractInput, helpers: DocxDataHelp
     data[`${prefix}_NEV`] = (natural?.fullName || "").trim();
     data[`${prefix}_LAKCIM`] = (natural?.address || "").trim();
     data[`${prefix}_ARANY`] = owner ? String(owner.ownershipPercent || 0) : "";
+    data[`${prefix}_PEP`] = pepFlag;
   }
   return data;
 }
