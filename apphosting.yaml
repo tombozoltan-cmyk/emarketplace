@@ -77,3 +77,20 @@ env:
     value: "https://api.cegjelzo.com"
     availability:
       - RUNTIME
+  # ClientBoost Agent API. Egyirányú: mi vagyunk a kliens, ők adják a végpontokat.
+  # Csak szerveroldal olvassa, ezért RUNTIME-only: a build nem látja, így a kulcs
+  # nem kerülhet a kliens-csomagba.
+  - variable: CLIENTBOOST_API_KEY
+    secret: CLIENTBOOST_API_KEY
+    availability:
+      - RUNTIME
+  # ⚠ EZ A QA-HOSZT. A 2026-11-27-én kiállított kulcs a QA-ra érvényes (mérve: a QA
+  # whoami 200-at ad, a PROD nem). Amíg itt QA áll, ügyfél-átvilágítási adat NEM
+  # mehet át - az a teszt-környezetbe kerülne. PROD-hoszt:
+  # https://backend.smartszekhely.hu, ahhoz külön, éles kulcs kell.
+  # A tests/clientboost-api.test.mjs botlasztója addig őrzi, amíg adat-átadó hívás
+  # nincs a kliensben.
+  - variable: CLIENTBOOST_API_URL
+    value: "https://backend-qa-dot-clientboost.ew.r.appspot.com"
+    availability:
+      - RUNTIME

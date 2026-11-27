@@ -204,5 +204,14 @@ test("a modul nem naplóz: a kérés törzse és a kulcs nem kerülhet a naplób
 });
 
 test("az adat-átadó hívások még nincsenek benne - a mezőszintű leírásra várnak", () => {
-  assert.doesNotMatch(FORRAS, /\/agent-api\/intake/);
+  // BOTLASZTÓ. Amikor ez elbukik, valaki adat-átadó hívást tett a kliensbe.
+  // Ilyenkor ELŐBB az apphosting.yaml CLIENTBOOST_API_URL értékét kell a PROD
+  // hosztra (https://backend.smartszekhely.hu) cserélni, és éles kulcsot tenni
+  // a CLIENTBOOST_API_KEY titokba. A 2026-11-27-i kulcs QA-ra szól: amíg az áll
+  // ott, az ügyfél-átvilágítási adat a teszt-környezetbe menne.
+  assert.doesNotMatch(
+    FORRAS,
+    /\/agent-api\/intake/,
+    "adat-átadó hívás került a kliensbe: előbb PROD hosztra és éles kulcsra kell váltani (lásd apphosting.yaml)",
+  );
 });
