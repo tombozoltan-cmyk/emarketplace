@@ -24,7 +24,7 @@ export type DocxContractInput = {
   packageId?: string;
   serviceType?: string;
   monthlyPrice?: number;
-  company?: { name?: string; legalForm?: string; registrationNumber?: string; taxNumber?: string; isNew?: boolean };
+  company?: { name?: string; legalForm?: string; registrationNumber?: string; taxNumber?: string; isNew?: boolean; mainActivity?: string };
   owners?: { type?: string; ownershipPercent?: number; natural?: Person; pep?: PepDeclarationInput }[];
   representative?: Person;
   contact?: { isSameAsOwner?: boolean; address?: string };
@@ -575,6 +575,59 @@ export function chainPepNotes(contract: {
   return notes;
 }
 
+/**
+ * A "tulajdonosi érdekeltség jellege, mértéke" mező szövege (adatlap II./2, Pmt. 9. § (1b) f)).
+ *
+ * A PEI kitöltési útmutató (2026-11-28) szó szerinti alakjait követi, és külön kiemeli gyakori
+ * hibaként, hogy "csak a százalék áll a mezőben, a jelleg nem". Ezért a jelleg MINDIG ott van.
+ *
+ * Négy alak:
+ * - közvetlen tag:            "közvetlen tulajdon, 60%"
+ * - a láncon keresztül:       "közvetett, X Kft.-n keresztül, 30% (Ptk. 8:2. § (4))"
+ * - 25% alatti irányítás:     "meghatározó befolyás, ... (38. b))"
+ * - senki más nincs:          "vezető tisztségviselő (38. f)), mert a) és b) szerinti személy nincs"
+ */
+export function ownershipInterestText(
+  b: { indirect: boolean; effectiveShare: number | null; path: string },
+  kozbensoCeg?: string,
+): string {
+  const arany = b.effectiveShare === null ? "arány nem állapítható meg" : `${String(b.effectiveShare).replace(".", ",")}%`;
+  if (!b.indirect) return `közvetlen tulajdon, ${arany}`;
+  const at = (kozbensoCeg || "").trim();
+  return `közvetett${at ? `, ${at}-n keresztül` : ""}, ${arany} (Ptk. 8:2. § (4))`;
+}
+
+/** A vezető tisztségviselő esete: a Pmt. 3. § 38. f) szerinti végső tartalék. */
+export const INTEREST_SENIOR_OFFICER = "vezető tisztségviselő (38. f)), mert a) és b) szerinti személy nincs";
+
+/** A 25% alatti meghatározó befolyás esete (Pmt. 3. § 38. b)). */
+export function interestDecisiveInfluence(indok?: string): string {
+  const r = (indok || "").trim();
+  return `meghatározó befolyás${r ? `, ${r}` : ""} (38. b))`;
+}
+
+/**
+ * Az adatlap II./1 rovata NEM alkalmazandó nálunk, és nem maradhat üresen.
+ *
+ * A PEI útmutató (2026-11-28, 2.5 pont) elhatárolása: a II./1 a TERMÉSZETES SZEMÉLY ügyfélre
+ * szól (Pmt. 8. § (1)-(2)), a II./2 a JOGI SZEMÉLY ügyfélre (Pmt. 9. § (1b)). A mi ügyfelünk
+ * mindig gazdasági társaság. A 2.0 pont pedig kimondja: "üres mező nem maradhat szó nélkül" -
+ * oda az kerüljön, miért nincs kitöltve.
+ */
+export const SECTION_II1_NOT_APPLICABLE =
+  "Nem alkalmazandó: az ügyfél jogi személy, ezért a tényleges tulajdonosi nyilatkozat a II./2. rovatban szerepel (Pmt. 9. § (1b)).";
+
+/**
+ * A II./2 rovat alá kerülő melléklet-sor (PEI kitöltési útmutató v2, 2026-11-28, 6.4 pont).
+ *
+ * A gazda döntése (tg 5410): a tényleges tulajdonos okmánymásolatát MINDEN ügyféltől bekérjük.
+ * Az adatlapon erre nincs mező, ezért az útmutató szerint a II./2 alá írjuk. A belső
+ * kockázatértékelés pontszámát szándékosan nem találjuk ki: azt a szabályzat módosításakor kell
+ * beírni, addig a hivatkozás általános marad.
+ */
+export const BENEFICIAL_OWNER_ID_COPY_NOTE =
+  "Melléklet: a tényleges tulajdonos személyazonosító okmányának másolata (a belső kockázatértékelés szerinti társított intézkedés; a lakcímkártya hátoldaláról másolat nem készül).";
+
 export function pepOwnersOf(owners: { type?: string; ownershipPercent?: unknown }[] | undefined): { numbers: number[]; notes: string[] } {
   const list = owners || [];
   const numbers: number[] = [];
@@ -730,6 +783,12 @@ export function buildDocxData(contract: DocxContractInput, helpers: DocxDataHelp
     // minden PEP-nyilatkozatról eltűnne. Ezért itt is megadjuk.
     KEPVISELO_NEV: (representative.fullName || "").trim(),
     KEPVISELO_LAKCIM: (representative.address || "").trim(),
+    KEPVISELO_ANYJA_NEVE: (representative.motherName || "").trim(),
+    // Az adatlap I./2 "főtevékenysége" mezője. Szintén csak a régi térképből jött eddig.
+    FOTEV: (company.mainActivity || "").trim(),
+    // Az adatlap II./1 rovata nem alkalmazandó (jogi személy ügyfél), de nem maradhat üresen.
+    ADATLAP_II1_INDOK: SECTION_II1_NOT_APPLICABLE,
+    ADATLAP_OKMANYMASOLAT: BENEFICIAL_OWNER_ID_COPY_NOTE,
     ...personData("KEPVISELO", representative, helpers),
   };
 
@@ -738,6 +797,14 @@ export function buildDocxData(contract: DocxContractInput, helpers: DocxDataHelp
   // (a legal owner has no person data), so a template with the role "kyc" or "pep" (ownerDataAliases) works for the fourth owner and the tenth.
   // A beadvany ma EGY PEP-nyilatkozatot tarol (ContractData.pepDeclaration), a nyilatkozat viszont tulajdonosonkent keszul,
   // ezert minden tulajdonos ugyanazt az erteket kapja. Ha a wizard egyszer tulajdonosonkent kerdez, csak ez a sor valtozik.
+  // A "tulajdonosi érdekeltség jellege, mértéke" mezőhöz: a KÖZVETLEN tényleges tulajdonosok
+  // effektív aránya. A láncon át azonosítottaké nem itt megy, mert nekik nincs sorszámuk a
+  // beadványban - az ő adatlapjukat a hívó állítja össze (lásd ownershipInterestText).
+  const ttSzamok = new Map(
+    beneficialOwnersOf(owners)
+      .beneficialOwners.filter((b) => !b.indirect)
+      .map((b) => [b.ownerNumber, b]),
+  );
   for (let index = 0; index < Math.max(3, owners.length); index++) {
     const owner = owners[index];
     const prefix = `TULAJDONOS_${index + 1}`;
@@ -747,6 +814,9 @@ export function buildDocxData(contract: DocxContractInput, helpers: DocxDataHelp
     data[`${prefix}_LAKCIM`] = (natural?.address || "").trim();
     data[`${prefix}_ARANY`] = owner ? String(owner.ownershipPercent || 0) : "";
     data[`${prefix}_PEP`] = pepFlagOf(pepDeclarationOf(contract, { kind: "owner", ownerNumber: index + 1 }));
+    const tt = ttSzamok.get(index + 1);
+    // Csak a tényleges tulajdonosnak van érdekeltsége a II./2-ben; a 25% alatti tag nem kerül oda.
+    data[`${prefix}_ERDEKELTSEG`] = tt ? ownershipInterestText(tt) : "";
   }
   return data;
 }

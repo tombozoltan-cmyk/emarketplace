@@ -626,7 +626,10 @@ export default function ContractsPage() {
       // mögötte álló emberé a lánc alapján külön tételként jön.
       const ttLista = beneficialOwnersOf(owners);
       const kozvetlenTT = ttLista.beneficialOwners.filter((b) => !b.indirect).map((b) => b.ownerNumber);
-      const plan = planDownloads(docxTemplates, owners.length, packageDocuments(selectedContract.packageId, selectedContract.serviceType), { pepOwners: kozvetlenTT });
+      // Az adatlap és a nyilatkozat is a TÉNYLEGES tulajdonosoké (PEI kitöltési útmutató,
+      // 2026-11-28): a jogi személy tag egyikre sem jogosult, mert tényleges tulajdonos csak
+      // természetes személy lehet - korábban üres nevű adatlap készült róla.
+      const plan = planDownloads(docxTemplates, owners.length, packageDocuments(selectedContract.packageId, selectedContract.serviceType), { pepOwners: kozvetlenTT, kycOwners: kozvetlenTT });
       const items = plan.items.filter((item) => kinds.includes(item.kind));
       // A láncon át azonosított tényleges tulajdonosok iratai. A PEP-sablon csak a nevet kéri,
       // azt a láncból tudjuk - a válaszát pedig az ügyfél adta meg a nyilatkozat-lépésen.

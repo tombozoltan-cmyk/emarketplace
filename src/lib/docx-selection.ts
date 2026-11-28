@@ -125,8 +125,14 @@ export function planDownloads(
   templates: DocxTemplateRef[],
   ownerCount: number,
   documents: { seat: boolean; delivery: boolean } = { seat: true, delivery: false },
-  /** `pepOwners`: the owner numbers that get a declaration (the beneficial owners, see pepOwnersOf in docx-data.ts); without it every owner gets one. */
-  options: { pepOwners?: number[] } = {}
+  /**
+   * `pepOwners` / `kycOwners`: the owner numbers that get a declaration and a data sheet. Both are
+   * the BENEFICIAL owners: the PEI filling guide (2026-11-28) says the II. block is made for the
+   * beneficial owners, and lists as a common mistake that "a legal entity member is put here
+   * instead of a natural person: a beneficial owner can only be a natural person". Without the
+   * option every owner gets one, as before.
+   */
+  options: { pepOwners?: number[]; kycOwners?: number[] } = {}
 ): { items: DownloadItem[]; problems: DownloadProblem[] } {
   const items: DownloadItem[] = [];
   const problems: DownloadProblem[] = [];
@@ -143,6 +149,7 @@ export function planDownloads(
   for (let ownerNumber = 1; ownerNumber <= ownerCount; ownerNumber++) {
     for (const [kind, category] of [["kyc", CATEGORY_KYC], ["pep", CATEGORY_PEP]] as const) {
       if (kind === "pep" && options.pepOwners && !options.pepOwners.includes(ownerNumber)) continue;
+      if (kind === "kyc" && options.kycOwners && !options.kycOwners.includes(ownerNumber)) continue;
       const pick = pickOwnerTemplate(templates, category, ownerNumber);
       if (pick.template) items.push({ kind, ownerNumber, template: pick.template });
       else problems.push({ kind, message: pick.error });

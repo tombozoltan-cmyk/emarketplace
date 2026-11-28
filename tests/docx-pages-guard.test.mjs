@@ -47,7 +47,10 @@ describe("the contracts page", () => {
     // sorszáma megy (a jogi személy tag így nem kap üres nevű iratot), a láncon át azonosított
     // emberek pedig külön tételként kapják a sajátjukat.
     assert.ok(run.includes("beneficialOwnersOf(owners)"), "a tényleges tulajdonosok listájából dolgozik");
-    assert.ok(run.includes("{ pepOwners: kozvetlenTT }"), "a tervbe csak a közvetlen tényleges tulajdonosok mennek");
+    assert.ok(
+      run.includes("{ pepOwners: kozvetlenTT, kycOwners: kozvetlenTT }"),
+      "a tervbe csak a közvetlen tényleges tulajdonosok mennek - az ADATLAP is, nem csak a nyilatkozat (PEI útmutató 2026-11-28: tényleges tulajdonos csak természetes személy lehet)",
+    );
     assert.ok(/filter\(\(b\) => !b\.indirect\)/.test(run), "a közvetett tulajdonos nem a sorszámán megy");
     assert.ok(run.includes("if (!valasz) continue;"), "válasz nélkül nem készül nyilatkozat a lánc emberéről");
     // the notes are an alert, and the downloads go on: no `return` between building them and the alert
