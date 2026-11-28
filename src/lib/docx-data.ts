@@ -173,6 +173,16 @@ export type ChainOwner = {
   owners?: ChainOwner[];
 };
 
+/**
+ * Egy ág, ahol a feltárás NEM ért véget. A jogi átnézés (2026-11-28) szerint ez nem eredmény,
+ * hanem nyitott tétel: a tényleges tulajdonos ilyenkor nem "hiányzik", hanem ISMERETLEN, ezért
+ * a Pmt. 3. § 38. f) pontja (vezető tisztségviselő) NEM alkalmazható rá.
+ */
+export type UnresolvedBranch = {
+  path: string;
+  reason: "jegyzett-anyaceg" | "harmadik-ceg-utan" | "lanc-hianyzik";
+};
+
 /** Egy azonosított tényleges tulajdonos, a láncon átszámolt aránnyal. */
 export type BeneficialOwner = {
   /** Emberi szóval, honnan jön: "2. tulajdonos -> Anya Kft. -> Kovács János". */
@@ -217,6 +227,11 @@ function indirectInfluence(koztesBefolyas: number | null, reszesedes: number | n
  * Amit a függvény NEM dönt el, csak megjegyzésben jelez (mert gépből nem állapítható meg):
  * a 25% alatti meghatározó befolyás, és a hiányzó láncadat.
  *
+ * ⚠ A `unresolved` ágakat a hívónak KÖTELEZŐ figyelembe vennie: ha van ilyen, a tényleges
+ * tulajdonos nem "hiányzik", hanem ismeretlen, ezért a Pmt. 3. § 38. f) pontja (vezető
+ * tisztségviselő) nem alkalmazható. Üres `beneficialOwners` + üres `unresolved` az egyetlen
+ * eset, amikor tényleg nincs 25%-os természetes személy, és az ügyvezető lép a helyére.
+ *
  * ⚠ ISMERT HIÁNY: a Ptk. 8:2. § (5) szerint "a közeli hozzátartozók közvetlen és közvetett
  * tulajdoni részesedését vagy szavazati jogát egybe kell számítani". Ezt a függvény NEM teszi
  * meg, mert az űrlap nem kérdez rokoni kapcsolatot. Két testvér 15-15%-a a törvény szerint
@@ -226,9 +241,10 @@ function indirectInfluence(koztesBefolyas: number | null, reszesedes: number | n
  */
 export function beneficialOwnersOf(
   owners: { type?: string; ownershipPercent?: unknown; natural?: { fullName?: string }; legal?: { companyName?: string; listed?: boolean; owners?: ChainOwner[] } }[] | undefined,
-): { beneficialOwners: BeneficialOwner[]; notes: string[] } {
+): { beneficialOwners: BeneficialOwner[]; notes: string[]; unresolved: UnresolvedBranch[] } {
   const notes: string[] = [];
   const talalt: BeneficialOwner[] = [];
+  const unresolved: UnresolvedBranch[] = [];
 
   // `sajatBefolyas` MÁR a csomópont befolyása az ügyfélcégben - a hívó számolta ki a Ptk. 8:2. §
   // (4) szerint. Így a törvényi lépés egy helyen van, és a gyökér (közvetlen tag) nem esik a
@@ -243,16 +259,26 @@ export function beneficialOwnersOf(
       return;
     }
     if (csomopont.listed) {
-      notes.push(`${sajatUt}: szabályozott piacon jegyzett társaság, a Pmt. szerint a láncot itt nem kell tovább követni.`);
+      // A jogi átnézés (2026-11-28, 2. pont): a Pmt. 3. § 38. a) pontjának kivétele a jegyzett
+      // ÜGYFÉLRE szól, nem a láncban lévő köztes anyacégre - erre a Pmt. szövegében nincs
+      // kivétel. A gazda döntése (tg 5380) szerint itt megállunk, de FIGYELMEZTETÉSSEL, és az
+      // ág nyitva marad: a részvényeseket a nyilvános bejelentésekből kell ellenőrizni.
+      unresolved.push({ path: sajatUt, reason: "jegyzett-anyaceg" });
+      notes.push(`${sajatUt}: jegyzett anyacég - a 25%-ot elérő részvényesei a nyilvános részesedés-bejelentésekből ellenőrizendők. Az ág NYITOTT: a tényleges tulajdonos itt nem azonosított.`);
       return;
     }
     if (cegekSzama >= MAX_OWNER_CHAIN_DEPTH) {
-      notes.push(`${sajatUt}: a lánc ${MAX_OWNER_CHAIN_DEPTH} cégnél mélyebb. Itt meg kell nevezni a tényleges tulajdonost, mert a láncot nem követjük tovább.`);
+      // A jogi átnézés (2026-11-28, 3. pont): a Pmt. 9. § (1), (1a) a teljes szerkezet feltárását
+      // kéri, mélységi korlát nélkül. A három cég maradhat gyakorlati korlátnak, de az eredmény
+      // NYITOTT, nem kész - és a vezető tisztségviselő nem léphet a helyére.
+      unresolved.push({ path: sajatUt, reason: "harmadik-ceg-utan" });
+      notes.push(`${sajatUt}: a lánc ${MAX_OWNER_CHAIN_DEPTH} cégnél mélyebb, itt megálltunk. Az ág NYITOTT: a tényleges tulajdonost az ügyfél képviselőjének kell megneveznie (Pmt. 9. § (1b), (1c)), és ezt rögzíteni kell. A vezető tisztségviselő NEM léphet a helyére.`);
       return;
     }
     const gyerekek = csomopont.owners || [];
     if (gyerekek.length === 0) {
-      notes.push(`${sajatUt}: jogi személy tulajdonos, de a mögötte álló tulajdonosok nincsenek megadva. A tényleges tulajdonos a lánc mögötti természetes személy - ezt az átvilágításnál kell tisztázni.`);
+      unresolved.push({ path: sajatUt, reason: "lanc-hianyzik" });
+      notes.push(`${sajatUt}: jogi személy tulajdonos, de a mögötte álló tulajdonosok nincsenek megadva. Az ág NYITOTT: a tényleges tulajdonos a lánc mögötti természetes személy, ezt az átvilágításnál kell tisztázni. A vezető tisztségviselő NEM léphet a helyére.`);
       return;
     }
     for (const gyerek of gyerekek) {
@@ -307,7 +333,7 @@ export function beneficialOwnersOf(
       notes.push(`${b.path}: az effektív arány nem számolható ki, mert a láncon valahol hiányzik a tulajdoni arány. A nyilatkozat elkészül hozzá, ellenőrizd.`);
     }
   }
-  return { beneficialOwners, notes };
+  return { beneficialOwners, notes, unresolved };
 }
 
 /**
@@ -418,6 +444,17 @@ export function pepDeclarantLabel(declarant: PepDeclarant): string {
 export function pepFlagOf(declaration?: PepDeclarationInput): string {
   if (!declaration) return "";
   return declaration.isPep || declaration.isPepRelative || declaration.isPepAssociate ? "1" : "";
+}
+
+/**
+ * Figyelmeztetés, ha az ügyfél 25% ALATTI meghatározó befolyást jelentett (Pmt. 3. § 38. b)).
+ * Ilyen személyre is tényleges tulajdonosként kell PEP-nyilatkozat, de az ő adatait az űrlap ma
+ * csak szövegesen gyűjti, ezért az iratot kézzel kell elkészíteni. Jogi átnézés 2026-11-28, 5. pont.
+ */
+export function decisiveInfluenceNote(decisiveInfluence?: { exists?: boolean; details?: string }): string | null {
+  if (decisiveInfluence?.exists !== true) return null;
+  const reszletek = (decisiveInfluence.details || "").trim();
+  return `Az ügyfél 25% alatti MEGHATÁROZÓ BEFOLYÁST jelentett${reszletek ? `: "${reszletek}"` : ""}. Az ilyen személy a Pmt. 3. § 38. b) pontja szerint tényleges tulajdonos, tehát rá is kell PEP-nyilatkozat és átvilágítási adatlap. A generátor ezt nem készíti el - kézzel kell.`;
 }
 
 export function pepOwnersOf(owners: { type?: string; ownershipPercent?: unknown }[] | undefined): { numbers: number[]; notes: string[] } {

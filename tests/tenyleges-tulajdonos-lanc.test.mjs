@@ -94,27 +94,39 @@ describe("közvetett tulajdonlás: az arányok szorzódnak", () => {
 });
 
 describe("ahol a gép megáll, és szól", () => {
-  it("a lánc nincs megadva: nem találunk ki senkit, hanem jelezzük", () => {
+  it("a lánc nincs megadva: nem találunk ki senkit, az ág NYITOTT marad", () => {
     const e = beneficialOwnersOf([ceg("Anya Kft.", 100)]);
     assert.deepEqual(e.beneficialOwners, []);
-    assert.match(e.notes.join(" "), /nincsenek megadva|átvilágításnál/);
+    assert.deepEqual(e.unresolved.map((u) => u.reason), ["lanc-hianyzik"]);
+    assert.match(e.notes.join(" "), /NYITOTT/);
+    assert.match(e.notes.join(" "), /NEM léphet a helyére/, "a 38. f) itt nem alkalmazható");
   });
 
-  it("tőzsdei anyacégnél a láncot nem követjük tovább", () => {
+  it("jegyzett anyacégnél megállunk, de a Pmt. kivételére NEM hivatkozunk", () => {
+    // Jogi átnézés 2026-11-28, 2. pont: a Pmt. 3. § 38. a) kivétele a jegyzett ÜGYFÉLRE szól,
+    // nem a láncban lévő köztes anyacégre. A gazda döntése: megállás figyelmeztetéssel.
     const e = beneficialOwnersOf([ceg("Tőzsdei Nyrt.", 100, { listed: true, owners: [lancTag("Nem kell", 100)] })]);
     assert.deepEqual(e.beneficialOwners, []);
-    assert.match(e.notes.join(" "), /szabályozott piacon/);
+    assert.deepEqual(e.unresolved.map((u) => u.reason), ["jegyzett-anyaceg"]);
+    assert.match(e.notes.join(" "), /nyilvános részesedés-bejelentésekből/);
+    assert.doesNotMatch(e.notes.join(" "), /a Pmt\. szerint a láncot itt nem kell/, "ilyen kivétel nincs");
   });
 
-  it(`a ${MAX_OWNER_CHAIN_DEPTH}. cég után megáll, és megnevezteti a tényleges tulajdonost`, () => {
+  it(`a ${MAX_OWNER_CHAIN_DEPTH}. cég után megáll, de ez NYITOTT tétel, nem eredmény`, () => {
     const e = beneficialOwnersOf([
       ceg("C1", 100, {
         owners: [lancCeg("C2", 100, { owners: [lancCeg("C3", 100, { owners: [lancCeg("C4", 100, { owners: [lancTag("Mély", 100)] })] })] })],
       }),
     ]);
     assert.ok(!nevek(e).includes("Mély"), "a negyedik cégbe már nem megyünk bele");
-    assert.match(e.notes.join(" "), new RegExp(`${MAX_OWNER_CHAIN_DEPTH} cégnél mélyebb`));
-    assert.match(e.notes.join(" "), /meg kell nevezni a tényleges tulajdonost/);
+    assert.deepEqual(e.unresolved.map((u) => u.reason), ["harmadik-ceg-utan"]);
+    assert.match(e.notes.join(" "), /NEM léphet a helyére/);
+    assert.match(e.notes.join(" "), /9\. § \(1b\), \(1c\)/, "a képviselő nevezi meg");
+  });
+
+  it("ha minden ág lezárult, az unresolved üres - csak ekkor léphet be a 38. f)", () => {
+    const e = beneficialOwnersOf([szemely("Egyedüli", 100)]);
+    assert.deepEqual(e.unresolved, []);
   });
 
   it(`pontosan ${MAX_OWNER_CHAIN_DEPTH} cég még végigkövethető`, () => {

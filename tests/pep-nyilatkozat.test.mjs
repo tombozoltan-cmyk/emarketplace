@@ -294,3 +294,40 @@ describe("az eljáró személy neve nem függhet a régi térképtől", () => {
     assert.equal(adat.KEPVISELO_NEV, "");
   });
 });
+
+// --- 25% alatti meghatározó befolyás (jogi átnézés 2026-11-28, 5. pont) ------
+
+import { decisiveInfluenceNote } from "../src/lib/docx-data.ts";
+
+describe("a 25% alatti meghatározó befolyás kötelező kérdés", () => {
+  it("nem jelentett befolyásnál nincs figyelmeztetés", () => {
+    assert.equal(decisiveInfluenceNote({ exists: false }), null);
+    assert.equal(decisiveInfluenceNote(undefined), null);
+  });
+
+  it("jelentett befolyásnál szól, hogy rá is kell nyilatkozat, és hogy kézzel", () => {
+    const note = decisiveInfluenceNote({ exists: true, details: "Kovács János, szavazategyezség" });
+    assert.match(String(note), /tényleges tulajdonos/);
+    assert.match(String(note), /38\. b\)/);
+    assert.match(String(note), /kézzel/);
+    assert.match(String(note), /Kovács János/, "a megadott indok is benne van");
+  });
+
+  it("részletek nélkül is szól - a hiány nem némíthatja el", () => {
+    assert.match(String(decisiveInfluenceNote({ exists: true })), /MEGHATÁROZÓ BEFOLYÁST/);
+  });
+});
+
+describe("az űrlap megköveteli a választ (forrás-őrök)", () => {
+  it("a lépés ellenőrzi, hogy válaszoltak-e", () => {
+    assert.match(WIZARD, /typeof data\.decisiveInfluence\?\.exists !== "boolean"/);
+  });
+
+  it("igen válasznál a megnevezés is kötelező", () => {
+    assert.match(WIZARD, /decisiveInfluence\.exists && !data\.decisiveInfluence\.details\?\.trim\(\)/);
+  });
+
+  it("a rádiógomb üresen indul, nincs előre bejelölt 'nem'", () => {
+    assert.match(LEPES, /decisiveInfluence\.exists === undefined \? ""/);
+  });
+});

@@ -60,7 +60,7 @@ import { buildConditionalContext, replaceShortcodes } from "@/lib/contract-short
 import { fillOfficialPostalAuthPDF, type OfficialPostalAuthData } from "@/lib/pdf-generators/postal-authorization";
 import { idTypeLabel, uploadedDocumentLabel } from "@/lib/id-documents";
 import { planDownloads, type DownloadItem, type DownloadKind } from "@/lib/docx-selection";
-import { PROVIDER_NAME, buildDocxData, deliveryContractWarning, docxContractProblem, ownerDataAliases, packageDocuments, pepOwnersOf } from "@/lib/docx-data";
+import { PROVIDER_NAME, buildDocxData, decisiveInfluenceNote, deliveryContractWarning, docxContractProblem, ownerDataAliases, packageDocuments, pepOwnersOf } from "@/lib/docx-data";
 
 const FUNCTIONS_BASE_URL = process.env.NEXT_PUBLIC_FUNCTIONS_URL || "https://us-central1-emarketplace-8aab1.cloudfunctions.net";
 
@@ -615,7 +615,8 @@ export default function ContractsPage() {
       const items = plan.items.filter((item) => kinds.includes(item.kind));
       const problems = plan.problems.filter((problem) => kinds.includes(problem.kind)).map((problem) => problem.message);
       // what the admin should know about who gets a declaration and who does not: a warning, never a stop
-      const pepNotes = kinds.includes("pep") ? pepRule.notes : [];
+      const befolyasNote = kinds.includes("pep") ? decisiveInfluenceNote(selectedContract.decisiveInfluence) : null;
+      const pepNotes = [...(kinds.includes("pep") ? pepRule.notes : []), ...(befolyasNote ? [befolyasNote] : [])];
       if (pepNotes.length > 0) alert(pepNotes.join("\n\n"));
       if (items.length === 0 && problems.length === 0) {
         // a package with delivery whose delivery template is not uploaded yet is not "no document for this package"; no declaration at all is told by the notes above

@@ -198,6 +198,14 @@ export type ContractData = {
   contact: ContactPersonData;
 
   // PEP nyilatkozat
+  /**
+   * A 25% ALATTI meghatározó befolyás. Pmt. 3. § 38. b) + Ptk. 8:2. § (2): tényleges tulajdonos
+   * az is, aki a tulajdoni arányától függetlenül irányít. Ezt a cégjegyzékből és az arányokból
+   * NEM lehet kiszámolni (megállapodás, kinevezési jog, vétójog), csak az ügyfél nyilatkozatából
+   * derül ki - ezért kötelező kérdés (jogi átnézés 2026-11-28, 5. pont).
+   * `undefined` = még nem válaszolt.
+   */
+  decisiveInfluence?: { exists?: boolean; details?: string };
   /** A vezető tisztségviselő SAJÁT nyilatkozata - akkor kell, ha egyetlen tag sem éri el a 25%-ot (Pmt. 3. § 38. f)). */
   representativePep?: PepDeclaration;
   /** ÖRÖKSÉG: a régi beadványokban egyetlen nyilatkozat tartozott az egész beadványhoz. Új beadvány nem ezt tölti, csak olvasásnál tartalék. */

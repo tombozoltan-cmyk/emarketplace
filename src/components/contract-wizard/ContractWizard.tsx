@@ -138,6 +138,8 @@ export function ContractWizard({ language = "hu" }: ContractWizardProps) {
           <Step6PepDeclaration
             declarants={pepDeclarantViews}
             onChange={wizard.updatePepDeclaration}
+            decisiveInfluence={wizard.data.decisiveInfluence ?? {}}
+            onDecisiveInfluenceChange={wizard.updateDecisiveInfluence}
             language={wizard.language}
           />
         );

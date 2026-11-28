@@ -22,9 +22,14 @@ export type PepDeclarantView = {
   data: PepDeclaration;
 };
 
+export type DecisiveInfluence = { exists?: boolean; details?: string };
+
 type Step6PepDeclarationProps = {
   declarants: PepDeclarantView[];
   onChange: (declarant: PepDeclarant, updates: Partial<PepDeclaration>) => void;
+  /** A 25% alatti meghatározó befolyás: kötelező igen/nem (Pmt. 3. § 38. b)). */
+  decisiveInfluence: DecisiveInfluence;
+  onDecisiveInfluenceChange: (updates: Partial<DecisiveInfluence>) => void;
   language: ContractLanguage;
 };
 
@@ -148,9 +153,17 @@ function PepQuestions({
   );
 }
 
-export function Step6PepDeclaration({ declarants, onChange, language }: Step6PepDeclarationProps) {
+export function Step6PepDeclaration({
+  declarants,
+  onChange,
+  decisiveInfluence,
+  onDecisiveInfluenceChange,
+  language,
+}: Step6PepDeclarationProps) {
   const t = language === "hu";
   const tobbNyilatkozo = declarants.length > 1;
+  const befolyasErtek =
+    decisiveInfluence.exists === undefined ? "" : decisiveInfluence.exists ? "yes" : "no";
 
   return (
     <div className="space-y-6">
@@ -206,6 +219,60 @@ export function Step6PepDeclaration({ declarants, onChange, language }: Step6Pep
             <PepQuestions view={view} onChange={(updates) => onChange(view.declarant, updates)} t={t} />
           </Card>
         ))}
+
+        {/* 25% alatti meghatározó befolyás - kötelező kérdés (jogi átnézés 2026-11-28, 5. pont).
+            Ezt a tulajdoni arányokból nem lehet kiszámolni, csak az ügyfél tudja. */}
+        <Card className="border-2 border-[color:var(--border)]">
+          <CardContent className="space-y-4 p-6">
+            <Label className="text-base font-semibold">
+              {t
+                ? "Van-e olyan természetes személy, aki a tulajdoni arányától függetlenül meghatározó befolyást gyakorol a cégben?"
+                : "Is there a natural person who exercises decisive influence in the company, regardless of their ownership share?"}
+            </Label>
+            <p className="text-sm text-[color:var(--muted-foreground)]">
+              {t
+                ? "Például: megválaszthatja vagy visszahívhatja a vezető tisztségviselők többségét; megállapodás alapján a szavazatok több mint felét irányítja; vagy más módon tényleges irányítást gyakorol. Az ilyen személy a törvény szerint akkor is tényleges tulajdonos, ha 25%-nál kevesebbel rendelkezik."
+                : "For example: may appoint or remove the majority of the executive officers; controls more than half of the votes by agreement; or otherwise exercises actual control. Such a person is a beneficial owner by law even below 25%."}
+            </p>
+            <RadioGroup
+              value={befolyasErtek}
+              onValueChange={(value) => onDecisiveInfluenceChange({ exists: value === "yes" })}
+              className="flex gap-6"
+            >
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="no" id="meghatarozo-befolyas-no" />
+                <Label htmlFor="meghatarozo-befolyas-no" className="font-normal">
+                  {t ? "Nem" : "No"}
+                </Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="yes" id="meghatarozo-befolyas-yes" />
+                <Label htmlFor="meghatarozo-befolyas-yes" className="font-normal">
+                  {t ? "Igen" : "Yes"}
+                </Label>
+              </div>
+            </RadioGroup>
+            {decisiveInfluence.exists === true && (
+              <div className="space-y-2">
+                <Label htmlFor="meghatarozo-befolyas-reszletek" className="text-base font-semibold">
+                  {t ? "Ki, és milyen módon? *" : "Who, and in what way? *"}
+                </Label>
+                <Textarea
+                  id="meghatarozo-befolyas-reszletek"
+                  value={decisiveInfluence.details || ""}
+                  onChange={(e) => onDecisiveInfluenceChange({ details: e.target.value })}
+                  placeholder={
+                    t
+                      ? "A személy neve, és hogy min alapul a befolyása (pl. szavazategyezségi megállapodás, kinevezési jog)."
+                      : "The person's name and the basis of their influence (e.g. voting agreement, right of appointment)."
+                  }
+                  rows={3}
+                  className="w-full"
+                />
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
         {/* Jogi hivatkozás */}
         <div className="rounded-lg border border-[color:var(--border)] bg-[color:var(--muted)]/50 p-4">
