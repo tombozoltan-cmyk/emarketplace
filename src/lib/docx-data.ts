@@ -184,10 +184,27 @@ export type BeneficialOwner = {
   indirect: boolean;
 };
 
-/** Két százalék összeszorzása a láncon. Bármelyik hiánya ismeretlenné teszi az eredményt. */
-function combineShares(parent: number | null, child: number | null): number | null {
-  if (parent === null || child === null) return null;
-  return Math.round(((parent * child) / 100) * 1e6) / 1e6;
+/**
+ * Egy lépés a láncon lefelé, a Ptk. 8:2. § (4) szerint.
+ *
+ * Szó szerint (net.jogtar.hu PDF, 2026-11-28-án letöltve és pdftotext-tel olvasva):
+ * "A közvetett befolyás mértéke a köztes jogi személy befolyásának olyan hányada, amilyen mértékű
+ * befolyással a befolyással rendelkező a köztes jogi személyben rendelkezik. Ha a befolyással
+ * rendelkező a szavazatok felét meghaladó mértékű befolyással rendelkezik a köztes jogi
+ * személyben, akkor a köztes jogi személynek a jogi személyben fennálló befolyását TELJES
+ * EGÉSZÉBEN a befolyással rendelkező közvetett befolyásaként kell figyelembe venni."
+ *
+ * ⚠ Tehát NEM puszta szorzás. Példa: A birtokolja B 60%-át, B az ügyfél 30%-át. Szorzással 18%
+ * jönne ki (nem tényleges tulajdonos), a törvény szerint viszont 30% (tényleges tulajdonos) -
+ * a két olvasat MÁS embert nevez meg az aláírandó nyilatkozaton.
+ *
+ * @param koztesBefolyas a köztes jogi személy befolyása a vizsgált jogi személyben
+ * @param reszesedes a befolyással rendelkező részesedése a KÖZTES jogi személyben
+ */
+function indirectInfluence(koztesBefolyas: number | null, reszesedes: number | null): number | null {
+  if (koztesBefolyas === null || reszesedes === null) return null;
+  if (reszesedes > 50) return koztesBefolyas;
+  return Math.round(((koztesBefolyas * reszesedes) / 100) * 1e6) / 1e6;
 }
 
 /**
@@ -198,7 +215,13 @@ function combineShares(parent: number | null, child: number | null): number | nu
  * százalékok szorzata: 100% x 30% = 30%, tehát tényleges tulajdonos; 100% x 20% = 20%, tehát nem.
  *
  * Amit a függvény NEM dönt el, csak megjegyzésben jelez (mert gépből nem állapítható meg):
- * a 25% alatti meghatározó befolyás, és a hiányzó láncadat. A megjegyzés figyelmeztetés,
+ * a 25% alatti meghatározó befolyás, és a hiányzó láncadat.
+ *
+ * ⚠ ISMERT HIÁNY: a Ptk. 8:2. § (5) szerint "a közeli hozzátartozók közvetlen és közvetett
+ * tulajdoni részesedését vagy szavazati jogát egybe kell számítani". Ezt a függvény NEM teszi
+ * meg, mert az űrlap nem kérdez rokoni kapcsolatot. Két testvér 15-15%-a a törvény szerint
+ * együtt 30%, nálunk viszont külön-külön 15% marad, és egyikük sem lesz tényleges tulajdonos.
+ * Ezt az átvilágításnál kézzel kell észrevenni, amíg az adat nincs bekérve. A megjegyzés figyelmeztetés,
  * sosem megállítás - ahogy a `pepOwnersOf`-nál is.
  */
 export function beneficialOwnersOf(
@@ -207,14 +230,16 @@ export function beneficialOwnersOf(
   const notes: string[] = [];
   const talalt: BeneficialOwner[] = [];
 
-  const bejar = (csomopont: ChainOwner, szuloArany: number | null, ut: string, cegekSzama: number): void => {
-    const arany = combineShares(szuloArany, shareOf(csomopont.ownershipPercent));
+  // `sajatBefolyas` MÁR a csomópont befolyása az ügyfélcégben - a hívó számolta ki a Ptk. 8:2. §
+  // (4) szerint. Így a törvényi lépés egy helyen van, és a gyökér (közvetlen tag) nem esik a
+  // "felét meghaladó" szabály alá, hiszen ott nincs köztes jogi személy.
+  const bejar = (csomopont: ChainOwner, sajatBefolyas: number | null, ut: string, cegekSzama: number): void => {
     const nev = (csomopont.name || "").trim();
     const sajatUt = `${ut} -> ${nev || "(névtelen)"}`;
 
     if (csomopont.type !== "legal") {
       if (!nev) notes.push(`${ut}: a lánc egyik természetes személyének nincs megadva a neve, ezért nem azonosítható.`);
-      talalt.push({ path: sajatUt, name: nev, effectiveShare: arany, indirect: true });
+      talalt.push({ path: sajatUt, name: nev, effectiveShare: sajatBefolyas, indirect: true });
       return;
     }
     if (csomopont.listed) {
@@ -230,7 +255,9 @@ export function beneficialOwnersOf(
       notes.push(`${sajatUt}: jogi személy tulajdonos, de a mögötte álló tulajdonosok nincsenek megadva. A tényleges tulajdonos a lánc mögötti természetes személy - ezt az átvilágításnál kell tisztázni.`);
       return;
     }
-    for (const gyerek of gyerekek) bejar(gyerek, arany, sajatUt, cegekSzama + 1);
+    for (const gyerek of gyerekek) {
+      bejar(gyerek, indirectInfluence(sajatBefolyas, shareOf(gyerek.ownershipPercent)), sajatUt, cegekSzama + 1);
+    }
   };
 
   (owners || []).forEach((owner, index) => {
@@ -241,9 +268,11 @@ export function beneficialOwnersOf(
       talalt.push({ path: gyoker, name: (owner.natural?.fullName || "").trim(), effectiveShare: arany, indirect: false });
       return;
     }
+    // A közvetlen tag befolyása a saját részesedése: itt még nincs köztes jogi személy, tehát a
+    // Ptk. 8:2. § (4) "felét meghaladó" szabálya nem alkalmazható rá.
     bejar(
       { type: "legal", ownershipPercent: owner.ownershipPercent, name: owner.legal?.companyName, listed: owner.legal?.listed, owners: owner.legal?.owners },
-      100,
+      arany,
       gyoker,
       0,
     );

@@ -50,12 +50,41 @@ describe("közvetett tulajdonlás: az arányok szorzódnak", () => {
     assert.match(e.notes.join(" "), /Kicsi/);
   });
 
-  it("két szint: 50% cég -> 60% cég -> 100% személy = 30%", () => {
+  it("két szint, végig 50% feletti részesedéssel: a befolyás teljes egészében továbbadódik", () => {
+    // Anya Kft. 50%-os KÖZVETLEN tag, tehát az ő befolyása 50% (itt nincs köztes jogi személy).
+    // Nagyanya 60%-kal bír Anyában: 60 > 50, tehát Anya teljes 50%-a átszáll rá.
+    // A Végső Tulajdonos 100%-kal bír Nagyanyában: szintén teljes egészében. Eredmény: 50%.
+    // Szorzással 30% jött volna ki - a Ptk. 8:2. § (4) második mondata írja felül.
     const e = beneficialOwnersOf([
       szemely("Közvetlen", 50),
       ceg("Anya Kft.", 50, { owners: [lancCeg("Nagyanya Kft.", 60, { owners: [lancTag("Végső Tulajdonos", 100)] })] }),
     ]);
-    assert.equal(aranyOf(e, "Végső Tulajdonos"), 30);
+    assert.equal(aranyOf(e, "Végső Tulajdonos"), 50);
+  });
+
+  it("a felét MEGHALADÓ részesedés a köztes cég befolyását teljes egészében átviszi", () => {
+    // Ptk. 8:2. § (4) második mondata. A birtokolja B 60%-át, B az ügyfél 30%-át.
+    // Szorzással 18% (nem tényleges tulajdonos), a törvény szerint 30% (tényleges tulajdonos).
+    const e = beneficialOwnersOf([ceg("B Kft.", 30, { owners: [lancTag("A Személy", 60)] })]);
+    assert.equal(aranyOf(e, "A Személy"), 30);
+    assert.deepEqual(nevek(e), ["A Személy"], "a törvényi szabály szerint tényleges tulajdonos");
+  });
+
+  it("pontosan 50% NEM haladja meg a felét: ott marad a hányad-szabály", () => {
+    // "a szavazatok felét MEGHALADÓ" - az 50% még nem haladja meg.
+    const e = beneficialOwnersOf([ceg("B Kft.", 60, { owners: [lancTag("Fele Tulajdonos", 50)] })]);
+    assert.equal(aranyOf(e, "Fele Tulajdonos"), 30);
+  });
+
+  it("51% már meghaladja: a teljes befolyás száll át", () => {
+    const e = beneficialOwnersOf([ceg("B Kft.", 60, { owners: [lancTag("Többségi", 51)] })]);
+    assert.equal(aranyOf(e, "Többségi"), 60);
+  });
+
+  it("a közvetlen tagra nem alkalmazzuk a szabályt - ott nincs köztes jogi személy", () => {
+    // Ha a 60%-os közvetlen tag "teljes egészében" számítana, 100% jönne ki, ami értelmetlen.
+    const e = beneficialOwnersOf([szemely("Közvetlen Többségi", 60), szemely("Kisebbségi", 40)]);
+    assert.equal(aranyOf(e, "Közvetlen Többségi"), 60);
   });
 
   it("az útvonal megmutatja, honnan jön", () => {
