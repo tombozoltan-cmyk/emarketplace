@@ -273,3 +273,54 @@ describe("a láncon azonosított embert is megkérdezi az űrlap", () => {
     ]);
   });
 });
+
+// --- az adatlap II./2 "érdekeltség" mezője (PEI útmutató 2026-11-28) --------
+
+import { INTEREST_SENIOR_OFFICER, SECTION_II1_NOT_APPLICABLE, interestDecisiveInfluence, ownershipInterestText } from "../src/lib/docx-data.ts";
+
+describe("a tulajdonosi érdekeltség szövege", () => {
+  it("közvetlen tagnál a jelleg ÉS az arány is ott van", () => {
+    const t = ownershipInterestText({ indirect: false, effectiveShare: 60, path: "1. tulajdonos" });
+    assert.equal(t, "közvetlen tulajdon, 60%");
+  });
+
+  it("a láncon át: megnevezi a köztes céget és a jogalapot", () => {
+    const t = ownershipInterestText({ indirect: true, effectiveShare: 30, path: "x" }, "B Holding Kft.");
+    assert.match(t, /közvetett/);
+    assert.match(t, /B Holding Kft\.-n keresztül/);
+    assert.match(t, /30%/);
+    assert.match(t, /Ptk\. 8:2\. § \(4\)/, "az útmutató a jogalapot is kéri a mezőbe");
+  });
+
+  it("soha nem áll ott csak a százalék - ez az útmutató gyakori hibája", () => {
+    for (const t of [
+      ownershipInterestText({ indirect: false, effectiveShare: 100, path: "x" }),
+      ownershipInterestText({ indirect: true, effectiveShare: 25, path: "x" }, "A Kft."),
+      INTEREST_SENIOR_OFFICER,
+      interestDecisiveInfluence("szavazategyezség"),
+    ]) {
+      assert.ok(/[a-záéíóöőúüű]/i.test(String(t).replace(/[\d,.%]/g, "")), `csak szám áll benne: ${t}`);
+    }
+  });
+
+  it("ismeretlen aránynál sem hazudik számot", () => {
+    const t = ownershipInterestText({ indirect: true, effectiveShare: null, path: "x" }, "A Kft.");
+    assert.match(t, /nem állapítható meg/);
+  });
+
+  it("a vezető tisztségviselő esete megnevezi, miért ő", () => {
+    assert.match(INTEREST_SENIOR_OFFICER, /38\. f\)/);
+    assert.match(INTEREST_SENIOR_OFFICER, /a\) és b\) szerinti személy nincs/);
+  });
+
+  it("a meghatározó befolyás a 38. b)-re hivatkozik, az indokkal", () => {
+    assert.match(interestDecisiveInfluence("vétójog"), /vétójog/);
+    assert.match(interestDecisiveInfluence(), /38\. b\)/);
+  });
+
+  it("a II./1 nem marad szó nélkül, és megmondja, hol a nyilatkozat", () => {
+    assert.match(SECTION_II1_NOT_APPLICABLE, /Nem alkalmazandó/);
+    assert.match(SECTION_II1_NOT_APPLICABLE, /II\.\/2/);
+    assert.match(SECTION_II1_NOT_APPLICABLE, /9\. § \(1b\)/);
+  });
+});
