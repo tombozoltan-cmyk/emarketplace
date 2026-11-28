@@ -8,6 +8,7 @@ import type {
   WizardStep,
   ServiceType,
   OwnerData,
+  OwnerChainNode,
   PepDeclaration,
 } from "@/lib/contract-types";
 import { WIZARD_STEPS } from "@/lib/contract-types";
@@ -508,7 +509,29 @@ export function useContractWizard(
         const owners = [...prev.owners];
         const index = declarant.ownerNumber - 1;
         if (!owners[index]) return prev;
-        owners[index] = { ...owners[index], pep: { ...owners[index].pep, ...updates } };
+
+        if (declarant.kind === "owner") {
+          owners[index] = { ...owners[index], pep: { ...owners[index].pep, ...updates } };
+          return { ...prev, owners };
+        }
+
+        // Lánc: az indexek mentén másoljuk le az utat a módosított elemig. Másolat kell minden
+        // szinten, különben a React nem venné észre a változást a beágyazott tömbökben.
+        const irLancba = (lista: OwnerChainNode[] | undefined, ut: number[]): OwnerChainNode[] | undefined => {
+          if (!lista || ut.length === 0) return lista;
+          const [elso, ...tovabb] = ut;
+          const elem = lista[elso];
+          if (!elem) return lista;
+          const uj = [...lista];
+          uj[elso] =
+            tovabb.length === 0
+              ? { ...elem, pep: { ...elem.pep, ...updates } }
+              : { ...elem, owners: irLancba(elem.owners, tovabb) };
+          return uj;
+        };
+        const legal = owners[index].legal;
+        if (!legal) return prev;
+        owners[index] = { ...owners[index], legal: { ...legal, owners: irLancba(legal.owners, declarant.indexPath) } };
         return { ...prev, owners };
       });
     },

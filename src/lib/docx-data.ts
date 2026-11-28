@@ -165,6 +165,7 @@ export const MAX_OWNER_CHAIN_DEPTH = 3;
  */
 export type ChainOwner = {
   type?: string;
+  pep?: PepDeclarationInput;
   ownershipPercent?: unknown;
   name?: string;
   /** Szabályozott piacon jegyzett társaság: a Pmt. nem kívánja a láncot tovább követni. */
@@ -192,6 +193,11 @@ export type BeneficialOwner = {
   effectiveShare: number | null;
   /** Igaz, ha nem közvetlen tag, hanem a láncon keresztül jutottunk el hozzá. */
   indirect: boolean;
+  /** Melyik KÖZVETLEN tag ága alatt találtuk (1-től). Ez címzi meg a beadványban a helyét. */
+  ownerNumber: number;
+  /** Az út a lánc elemeihez, indexekkel: `owners[ownerNumber-1].legal.owners[i].owners[j]...`.
+   *  Közvetlen tagnál üres. Ezen keresztül írható vissza a PEP-válasza. */
+  indexPath: number[];
 };
 
 /**
@@ -249,13 +255,20 @@ export function beneficialOwnersOf(
   // `sajatBefolyas` MÁR a csomópont befolyása az ügyfélcégben - a hívó számolta ki a Ptk. 8:2. §
   // (4) szerint. Így a törvényi lépés egy helyen van, és a gyökér (közvetlen tag) nem esik a
   // "felét meghaladó" szabály alá, hiszen ott nincs köztes jogi személy.
-  const bejar = (csomopont: ChainOwner, sajatBefolyas: number | null, ut: string, cegekSzama: number): void => {
+  const bejar = (
+    csomopont: ChainOwner,
+    sajatBefolyas: number | null,
+    ut: string,
+    cegekSzama: number,
+    ownerNumber: number,
+    indexPath: number[],
+  ): void => {
     const nev = (csomopont.name || "").trim();
     const sajatUt = `${ut} -> ${nev || "(névtelen)"}`;
 
     if (csomopont.type !== "legal") {
       if (!nev) notes.push(`${ut}: a lánc egyik természetes személyének nincs megadva a neve, ezért nem azonosítható.`);
-      talalt.push({ path: sajatUt, name: nev, effectiveShare: sajatBefolyas, indirect: true });
+      talalt.push({ path: sajatUt, name: nev, effectiveShare: sajatBefolyas, indirect: true, ownerNumber, indexPath });
       return;
     }
     if (csomopont.listed) {
@@ -281,9 +294,16 @@ export function beneficialOwnersOf(
       notes.push(`${sajatUt}: jogi személy tulajdonos, de a mögötte álló tulajdonosok nincsenek megadva. Az ág NYITOTT: a tényleges tulajdonos a lánc mögötti természetes személy, ezt az átvilágításnál kell tisztázni. A vezető tisztségviselő NEM léphet a helyére.`);
       return;
     }
-    for (const gyerek of gyerekek) {
-      bejar(gyerek, indirectInfluence(sajatBefolyas, shareOf(gyerek.ownershipPercent)), sajatUt, cegekSzama + 1);
-    }
+    gyerekek.forEach((gyerek, i) => {
+      bejar(
+        gyerek,
+        indirectInfluence(sajatBefolyas, shareOf(gyerek.ownershipPercent)),
+        sajatUt,
+        cegekSzama + 1,
+        ownerNumber,
+        [...indexPath, i],
+      );
+    });
   };
 
   (owners || []).forEach((owner, index) => {
@@ -291,7 +311,7 @@ export function beneficialOwnersOf(
     const gyoker = `${szam}. tulajdonos`;
     const arany = shareOf(owner.ownershipPercent);
     if (owner.type !== "legal") {
-      talalt.push({ path: gyoker, name: (owner.natural?.fullName || "").trim(), effectiveShare: arany, indirect: false });
+      talalt.push({ path: gyoker, name: (owner.natural?.fullName || "").trim(), effectiveShare: arany, indirect: false, ownerNumber: szam, indexPath: [] });
       return;
     }
     // A közvetlen tag befolyása a saját részesedése: itt még nincs köztes jogi személy, tehát a
@@ -301,6 +321,8 @@ export function beneficialOwnersOf(
       arany,
       gyoker,
       0,
+      szam,
+      [],
     );
   });
 
@@ -309,7 +331,12 @@ export function beneficialOwnersOf(
   // összevontunk, arról szólunk, hogy ember nézze meg.
   const csoportok = new Map<string, BeneficialOwner[]>();
   for (const b of talalt) {
-    const kulcs = b.name.toLowerCase().replace(/\s+/g, " ");
+    // A KÖZVETLEN tagot a sorszáma azonosítja, nem a neve: ő külön, teljes adatú bejegyzés a
+    // beadványban (születési adat, okmány), tehát két azonos nevű közvetlen tag két ember.
+    // Összevonni csak a LÁNC elemeit vonjuk össze, ahol a néven kívül nincs más fogódzó.
+    // Következmény, amit vállalunk: ha ugyanaz az ember közvetlen tag ÉS a láncon is szerepel,
+    // a két aránya nem adódik össze. Ezt a jegyzetek és az ügyintéző veszi észre.
+    const kulcs = b.indirect ? b.name.toLowerCase().replace(/\s+/g, " ") : `kozvetlen#${b.ownerNumber}`;
     csoportok.set(kulcs, [...(csoportok.get(kulcs) || []), b]);
   }
   const osszevont: BeneficialOwner[] = [];
@@ -321,7 +348,16 @@ export function beneficialOwnersOf(
     const ismeretlen = tagok.some((t) => t.effectiveShare === null);
     const osszeg = ismeretlen ? null : tagok.reduce((sum, t) => sum + (t.effectiveShare || 0), 0);
     notes.push(`"${tagok[0].name}" több ágon is szerepel (${tagok.map((t) => t.path).join("; ")}), ezért az arányaikat összeadtuk${osszeg === null ? "" : ` (${osszeg}%)`}. Ellenőrizd, hogy tényleg ugyanarról a személyről van-e szó.`);
-    osszevont.push({ path: tagok.map((t) => t.path).join(" + "), name: tagok[0].name, effectiveShare: osszeg, indirect: tagok.some((t) => t.indirect) });
+    // Az ÖSSZEVONT személy válaszát az ELSŐ előfordulás helyén tároljuk: egy ember egyszer
+    // nyilatkozik, akárhány ágon szerepel.
+    osszevont.push({
+      path: tagok.map((t) => t.path).join(" + "),
+      name: tagok[0].name,
+      effectiveShare: osszeg,
+      indirect: tagok.some((t) => t.indirect),
+      ownerNumber: tagok[0].ownerNumber,
+      indexPath: tagok[0].indexPath,
+    });
   }
 
   const beneficialOwners = osszevont.filter((b) => b.effectiveShare === null || b.effectiveShare >= PEP_MIN_SHARE);
@@ -383,10 +419,21 @@ export type PepRepresentativeReason = "nincs-25-szazalekos" | "jogi-szemely-tag"
 /** Ki teszi a PEP-nyilatkozatot: egy tulajdonos (sorszámmal), vagy a vezető tisztségviselő. */
 export type PepDeclarant =
   | { kind: "owner"; ownerNumber: number }
+  /**
+   * A láncon át azonosított tényleges tulajdonos. `ownerNumber` a közvetlen tag sorszáma,
+   * `indexPath` az út a lánc elemei között - így a válasza oda kerül vissza, ahol ő áll.
+   */
+  | { kind: "chain"; ownerNumber: number; indexPath: number[]; name: string }
   | { kind: "representative"; reason: PepRepresentativeReason };
 
 type PepContractInput = {
-  owners?: { type?: string; ownershipPercent?: unknown; pep?: PepDeclarationInput }[];
+  owners?: {
+    type?: string;
+    ownershipPercent?: unknown;
+    pep?: PepDeclarationInput;
+    natural?: { fullName?: string };
+    legal?: { companyName?: string; listed?: boolean; owners?: ChainOwner[] };
+  }[];
   representativePep?: PepDeclarationInput;
   pepDeclaration?: PepDeclarationInput;
 };
@@ -405,15 +452,38 @@ type PepContractInput = {
  */
 export function pepDeclarantsOf(contract: PepContractInput): PepDeclarant[] {
   const owners = contract.owners || [];
-  const kotelesek = pepOwnersOf(owners).numbers;
-  const declarants = kotelesek
-    .filter((number) => owners[number - 1]?.type !== "legal")
-    .map((ownerNumber): PepDeclarant => ({ kind: "owner", ownerNumber }));
+  const { beneficialOwners, unresolved } = beneficialOwnersOf(owners);
+
+  const declarants = beneficialOwners.map((b): PepDeclarant =>
+    b.indirect
+      ? { kind: "chain", ownerNumber: b.ownerNumber, indexPath: b.indexPath, name: b.name }
+      : { kind: "owner", ownerNumber: b.ownerNumber },
+  );
   if (declarants.length > 0) return declarants;
-  // Nincs természetes személy tényleges tulajdonos. A kettő OKA más, és a kettő nem ugyanaz:
-  // jogi személy tagnál a lánc mögötti embert kellene azonosítani, azt viszont nem követjük.
-  const jogiSzemelyTag = kotelesek.some((number) => owners[number - 1]?.type === "legal");
-  return [{ kind: "representative", reason: jogiSzemelyTag ? "jogi-szemely-tag" : "nincs-25-szazalekos" }];
+
+  // Senkit nem azonosítottunk. A KETTŐ NEM UGYANAZ:
+  // - ha van nyitott ág, a tényleges tulajdonos ISMERETLEN, nem hiányzik. A Pmt. 3. § 38. f)
+  //   csak valódi hiányra szól, tehát a vezető tisztségviselő nem léphet a helyére - ilyenkor
+  //   nincs kit kérdezni, az ágat az átvilágításnál kell tisztázni (jogi átnézés 2026-11-28).
+  // - ha nincs nyitott ág, akkor tényleg nincs 25%-os természetes személy, és a 38. f) szerint
+  //   a vezető tisztségviselő a tényleges tulajdonos.
+  if (unresolved.length > 0) {
+    const jogiSzemelyTag = unresolved.some((u) => u.reason !== "harmadik-ceg-utan");
+    return [{ kind: "representative", reason: jogiSzemelyTag ? "jogi-szemely-tag" : "nincs-25-szazalekos" }];
+  }
+  return [{ kind: "representative", reason: "nincs-25-szazalekos" }];
+}
+
+/** A lánc egy elemét címzi meg az indexek mentén. `undefined`, ha az út nem létezik. */
+function chainNodeAt(contract: PepContractInput, ownerNumber: number, indexPath: number[]): ChainOwner | undefined {
+  let lista = contract.owners?.[ownerNumber - 1]?.legal?.owners;
+  let csomopont: ChainOwner | undefined;
+  for (const i of indexPath) {
+    csomopont = lista?.[i];
+    if (!csomopont) return undefined;
+    lista = csomopont.owners;
+  }
+  return csomopont;
 }
 
 /**
@@ -427,7 +497,14 @@ export function pepDeclarantsOf(contract: PepContractInput): PepDeclarant[] {
  */
 export function pepDeclarationOf(contract: PepContractInput, declarant: PepDeclarant): PepDeclarationInput | undefined {
   const sajat =
-    declarant.kind === "owner" ? contract.owners?.[declarant.ownerNumber - 1]?.pep : contract.representativePep;
+    declarant.kind === "owner"
+      ? contract.owners?.[declarant.ownerNumber - 1]?.pep
+      : declarant.kind === "chain"
+        ? chainNodeAt(contract, declarant.ownerNumber, declarant.indexPath)?.pep
+        : contract.representativePep;
+  // A láncon álló személynél NINCS örökség-tartalék: a régi beadványokban lánc sem volt, tehát
+  // a beadvány-szintű nyilatkozat nem szólhat róla.
+  if (declarant.kind === "chain") return sajat;
   return pepAnswered(sajat) ? sajat : contract.pepDeclaration;
 }
 
@@ -438,7 +515,9 @@ export function pepMissingDeclarants(contract: PepContractInput): PepDeclarant[]
 
 /** A nyilatkozó megnevezése hibaüzenethez: "a(z) 2. tulajdonosnál" vagy "a vezető tisztségviselőnél". */
 export function pepDeclarantLabel(declarant: PepDeclarant): string {
-  return declarant.kind === "owner" ? `a(z) ${declarant.ownerNumber}. tulajdonosnál` : "a vezető tisztségviselőnél";
+  if (declarant.kind === "owner") return `a(z) ${declarant.ownerNumber}. tulajdonosnál`;
+  if (declarant.kind === "chain") return `${declarant.name || "a lánc végén álló személy"} esetében`;
+  return "a vezető tisztségviselőnél";
 }
 
 export function pepFlagOf(declaration?: PepDeclarationInput): string {

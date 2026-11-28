@@ -210,3 +210,66 @@ describe("a lánc figyelmeztetései az iratletöltésnél", () => {
     assert.equal(n.length, 2, "egy a közvetett tulajdonosról, egy a nyitott ágról");
   });
 });
+
+// --- a lánc embere is nyilatkozik (a kör bezárása) --------------------------
+
+import { pepDeclarantsOf, pepDeclarationOf, pepMissingDeclarants, pepFlagOf } from "../src/lib/docx-data.ts";
+
+const NEM = { isPep: false, isPepRelative: false, isPepAssociate: false };
+const IGEN = { isPep: true, isPepRelative: false, isPepAssociate: false };
+
+const lancosBeadvany = () => ({
+  owners: [
+    ceg("B Holding Kft.", 30, { owners: [lancTag("Lánc Mögötti", 60), lancTag("Kicsi", 40)] }),
+    { type: "natural", ownershipPercent: 70, natural: { fullName: "Közvetlen Tag" }, pep: NEM },
+  ],
+});
+
+describe("a láncon azonosított embert is megkérdezi az űrlap", () => {
+  it("a 25%-ot elérő lánc-tulajdonos nyilatkozóként jelenik meg, címmel együtt", () => {
+    const kik = pepDeclarantsOf(lancosBeadvany());
+    const lanc = kik.find((d) => d.kind === "chain");
+    assert.ok(lanc, "a lánc embere nincs a kérdezettek között");
+    assert.equal(lanc.name, "Lánc Mögötti");
+    assert.equal(lanc.ownerNumber, 1);
+    assert.deepEqual(lanc.indexPath, [0], "cím nélkül nem lenne hova visszaírni a válaszát");
+  });
+
+  it("a 25% alattit nem kérdezi meg", () => {
+    const nevek = pepDeclarantsOf(lancosBeadvany()).map((d) => (d.kind === "chain" ? d.name : d.kind));
+    assert.ok(!nevek.includes("Kicsi"), "a 12%-os ember nem tényleges tulajdonos");
+  });
+
+  it("a jogi személy tag maga NEM nyilatkozó - helyette a mögötte álló ember", () => {
+    const kik = pepDeclarantsOf(lancosBeadvany());
+    assert.ok(!kik.some((d) => d.kind === "owner" && d.ownerNumber === 1), "a cég nem tud nyilatkozni");
+  });
+
+  it("a válasza a lánc elemébe kerül, és onnan olvassuk vissza", () => {
+    const b = lancosBeadvany();
+    const lanc = pepDeclarantsOf(b).find((d) => d.kind === "chain");
+    assert.equal(pepMissingDeclarants(b).length, 1, "kezdetben épp az ő válasza hiányzik");
+    b.owners[0].legal.owners[lanc.indexPath[0]].pep = IGEN;
+    assert.equal(pepFlagOf(pepDeclarationOf(b, lanc)), "1");
+    assert.equal(pepMissingDeclarants(b).length, 0, "ezzel mindenki nyilatkozott");
+  });
+
+  it("a lánc emberénél NINCS örökség-tartalék: a régi beadványokban lánc sem volt", () => {
+    const b = { ...lancosBeadvany(), pepDeclaration: IGEN };
+    const lanc = pepDeclarantsOf(b).find((d) => d.kind === "chain");
+    assert.equal(pepDeclarationOf(b, lanc), undefined, "a beadvány-szintű nyilatkozat nem szólhat róla");
+  });
+
+  it("két azonos nevű KÖZVETLEN tagot nem von össze - két ember, két nyilatkozat", () => {
+    const ket = {
+      owners: [
+        { type: "natural", ownershipPercent: 50, natural: { fullName: "Kovács János" } },
+        { type: "natural", ownershipPercent: 50, natural: { fullName: "Kovács János" } },
+      ],
+    };
+    assert.deepEqual(pepDeclarantsOf(ket), [
+      { kind: "owner", ownerNumber: 1 },
+      { kind: "owner", ownerNumber: 2 },
+    ]);
+  });
+});
