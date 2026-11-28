@@ -60,7 +60,7 @@ import { buildConditionalContext, replaceShortcodes } from "@/lib/contract-short
 import { fillOfficialPostalAuthPDF, type OfficialPostalAuthData } from "@/lib/pdf-generators/postal-authorization";
 import { idTypeLabel, uploadedDocumentLabel } from "@/lib/id-documents";
 import { planDownloads, type DownloadItem, type DownloadKind } from "@/lib/docx-selection";
-import { OwnerChainEditor, OwnerChainSummary } from "@/components/ops/OwnerChainEditor";
+import { OwnerChainEditor, OwnerChainSummary } from "@/components/owner-chain/OwnerChainEditor";
 import { PROVIDER_NAME, buildDocxData, chainPepNotes, decisiveInfluenceNote, deliveryContractWarning, docxContractProblem, ownerDataAliases, packageDocuments, pepOwnersOf } from "@/lib/docx-data";
 
 const FUNCTIONS_BASE_URL = process.env.NEXT_PUBLIC_FUNCTIONS_URL || "https://us-central1-emarketplace-8aab1.cloudfunctions.net";

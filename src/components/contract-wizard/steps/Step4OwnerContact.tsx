@@ -26,6 +26,7 @@ import type {
 } from "@/lib/contract-types";
 import { NATIONALITIES } from "@/lib/contract-types";
 import { idTypeLabel, idTypeNote, idTypesFor, validIdType } from "@/lib/id-documents";
+import { OwnerChainEditor } from "@/components/owner-chain/OwnerChainEditor";
 
 type Step4OwnerContactProps = {
   owners: OwnerData[];
@@ -574,6 +575,44 @@ export function Step4OwnerContact({
                     onChange={(e) => updateLegal({ representativePosition: e.target.value })}
                     placeholder={t ? "Pl.: ügyvezető" : "e.g.: Managing Director"}
                   />
+                </div>
+
+                {/* Tulajdonosi lánc. A Pmt. szerint a tényleges tulajdonos a cég mögött álló
+                    természetes személy; enélkül az azonosítás nyitva marad. Nem kötelező mező:
+                    az ügyfél nem mindig tudja fejből, és a hiánya nem hamis állítás - csak
+                    nyitott ág, amit az átvilágításnál kell tisztázni. */}
+                <div className="space-y-3 rounded-lg border border-[color:var(--border)] bg-[color:var(--muted)]/20 p-4">
+                  <Label className="text-sm font-medium">
+                    {t ? "Ki áll a cég mögött? (tényleges tulajdonos)" : "Who is behind the company? (beneficial owner)"}
+                  </Label>
+                  <p className="text-xs text-[color:var(--muted-foreground)]">
+                    {t
+                      ? "A pénzmosás elleni törvény szerint a tényleges tulajdonos az a természetes személy, aki a tulajdonosi láncon keresztül végül a cég legalább 25%-ával rendelkezik. Ha most megadja, az átvilágítás egy lépéssel előrébb tart; ha nem tudja, üresen hagyhatja, és később pótoljuk."
+                      : "Under the AML act, the beneficial owner is the natural person who ultimately holds at least 25% through the ownership chain. Providing it now moves the due diligence a step ahead; if you do not know, you may leave it empty and we will complete it later."}
+                  </p>
+                  <label className="flex items-center gap-2 text-xs text-[color:var(--muted-foreground)]">
+                    <input
+                      type="checkbox"
+                      checked={Boolean(legal.listed)}
+                      onChange={(e) => updateLegal({ listed: e.target.checked })}
+                    />
+                    {t
+                      ? "Szabályozott piacon jegyzett (tőzsdei) társaság"
+                      : "Company listed on a regulated market"}
+                  </label>
+                  {legal.listed ? (
+                    <p className="text-xs text-amber-700 dark:text-amber-300">
+                      {t
+                        ? "Jegyzett társaságnál a láncot nem kérjük: a részvényeseket a nyilvános bejelentésekből ellenőrizzük."
+                        : "For a listed company we do not ask for the chain: shareholders are checked from public disclosures."}
+                    </p>
+                  ) : (
+                    <OwnerChainEditor
+                      owners={legal.owners || []}
+                      companyDepth={1}
+                      onChange={(lanc) => updateLegal({ owners: lanc })}
+                    />
+                  )}
                 </div>
               </>
             )}
