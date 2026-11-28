@@ -150,6 +150,138 @@ function shareOf(value: unknown): number | null {
 }
 
 /**
+ * Meddig követjük a tulajdonosi láncot. A gazda döntése (2026-11-28): a HARMADIK cég után már
+ * nem kérdezünk tovább szintet, hanem megnevezteti a tényleges tulajdonost. Ez jobb, mint
+ * visszaesni a vezető tisztségviselőre: ott valaki kimondja, ki az, itt csak közelítenénk.
+ */
+export const MAX_OWNER_CHAIN_DEPTH = 3;
+
+/**
+ * A tulajdonosi lánc egy eleme: egy jogi személy tag MÖGÖTT álló tulajdonos.
+ *
+ * A köztes szintekhez szándékosan kevés adat kell (név, arány, típus). Teljes személyes adat
+ * csak attól kell, akiből végül tényleges tulajdonos lesz - ez a felismerés teszi az űrlapot
+ * elviselhetővé.
+ */
+export type ChainOwner = {
+  type?: string;
+  ownershipPercent?: unknown;
+  name?: string;
+  /** Szabályozott piacon jegyzett társaság: a Pmt. nem kívánja a láncot tovább követni. */
+  listed?: boolean;
+  /** A következő szint. Csak jogi személynél van értelme. */
+  owners?: ChainOwner[];
+};
+
+/** Egy azonosított tényleges tulajdonos, a láncon átszámolt aránnyal. */
+export type BeneficialOwner = {
+  /** Emberi szóval, honnan jön: "2. tulajdonos -> Anya Kft. -> Kovács János". */
+  path: string;
+  name: string;
+  /** A százalékok szorzata a láncon. `null`, ha valahol hiányzott az arány. */
+  effectiveShare: number | null;
+  /** Igaz, ha nem közvetlen tag, hanem a láncon keresztül jutottunk el hozzá. */
+  indirect: boolean;
+};
+
+/** Két százalék összeszorzása a láncon. Bármelyik hiánya ismeretlenné teszi az eredményt. */
+function combineShares(parent: number | null, child: number | null): number | null {
+  if (parent === null || child === null) return null;
+  return Math.round(((parent * child) / 100) * 1e6) / 1e6;
+}
+
+/**
+ * KIK a tényleges tulajdonosok, a közvetett tulajdonlást is követve.
+ *
+ * A Pmt. szerint tényleges tulajdonos az a természetes személy, aki - közvetlenül VAGY a
+ * tulajdonosi láncon keresztül - végül eléri a 25%-ot. Az effektív arány a láncon lévő
+ * százalékok szorzata: 100% x 30% = 30%, tehát tényleges tulajdonos; 100% x 20% = 20%, tehát nem.
+ *
+ * Amit a függvény NEM dönt el, csak megjegyzésben jelez (mert gépből nem állapítható meg):
+ * a 25% alatti meghatározó befolyás, és a hiányzó láncadat. A megjegyzés figyelmeztetés,
+ * sosem megállítás - ahogy a `pepOwnersOf`-nál is.
+ */
+export function beneficialOwnersOf(
+  owners: { type?: string; ownershipPercent?: unknown; natural?: { fullName?: string }; legal?: { companyName?: string; listed?: boolean; owners?: ChainOwner[] } }[] | undefined,
+): { beneficialOwners: BeneficialOwner[]; notes: string[] } {
+  const notes: string[] = [];
+  const talalt: BeneficialOwner[] = [];
+
+  const bejar = (csomopont: ChainOwner, szuloArany: number | null, ut: string, cegekSzama: number): void => {
+    const arany = combineShares(szuloArany, shareOf(csomopont.ownershipPercent));
+    const nev = (csomopont.name || "").trim();
+    const sajatUt = `${ut} -> ${nev || "(névtelen)"}`;
+
+    if (csomopont.type !== "legal") {
+      if (!nev) notes.push(`${ut}: a lánc egyik természetes személyének nincs megadva a neve, ezért nem azonosítható.`);
+      talalt.push({ path: sajatUt, name: nev, effectiveShare: arany, indirect: true });
+      return;
+    }
+    if (csomopont.listed) {
+      notes.push(`${sajatUt}: szabályozott piacon jegyzett társaság, a Pmt. szerint a láncot itt nem kell tovább követni.`);
+      return;
+    }
+    if (cegekSzama >= MAX_OWNER_CHAIN_DEPTH) {
+      notes.push(`${sajatUt}: a lánc ${MAX_OWNER_CHAIN_DEPTH} cégnél mélyebb. Itt meg kell nevezni a tényleges tulajdonost, mert a láncot nem követjük tovább.`);
+      return;
+    }
+    const gyerekek = csomopont.owners || [];
+    if (gyerekek.length === 0) {
+      notes.push(`${sajatUt}: jogi személy tulajdonos, de a mögötte álló tulajdonosok nincsenek megadva. A tényleges tulajdonos a lánc mögötti természetes személy - ezt az átvilágításnál kell tisztázni.`);
+      return;
+    }
+    for (const gyerek of gyerekek) bejar(gyerek, arany, sajatUt, cegekSzama + 1);
+  };
+
+  (owners || []).forEach((owner, index) => {
+    const szam = index + 1;
+    const gyoker = `${szam}. tulajdonos`;
+    const arany = shareOf(owner.ownershipPercent);
+    if (owner.type !== "legal") {
+      talalt.push({ path: gyoker, name: (owner.natural?.fullName || "").trim(), effectiveShare: arany, indirect: false });
+      return;
+    }
+    bejar(
+      { type: "legal", ownershipPercent: owner.ownershipPercent, name: owner.legal?.companyName, listed: owner.legal?.listed, owners: owner.legal?.owners },
+      100,
+      gyoker,
+      0,
+    );
+  });
+
+  // Ugyanaz a személy több ágon is megjelenhet: a Pmt. szerint az arányai ÖSSZEADÓDNAK. A
+  // névegyezés viszont nem azonosság (két Kovács János nem ugyanaz), ezért ahol tényleg
+  // összevontunk, arról szólunk, hogy ember nézze meg.
+  const csoportok = new Map<string, BeneficialOwner[]>();
+  for (const b of talalt) {
+    const kulcs = b.name.toLowerCase().replace(/\s+/g, " ");
+    csoportok.set(kulcs, [...(csoportok.get(kulcs) || []), b]);
+  }
+  const osszevont: BeneficialOwner[] = [];
+  for (const [, tagok] of csoportok) {
+    if (tagok.length === 1) {
+      osszevont.push(tagok[0]);
+      continue;
+    }
+    const ismeretlen = tagok.some((t) => t.effectiveShare === null);
+    const osszeg = ismeretlen ? null : tagok.reduce((sum, t) => sum + (t.effectiveShare || 0), 0);
+    notes.push(`"${tagok[0].name}" több ágon is szerepel (${tagok.map((t) => t.path).join("; ")}), ezért az arányaikat összeadtuk${osszeg === null ? "" : ` (${osszeg}%)`}. Ellenőrizd, hogy tényleg ugyanarról a személyről van-e szó.`);
+    osszevont.push({ path: tagok.map((t) => t.path).join(" + "), name: tagok[0].name, effectiveShare: osszeg, indirect: tagok.some((t) => t.indirect) });
+  }
+
+  const beneficialOwners = osszevont.filter((b) => b.effectiveShare === null || b.effectiveShare >= PEP_MIN_SHARE);
+  for (const b of osszevont) {
+    if (b.effectiveShare !== null && b.effectiveShare < PEP_MIN_SHARE) {
+      notes.push(`${b.path}: effektív aránya ${String(b.effectiveShare).replace(".", ",")}%, tehát nem tényleges tulajdonos. Ha mégis meghatározó befolyása van, kézzel kell felvenni.`);
+    }
+    if (b.effectiveShare === null) {
+      notes.push(`${b.path}: az effektív arány nem számolható ki, mert a láncon valahol hiányzik a tulajdoni arány. A nyilatkozat elkészül hozzá, ellenőrizd.`);
+    }
+  }
+  return { beneficialOwners, notes };
+}
+
+/**
  * Who gets a declaration of public figure status (legal review 2026-11-26, msg 3933, owner message 3936): the BENEFICIAL owners, that is the members with
  * 25 per cent or more, not every member (the data sheet stays per member). `numbers` are the owner numbers (from 1); `notes` are what the admin should
  * be told, as a warning and never as a stop:
