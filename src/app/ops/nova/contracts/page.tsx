@@ -60,7 +60,8 @@ import { buildConditionalContext, replaceShortcodes } from "@/lib/contract-short
 import { fillOfficialPostalAuthPDF, type OfficialPostalAuthData } from "@/lib/pdf-generators/postal-authorization";
 import { idTypeLabel, uploadedDocumentLabel } from "@/lib/id-documents";
 import { planDownloads, type DownloadItem, type DownloadKind } from "@/lib/docx-selection";
-import { PROVIDER_NAME, buildDocxData, deliveryContractWarning, docxContractProblem, ownerDataAliases, packageDocuments, pepOwnersOf } from "@/lib/docx-data";
+import { OwnerChainEditor, OwnerChainSummary } from "@/components/owner-chain/OwnerChainEditor";
+import { PROVIDER_NAME, buildDocxData, chainPepNotes, decisiveInfluenceNote, deliveryContractWarning, docxContractProblem, ownerDataAliases, packageDocuments, pepOwnersOf } from "@/lib/docx-data";
 
 const FUNCTIONS_BASE_URL = process.env.NEXT_PUBLIC_FUNCTIONS_URL || "https://us-central1-emarketplace-8aab1.cloudfunctions.net";
 
@@ -115,6 +116,9 @@ export default function ContractsPage() {
   // Inline editing state
   const [editingSection, setEditingSection] = useState<string | null>(null);
   const [editedCompany, setEditedCompany] = useState<ContractDoc["company"]>({} as ContractDoc["company"]);
+  // A tulajdonosi lánc szerkesztése: a teljes owners tömb másolatán dolgozunk, mert a lánc
+  // a jogi személy tagok `legal.owners` mezőjében ül.
+  const [editedOwners, setEditedOwners] = useState<ContractDoc["owners"]>([]);
   const [editedRepresentative, setEditedRepresentative] = useState<ContractDoc["representative"]>({} as ContractDoc["representative"]);
   const [editedContact, setEditedContact] = useState<ContractDoc["contact"]>({} as ContractDoc["contact"]);
   const [isSavingSection, setIsSavingSection] = useState(false);
@@ -211,6 +215,9 @@ export default function ContractsPage() {
       setEditedRepresentative({ ...selectedContract.representative });
     } else if (section === "contact") {
       setEditedContact({ ...selectedContract.contact });
+    } else if (section === "chain") {
+      // mély másolat: a lánc egymásba ágyazott, a felszínes másolás megosztaná a tömböket
+      setEditedOwners(JSON.parse(JSON.stringify(selectedContract.owners || [])));
     }
   };
 
@@ -231,6 +238,8 @@ export default function ContractsPage() {
         updateData.representative = editedRepresentative;
       } else if (section === "contact") {
         updateData.contact = editedContact;
+      } else if (section === "chain") {
+        updateData.owners = editedOwners;
       }
       
       await updateDoc(doc(firestoreDb, "contracts", selectedContract.id), updateData);
@@ -241,6 +250,7 @@ export default function ContractsPage() {
         ...(section === "company" ? { company: editedCompany } : {}),
         ...(section === "representative" ? { representative: editedRepresentative } : {}),
         ...(section === "contact" ? { contact: editedContact } : {}),
+        ...(section === "chain" ? { owners: editedOwners } : {}),
       });
       setEditingSection(null);
     } catch (error) {
@@ -615,7 +625,10 @@ export default function ContractsPage() {
       const items = plan.items.filter((item) => kinds.includes(item.kind));
       const problems = plan.problems.filter((problem) => kinds.includes(problem.kind)).map((problem) => problem.message);
       // what the admin should know about who gets a declaration and who does not: a warning, never a stop
-      const pepNotes = kinds.includes("pep") ? pepRule.notes : [];
+      const befolyasNote = kinds.includes("pep") ? decisiveInfluenceNote(selectedContract.decisiveInfluence) : null;
+      // a láncról szóló figyelmeztetések: a hiányzó nyilatkozat nem állítja meg a többi iratot
+      const lancNotes = kinds.includes("pep") ? chainPepNotes(selectedContract) : [];
+      const pepNotes = [...(kinds.includes("pep") ? pepRule.notes : []), ...lancNotes, ...(befolyasNote ? [befolyasNote] : [])];
       if (pepNotes.length > 0) alert(pepNotes.join("\n\n"));
       if (items.length === 0 && problems.length === 0) {
         // a package with delivery whose delivery template is not uploaded yet is not "no document for this package"; no declaration at all is told by the notes above
@@ -1394,6 +1407,80 @@ export default function ContractsPage() {
                       </div>
                     ))}
                   </div>
+
+                  {/* Tulajdonosi lánc: csak akkor, ha van jogi személy tag. A Pmt. 3. § 38. a) szerint
+                      a tényleges tulajdonos a lánc mögötti természetes személy; a lánc nélkül az ág nyitott. */}
+                  {(selectedContract.owners || []).some((owner) => owner.type === "legal") && (
+                    <div className="mt-5 pt-4 border-t border-[color:var(--border)]">
+                      <div className="flex items-center justify-between mb-3">
+                        <h4 className="text-sm font-semibold text-[color:var(--foreground)]">Tulajdonosi lánc (tényleges tulajdonos)</h4>
+                        {editingSection === "chain" ? (
+                          <div className="flex gap-2">
+                            <button onClick={() => saveSection("chain")} disabled={isSavingSection} className="text-xs px-2 py-1 rounded bg-[color:var(--primary)] text-white disabled:opacity-50">
+                              {isSavingSection ? "Mentés..." : "Mentés"}
+                            </button>
+                            <button onClick={cancelEditing} className="text-xs px-2 py-1 rounded border border-[color:var(--border)]">Mégse</button>
+                          </div>
+                        ) : (
+                          <button onClick={() => startEditing("chain")} className="p-1 text-[color:var(--muted-foreground)] hover:text-[color:var(--primary)] hover:bg-[color:var(--muted)] rounded" title="Lánc szerkesztése">
+                            <Pencil className="w-4 h-4" />
+                          </button>
+                        )}
+                      </div>
+
+                      {editingSection === "chain" ? (
+                        <div className="space-y-4">
+                          <p className="text-xs text-[color:var(--muted-foreground)]">
+                            A köztes szintekhez csak név, arány és típus kell. Teljes személyes adatot
+                            csak attól kell felvenni, akiből végül tényleges tulajdonos lesz.
+                          </p>
+                          {(editedOwners || []).map((owner, idx) =>
+                            owner.type !== "legal" ? null : (
+                              <div key={idx} className="p-3 bg-[color:var(--muted)]/30 rounded-lg">
+                                <p className="text-sm font-medium mb-2">
+                                  {idx + 1}. tulajdonos — {owner.legal?.companyName || "(névtelen cég)"} · {owner.ownershipPercent}%
+                                </p>
+                                <label className="flex items-center gap-2 text-xs text-[color:var(--muted-foreground)] mb-2">
+                                  <input
+                                    type="checkbox"
+                                    checked={Boolean(owner.legal?.listed)}
+                                    onChange={(e) => {
+                                      const next = [...(editedOwners || [])];
+                                      next[idx] = { ...next[idx], legal: { ...next[idx].legal!, listed: e.target.checked } };
+                                      setEditedOwners(next);
+                                    }}
+                                  />
+                                  Szabályozott piacon jegyzett (tőzsdei) társaság
+                                </label>
+                                {owner.legal?.listed ? (
+                                  <p className="text-xs text-amber-700 dark:text-amber-300">
+                                    A lánc itt megáll. A 25%-ot elérő részvényeseket a nyilvános
+                                    részesedés-bejelentésekből kell ellenőrizni — az ág nyitott marad.
+                                  </p>
+                                ) : (
+                                  <OwnerChainEditor
+                                    owners={owner.legal?.owners || []}
+                                    companyDepth={1}
+                                    audience="iroda"
+                                    onChange={(lanc) => {
+                                      const next = [...(editedOwners || [])];
+                                      next[idx] = { ...next[idx], legal: { ...next[idx].legal!, owners: lanc } };
+                                      setEditedOwners(next);
+                                    }}
+                                  />
+                                )}
+                              </div>
+                            )
+                          )}
+                          <div className="p-3 bg-[color:var(--muted)]/20 rounded-lg">
+                            <OwnerChainSummary owners={editedOwners || []} />
+                          </div>
+                        </div>
+                      ) : (
+                        <OwnerChainSummary owners={selectedContract.owners || []} />
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 {/* Service */}

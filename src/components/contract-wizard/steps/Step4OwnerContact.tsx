@@ -26,6 +26,7 @@ import type {
 } from "@/lib/contract-types";
 import { NATIONALITIES } from "@/lib/contract-types";
 import { idTypeLabel, idTypeNote, idTypesFor, validIdType } from "@/lib/id-documents";
+import { OwnerChainEditor } from "@/components/owner-chain/OwnerChainEditor";
 
 type Step4OwnerContactProps = {
   owners: OwnerData[];
@@ -574,6 +575,48 @@ export function Step4OwnerContact({
                     onChange={(e) => updateLegal({ representativePosition: e.target.value })}
                     placeholder={t ? "Pl.: ügyvezető" : "e.g.: Managing Director"}
                   />
+                </div>
+
+                {/* Tulajdonosi lánc. A Pmt. szerint a tényleges tulajdonos a cég mögött álló
+                    természetes személy; enélkül az azonosítás nyitva marad. Nem kötelező mező:
+                    az ügyfél nem mindig tudja fejből, és a hiánya nem hamis állítás - csak
+                    nyitott ág, amit az átvilágításnál kell tisztázni. */}
+                <div className="space-y-3 rounded-lg border border-[color:var(--border)] bg-[color:var(--muted)]/20 p-4">
+                  <Label className="text-sm font-medium">
+                    {t ? "Ki a tulajdonosa ennek a cégnek?" : "Who owns this company?"}
+                  </Label>
+                  <p className="text-xs text-[color:var(--muted-foreground)]">
+                    {t
+                      ? "A törvény azt kéri, hogy tudjuk, melyik ember áll végső soron a cég mögött. Ha a tulajdonos is egy cég, akkor annak a tulajdonosát is megkérdezzük — legfeljebb három cégen keresztül."
+                      : "The law requires us to know which person is ultimately behind the company. If the owner is also a company, we ask about its owner too — through at most three companies."}
+                  </p>
+                  <p className="text-xs text-[color:var(--muted-foreground)]">
+                    {t
+                      ? "Nem kötelező most kitölteni. Ha megadja, gyorsabban megy az ügyintézés; ha nem tudja fejből, hagyja üresen, és kollégánk egyeztet Önnel."
+                      : "This is not mandatory now. Filling it in speeds up the process; if you do not know it offhand, leave it empty and a colleague will contact you."}
+                  </p>
+                  <label className="flex items-center gap-2 text-xs text-[color:var(--muted-foreground)]">
+                    <input
+                      type="checkbox"
+                      checked={Boolean(legal.listed)}
+                      onChange={(e) => updateLegal({ listed: e.target.checked })}
+                    />
+                    {t ? "Ez a cég tőzsdén jegyzett" : "This company is listed on a stock exchange"}
+                  </label>
+                  {legal.listed ? (
+                    <p className="text-xs text-amber-700 dark:text-amber-300">
+                      {t
+                        ? "Tőzsdei cégnél nem kérjük a tulajdonosok felsorolását: azt nyilvános adatbázisból nézzük meg."
+                        : "For a listed company we do not ask you to list the owners: we check them in a public database."}
+                    </p>
+                  ) : (
+                    <OwnerChainEditor
+                      owners={legal.owners || []}
+                      companyDepth={1}
+                      audience="ugyfel"
+                      onChange={(lanc) => updateLegal({ owners: lanc })}
+                    />
+                  )}
                 </div>
               </>
             )}

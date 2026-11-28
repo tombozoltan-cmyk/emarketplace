@@ -44,7 +44,11 @@ describe("the contracts page", () => {
   it("makes the declaration for the beneficial owners only, tells the rest in a note, and never stops for it", () => {
     const run = page.slice(page.indexOf("const runDocxDownloads"));
     assert.ok(run.includes("const pepRule = pepOwnersOf(owners);") && run.includes("{ pepOwners: pepRule.numbers }"));
-    assert.ok(/const pepNotes = kinds\.includes\("pep"\) \? pepRule\.notes : \[\];\n\s+if \(pepNotes\.length > 0\) alert\(pepNotes\.join/.test(run), "the notes are an alert, and the downloads go on (no return)");
+    // the notes are an alert, and the downloads go on: no `return` between building them and the alert
+    assert.ok(/const pepNotes = \[[^\]]*pepRule\.notes/.test(run), "the notes of pepOwnersOf are shown");
+    assert.ok(run.includes("decisiveInfluenceNote(selectedContract.decisiveInfluence)"), "the decisive influence (under 25 per cent) is told too");
+    const buildToAlert = run.slice(run.indexOf("const pepNotes = "), run.indexOf("if (pepNotes.length > 0) alert("));
+    assert.ok(buildToAlert.length > 0 && !/\breturn\b/.test(buildToAlert), "the downloads go on (no return before the alert)");
     // when there is no declaration at all, the notes explain it: the generic "no document for this package" is not added
     assert.ok(/if \(pepNotes\.length === 0\) \{\n\s+alert\(/.test(run));
   });

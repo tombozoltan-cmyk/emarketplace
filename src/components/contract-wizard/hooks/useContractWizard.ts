@@ -229,6 +229,21 @@ const validateStep = (
     case "pep-declaration":
       // Mindhárom kérdésre válaszolni kell. Alapértelmezés nincs: a Pmt. szerinti
       // nyilatkozatot az ügyfélnek kell megtennie, nem az űrlapnak helyette.
+      // A 25% alatti meghatározó befolyás: kötelező igen/nem, alapértelmezés nélkül.
+      // Jogi átnézés 2026-11-28, 5. pont: "a jelzés nem elég".
+      if (typeof data.decisiveInfluence?.exists !== "boolean") {
+        errors.push(
+          t
+            ? "Kérjük, válaszoljon a meghatározó befolyásra vonatkozó kérdésre - ez kötelező nyilatkozat"
+            : "Please answer the question about decisive influence - this is a mandatory declaration"
+        );
+      } else if (data.decisiveInfluence.exists && !data.decisiveInfluence.details?.trim()) {
+        errors.push(
+          t
+            ? "Kérjük, nevezze meg, ki gyakorol meghatározó befolyást, és milyen módon"
+            : "Please name who exercises decisive influence, and how"
+        );
+      }
       for (const declarant of pepMissingDeclarants(data)) {
         const kinel = pepDeclarantLabel(declarant);
         errors.push(
@@ -290,6 +305,7 @@ export type UseContractWizardReturn = {
   updateRepresentative: (updates: Partial<ContractData["representative"]>) => void;
   updateContact: (updates: Partial<ContractData["contact"]>) => void;
   updatePepDeclaration: (declarant: PepDeclarant, updates: Partial<PepDeclaration>) => void;
+  updateDecisiveInfluence: (updates: Partial<NonNullable<ContractData["decisiveInfluence"]>>) => void;
   updateDocuments: (updates: Partial<ContractData["uploadedDocuments"]>) => void;
   updateDocumentPaths: (updates: Partial<ContractDocumentPaths>) => void;
   setServiceType: (selection: ServiceSelection) => void;
@@ -476,6 +492,13 @@ export function useContractWizard(
 
   // A nyilatkozat oda kerül, akiről szól: a tulajdonoshoz vagy a vezető tisztségviselőhöz.
   // A beadvány-szintű `pepDeclaration` örökség, új beadvány nem tölti.
+  const updateDecisiveInfluence = useCallback(
+    (updates: Partial<NonNullable<ContractData["decisiveInfluence"]>>) => {
+      setData((prev) => ({ ...prev, decisiveInfluence: { ...prev.decisiveInfluence, ...updates } }));
+    },
+    []
+  );
+
   const updatePepDeclaration = useCallback(
     (declarant: PepDeclarant, updates: Partial<PepDeclaration>) => {
       setData((prev) => {
@@ -626,6 +649,7 @@ export function useContractWizard(
     updateRepresentative,
     updateContact,
     updatePepDeclaration,
+    updateDecisiveInfluence,
     updateDocuments,
     updateDocumentPaths,
     setServiceType,

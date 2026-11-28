@@ -266,9 +266,14 @@ describe("a wizard nem válaszol az ügyfél helyett", () => {
   });
 
   it("a jogi személyes ág nem állítja, hogy az ügyvezető a tényleges tulajdonos", () => {
+    // A JELENTÉST őrizzük, nem a szakszót: a szöveg köznyelvi lehet, de két dolgot ki kell
+    // mondania - hogy a cég mögötti EMBER számít, és hogy az ügyvezető csak addig nyilatkozik.
     const WIZARD_TSX = readFileSync(new URL("../src/components/contract-wizard/ContractWizard.tsx", import.meta.url), "utf8");
     assert.match(WIZARD_TSX, /reason === "jogi-szemely-tag"/, "a két ok nincs megkülönböztetve az űrlapon");
-    assert.match(WIZARD_TSX, /közvetett tulajdonlás/, "nem mondja ki, hogy a lánc mögötti ember a tényleges tulajdonos");
+    const ag = WIZARD_TSX.slice(WIZARD_TSX.indexOf('reason === "jogi-szemely-tag"'), WIZARD_TSX.indexOf("Egyik tulajdonos sem"));
+    assert.match(ag, /melyik ember áll a cég mögött/, "nem mondja ki, hogy a cég mögötti ember számít");
+    assert.match(ag, /Addig az ügyvezetőről/, "nem derül ki, hogy az ügyvezető csak átmenetileg nyilatkozik");
+    assert.doesNotMatch(ag, /ügyvezető a tényleges tulajdonos/, "nem állíthatja, hogy az ügyvezető a tényleges tulajdonos");
   });
 
   it("minden nyilatkozó külön azonosítót kap - különben a gombok összeakadnának", () => {
@@ -292,5 +297,42 @@ describe("az eljáró személy neve nem függhet a régi térképtől", () => {
   it("hiányzó képviselőnél üres sztring, nem undefined", () => {
     const adat = buildDocxData({ ...beadvany(), representative: undefined }, helpers);
     assert.equal(adat.KEPVISELO_NEV, "");
+  });
+});
+
+// --- 25% alatti meghatározó befolyás (jogi átnézés 2026-11-28, 5. pont) ------
+
+import { decisiveInfluenceNote } from "../src/lib/docx-data.ts";
+
+describe("a 25% alatti meghatározó befolyás kötelező kérdés", () => {
+  it("nem jelentett befolyásnál nincs figyelmeztetés", () => {
+    assert.equal(decisiveInfluenceNote({ exists: false }), null);
+    assert.equal(decisiveInfluenceNote(undefined), null);
+  });
+
+  it("jelentett befolyásnál szól, hogy rá is kell nyilatkozat, és hogy kézzel", () => {
+    const note = decisiveInfluenceNote({ exists: true, details: "Kovács János, szavazategyezség" });
+    assert.match(String(note), /tényleges tulajdonos/);
+    assert.match(String(note), /38\. b\)/);
+    assert.match(String(note), /kézzel/);
+    assert.match(String(note), /Kovács János/, "a megadott indok is benne van");
+  });
+
+  it("részletek nélkül is szól - a hiány nem némíthatja el", () => {
+    assert.match(String(decisiveInfluenceNote({ exists: true })), /MEGHATÁROZÓ BEFOLYÁST/);
+  });
+});
+
+describe("az űrlap megköveteli a választ (forrás-őrök)", () => {
+  it("a lépés ellenőrzi, hogy válaszoltak-e", () => {
+    assert.match(WIZARD, /typeof data\.decisiveInfluence\?\.exists !== "boolean"/);
+  });
+
+  it("igen válasznál a megnevezés is kötelező", () => {
+    assert.match(WIZARD, /decisiveInfluence\.exists && !data\.decisiveInfluence\.details\?\.trim\(\)/);
+  });
+
+  it("a rádiógomb üresen indul, nincs előre bejelölt 'nem'", () => {
+    assert.match(LEPES, /decisiveInfluence\.exists === undefined \? ""/);
   });
 });
