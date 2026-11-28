@@ -53,6 +53,30 @@ export type LegalEntityData = {
   mainActivity?: string;               // Főtevékenység
   representativeName: string;          // Képviselő neve
   representativePosition: string;      // Képviselő beosztása
+  /**
+   * Szabályozott piacon jegyzett (tőzsdei) társaság. Ilyenkor a lánc itt megáll, de NEM lezárásként:
+   * a 25%-ot elérő részvényeseket a nyilvános részesedés-bejelentésekből kell ellenőrizni
+   * (jogi átnézés 2026-11-28, 2. pont - a Pmt. kivétele a jegyzett ÜGYFÉLRE szól, nem a köztes anyacégre).
+   */
+  listed?: boolean;
+  /**
+   * A cég MÖGÖTTI tulajdonosok: a tulajdonosi lánc következő szintje. Ebből azonosítja a
+   * `beneficialOwnersOf` a közvetett tényleges tulajdonost (Pmt. 3. § 38. a) + Ptk. 8:2. § (4)).
+   * Az átvilágításnál az iroda rögzíti; az ügyfél űrlapja ma nem kéri be.
+   */
+  owners?: OwnerChainNode[];
+};
+
+/**
+ * Egy elem a tulajdonosi láncban. Szándékosan sovány: a köztes szintekhez csak név, arány és
+ * típus kell. Teljes személyes adat csak attól, akiből végül tényleges tulajdonos lesz.
+ */
+export type OwnerChainNode = {
+  type: OwnerType;
+  ownershipPercent: number | string;
+  name: string;
+  listed?: boolean;
+  owners?: OwnerChainNode[];
 };
 
 // Tulajdonos (természetes vagy jogi személy)
