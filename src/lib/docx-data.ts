@@ -540,6 +540,12 @@ export function buildDocxData(contract: DocxContractInput, helpers: DocxDataHelp
     KEZBESITESI_EVES_DIJ_EN: en(fees.deliveryMonthly * 12),
     // the contact address: of the person when the contact is the owner and has none of its own
     KAPCSOLAT_CIM: (contract.contact?.address || "").trim() || (contract.contact?.isSameAsOwner ? (firstNatural?.address || "").trim() : ""),
+    // A nevet és a lakcímet a personData nem adja (a tulajdonosoknál is külön sor állítja be).
+    // Eddig ezt a kettőt CSAK az admin oldal régi, {{...}} alakú térképe töltötte ki, amit a
+    // docxDataOf fűz a buildDocxData elé - ha az kikerül, az "Alulírott, ... (eljáró személy)"
+    // minden PEP-nyilatkozatról eltűnne. Ezért itt is megadjuk.
+    KEPVISELO_NEV: (representative.fullName || "").trim(),
+    KEPVISELO_LAKCIM: (representative.address || "").trim(),
     ...personData("KEPVISELO", representative, helpers),
   };
 

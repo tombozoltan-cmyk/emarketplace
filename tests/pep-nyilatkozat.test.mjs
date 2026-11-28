@@ -276,3 +276,21 @@ describe("a wizard nem válaszol az ügyfél helyett", () => {
     assert.match(LEPES, /pepDetails-\$\{key\}/);
   });
 });
+
+// --- az eljáró személy neve az iraton ----------------------------------------
+
+describe("az eljáró személy neve nem függhet a régi térképtől", () => {
+  it("a buildDocxData maga adja a képviselő nevét és lakcímét", () => {
+    // A PEP-nyilatkozat első szava: "Alulírott, {KEPVISELO_NEV} (eljáró személy)". Ezt eddig
+    // CSAK az admin oldal régi, {{...}} alakú térképe töltötte ki. Ha az kikerül, az irat
+    // névtelenül menne ki. Mérve: a sablon élőben is ezt a kulcsot kéri.
+    const adat = buildDocxData(beadvany(), helpers);
+    assert.equal(adat.KEPVISELO_NEV, "Teszt Ügyvezető");
+    assert.equal(adat.KEPVISELO_LAKCIM, "1234 Tesztváros, Példa utca 1.");
+  });
+
+  it("hiányzó képviselőnél üres sztring, nem undefined", () => {
+    const adat = buildDocxData({ ...beadvany(), representative: undefined }, helpers);
+    assert.equal(adat.KEPVISELO_NEV, "");
+  });
+});
