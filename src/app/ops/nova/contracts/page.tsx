@@ -61,7 +61,7 @@ import { fillOfficialPostalAuthPDF, type OfficialPostalAuthData } from "@/lib/pd
 import { idTypeLabel, uploadedDocumentLabel } from "@/lib/id-documents";
 import { planDownloads, type DownloadItem, type DownloadKind } from "@/lib/docx-selection";
 import { OwnerChainEditor, OwnerChainSummary } from "@/components/ops/OwnerChainEditor";
-import { PROVIDER_NAME, buildDocxData, decisiveInfluenceNote, deliveryContractWarning, docxContractProblem, ownerDataAliases, packageDocuments, pepOwnersOf } from "@/lib/docx-data";
+import { PROVIDER_NAME, buildDocxData, chainPepNotes, decisiveInfluenceNote, deliveryContractWarning, docxContractProblem, ownerDataAliases, packageDocuments, pepOwnersOf } from "@/lib/docx-data";
 
 const FUNCTIONS_BASE_URL = process.env.NEXT_PUBLIC_FUNCTIONS_URL || "https://us-central1-emarketplace-8aab1.cloudfunctions.net";
 
@@ -626,7 +626,9 @@ export default function ContractsPage() {
       const problems = plan.problems.filter((problem) => kinds.includes(problem.kind)).map((problem) => problem.message);
       // what the admin should know about who gets a declaration and who does not: a warning, never a stop
       const befolyasNote = kinds.includes("pep") ? decisiveInfluenceNote(selectedContract.decisiveInfluence) : null;
-      const pepNotes = [...(kinds.includes("pep") ? pepRule.notes : []), ...(befolyasNote ? [befolyasNote] : [])];
+      // a láncról szóló figyelmeztetések: a hiányzó nyilatkozat nem állítja meg a többi iratot
+      const lancNotes = kinds.includes("pep") ? chainPepNotes(selectedContract) : [];
+      const pepNotes = [...(kinds.includes("pep") ? pepRule.notes : []), ...lancNotes, ...(befolyasNote ? [befolyasNote] : [])];
       if (pepNotes.length > 0) alert(pepNotes.join("\n\n"));
       if (items.length === 0 && problems.length === 0) {
         // a package with delivery whose delivery template is not uploaded yet is not "no document for this package"; no declaration at all is told by the notes above

@@ -457,6 +457,45 @@ export function decisiveInfluenceNote(decisiveInfluence?: { exists?: boolean; de
   return `Az ügyfél 25% alatti MEGHATÁROZÓ BEFOLYÁST jelentett${reszletek ? `: "${reszletek}"` : ""}. Az ilyen személy a Pmt. 3. § 38. b) pontja szerint tényleges tulajdonos, tehát rá is kell PEP-nyilatkozat és átvilágítási adatlap. A generátor ezt nem készíti el - kézzel kell.`;
 }
 
+/**
+ * Mit kell az ügyintézőnek tudnia a LÁNCRÓL az iratok letöltésekor.
+ *
+ * A gazda döntése (2026-11-28): a nyitott ág és a közvetett tulajdonos csak EGY HIÁNYZÓ
+ * nyilatkozatot jelent - a többi irat ettől függetlenül elkészül. Ezért ez figyelmeztetés,
+ * sosem megállítás, ahogy a `pepOwnersOf` jegyzetei is.
+ *
+ * Miért nem készül el a közvetett tulajdonos nyilatkozata magától: az élő PEP-sablon a NEVET
+ * kéri, azt a láncból tudjuk - de a PEP-VÁLASZÁT nem, mert őt az űrlap nem kérdezte meg. Meg nem
+ * adott válaszból pedig nem szabad "nem minősül kiemelt közszereplőnek" iratot készíteni.
+ */
+export function chainPepNotes(contract: {
+  owners?: { type?: string; ownershipPercent?: unknown; natural?: { fullName?: string }; legal?: { companyName?: string; listed?: boolean; owners?: ChainOwner[] } }[];
+}): string[] {
+  const { beneficialOwners, unresolved } = beneficialOwnersOf(contract.owners);
+  const notes: string[] = [];
+
+  for (const b of beneficialOwners.filter((x) => x.indirect)) {
+    const arany = b.effectiveShare === null ? "ismeretlen arány" : `${String(b.effectiveShare).replace(".", ",")}%`;
+    notes.push(
+      `${b.name || "(névtelen)"} KÖZVETETT tényleges tulajdonos (${arany}, ${b.path}). Rá is kell PEP-nyilatkozat, de a beadvány nem tartalmazza a válaszát - a nyilatkozatot kézzel kell elkészíteni. A többi irat ettől függetlenül elkészül.`,
+    );
+  }
+
+  for (const u of unresolved) {
+    const ok =
+      u.reason === "jegyzett-anyaceg"
+        ? "jegyzett anyacég: a 25%-ot elérő részvényesek a nyilvános bejelentésekből ellenőrizendők"
+        : u.reason === "harmadik-ceg-utan"
+          ? `a lánc ${MAX_OWNER_CHAIN_DEPTH} cégnél mélyebb, itt megálltunk`
+          : "a cég mögötti tulajdonosok nincsenek rögzítve";
+    notes.push(
+      `${u.path}: a tényleges tulajdonos NEM azonosított (${ok}). Ezen az ágon hiányozni fog egy PEP-nyilatkozat; a vezető tisztségviselő NEM léphet a helyére. A többi irat elkészül.`,
+    );
+  }
+
+  return notes;
+}
+
 export function pepOwnersOf(owners: { type?: string; ownershipPercent?: unknown }[] | undefined): { numbers: number[]; notes: string[] } {
   const list = owners || [];
   const numbers: number[] = [];

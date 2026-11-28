@@ -171,3 +171,42 @@ describe("ugyanaz a személy több ágon", () => {
     assert.match(e.notes.join(" "), /Ellenőrizd/);
   });
 });
+
+// --- mit tud meg az ügyintéző a letöltésnél ---------------------------------
+
+import { chainPepNotes } from "../src/lib/docx-data.ts";
+
+describe("a lánc figyelmeztetései az iratletöltésnél", () => {
+  it("tiszta, közvetlen tulajdonosoknál nincs mit mondani", () => {
+    assert.deepEqual(chainPepNotes({ owners: [szemely("Egyedüli", 100)] }), []);
+  });
+
+  it("közvetett tulajdonosnál: megnevezi, és megmondja, miért kézi az irata", () => {
+    const n = chainPepNotes({ owners: [ceg("Anya Kft.", 100, { owners: [lancTag("Lánc Mögötti", 60)] })] });
+    assert.equal(n.length, 1);
+    assert.match(n[0], /Lánc Mögötti/);
+    assert.match(n[0], /KÖZVETETT/);
+    assert.match(n[0], /nem tartalmazza a válaszát/, "nem a személyes adat hiányzik, hanem a PEP-válasz");
+    assert.match(n[0], /A többi irat ettől függetlenül elkészül/, "a gazda döntése: nem állítjuk meg a letöltést");
+  });
+
+  it("nyitott ágnál: hiányzó nyilatkozat, de az ügyvezető nem lép a helyére", () => {
+    const n = chainPepNotes({ owners: [ceg("Anya Kft.", 100)] });
+    assert.equal(n.length, 1);
+    assert.match(n[0], /NEM azonosított/);
+    assert.match(n[0], /NEM léphet a helyére/);
+    assert.match(n[0], /A többi irat elkészül/);
+  });
+
+  it("jegyzett anyacégnél a nyilvános bejelentésekre küld", () => {
+    const n = chainPepNotes({ owners: [ceg("Nyrt.", 100, { listed: true })] });
+    assert.match(n.join(" "), /nyilvános bejelentésekből/);
+  });
+
+  it("több ág esetén mindegyikről külön szól", () => {
+    const n = chainPepNotes({
+      owners: [ceg("A Kft.", 50, { owners: [lancTag("Megvan", 100)] }), ceg("B Kft.", 50)],
+    });
+    assert.equal(n.length, 2, "egy a közvetett tulajdonosról, egy a nyitott ágról");
+  });
+});
