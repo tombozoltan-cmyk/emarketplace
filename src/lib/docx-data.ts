@@ -25,9 +25,11 @@ export type DocxContractInput = {
   serviceType?: string;
   monthlyPrice?: number;
   company?: { name?: string; legalForm?: string; registrationNumber?: string; taxNumber?: string; isNew?: boolean };
-  owners?: { type?: string; ownershipPercent?: number; natural?: Person }[];
+  owners?: { type?: string; ownershipPercent?: number; natural?: Person; pep?: PepDeclarationInput }[];
   representative?: Person;
   contact?: { isSameAsOwner?: boolean; address?: string };
+  representativePep?: PepDeclarationInput;
+  pepDeclaration?: PepDeclarationInput;
 };
 
 export type DocxDataHelpers = {
@@ -103,6 +105,11 @@ export function docxContractProblem(contract: DocxContractInput): string | null 
   if (!packageDocuments(contract.packageId, contract.serviceType).known) {
     return `A csomag nem ismerhető fel (csomagazonosító: "${contract.packageId || ""}", szolgáltatástípus: "${contract.serviceType || ""}"). A szerződések szövege a csomagtól függ, ezért a letöltés megállt.`;
   }
+  const hianyzik = pepMissingDeclarants(contract);
+  if (hianyzik.length > 0) {
+    const kik = hianyzik.map(pepDeclarantLabel).join(", ");
+    return `A beadványban ${kik} nincs megadva a kiemelt közszereplői (PEP) nyilatkozat mindhárom válasza. A nyilatkozat szövege ettől függ, és meg nem adott válaszból nem szabad „nem minősül kiemelt közszereplőnek” iratot készíteni, ezért a letöltés megállt. Kérd be a hiányzó választ az ügyféltől.`;
+  }
   return null;
 }
 
@@ -151,6 +158,107 @@ function shareOf(value: unknown): number | null {
  * - a legal person among the members: the beneficial owner is the natural person behind it, by hand;
  * - nobody reaches 25 per cent (and every share is known): the managing director is the beneficial owner (Pmt. 3. § 38. f), by hand.
  */
+/** A wizard PEP-lépésének három kérdése. Mindhárom "igen" ugyanazt jelenti az iratban: a tulajdonos a nyilatkozat szerint érintett. */
+export type PepDeclarationInput = { isPep?: boolean; isPepRelative?: boolean; isPepAssociate?: boolean };
+
+/**
+ * A PEP-nyilatkozat sablon-feltételének értéke: üres sztring = NEM érintett, "1" = érintett.
+ *
+ * A sablon `{^TULAJDONOS_PEP}` ága a "nem minősül kiemelt közszereplőnek" mondatot írja ki, a `{#TULAJDONOS_PEP}` ága a másikat.
+ * A docxtemplater az üres sztringet hamisnak veszi, ezért elég sztringet adni: a `buildDocxData` amúgy is csak sztringeket ad.
+ *
+ * ⚠ Hiányzó nyilatkozat esetén üreset ad, tehát az irat a "nem minősül" mondatot írja ki. A wizardban a három érték mindig
+ * ki van töltve (alapértelmezésben hamis), de ha egy beadvány mégis nyilatkozat nélkül érkezne, az irat egy olyan állítást
+ * tenne, amit senki nem jelentett ki. Ezt a beadvány oldalán kell kizárni, nem itt.
+ */
+export function pepAnswered(declaration?: PepDeclarationInput): boolean {
+  return (
+    typeof declaration?.isPep === "boolean" &&
+    typeof declaration?.isPepRelative === "boolean" &&
+    typeof declaration?.isPepAssociate === "boolean"
+  );
+}
+
+/**
+ * MIÉRT a vezető tisztségviselő nyilatkozik. A kettő nem ugyanaz, és nem szabad összemosni:
+ *
+ * - "nincs-25-szazalekos": egyetlen tag sem éri el a 25%-ot, ezért a Pmt. 3. § 38. f) szerint
+ *   TÉNYLEG a vezető tisztségviselő a tényleges tulajdonos.
+ * - "jogi-szemely-tag": a tag jogi személy. Ilyenkor a tényleges tulajdonos a mögötte álló
+ *   természetes személy (KÖZVETETT tulajdonlás), nem a mi ügyvezetőnk. Ezt a láncot sem ez az
+ *   űrlap, sem a generátor nem követi (lásd pepOwnersOf megjegyzését), ezért az átvilágításnál
+ *   kézzel kell tisztázni. Az ügyvezető nyilatkozata itt a legjobb elérhető közelítés, NEM a
+ *   jogilag helyes válasz - ezt az űrlapon is ki kell írni, különben az ügyfél és az ügyintéző
+ *   azt hiszi, hogy a kérdés el van intézve.
+ */
+export type PepRepresentativeReason = "nincs-25-szazalekos" | "jogi-szemely-tag";
+
+/** Ki teszi a PEP-nyilatkozatot: egy tulajdonos (sorszámmal), vagy a vezető tisztségviselő. */
+export type PepDeclarant =
+  | { kind: "owner"; ownerNumber: number }
+  | { kind: "representative"; reason: PepRepresentativeReason };
+
+type PepContractInput = {
+  owners?: { type?: string; ownershipPercent?: unknown; pep?: PepDeclarationInput }[];
+  representativePep?: PepDeclarationInput;
+  pepDeclaration?: PepDeclarationInput;
+};
+
+/**
+ * KIK kötelesek PEP-nyilatkozatot tenni. Ez az EGYETLEN hely, ahol ez eldől - az űrlap,
+ * az ellenőrzés és az iratgenerálás mind ezt kérdezi.
+ *
+ * A szabály a már jogilag átnézett `pepOwnersOf`-ból jön (2026-11-26): a legalább 25%-os
+ * természetes személy tagok a tényleges tulajdonosok. Jogi személy tag kimarad, mert ő nem
+ * tud nyilatkozni - a mögötte álló természetes személyt a generátor amúgy sem kezeli.
+ *
+ * Ha egyetlen tag sem éri el a 25%-ot, a Pmt. 3. § 38. f) szerint a VEZETŐ TISZTSÉGVISELŐ a
+ * tényleges tulajdonos, tehát ő nyilatkozik. Enélkül egy ilyen cégnél az űrlap senkitől nem
+ * kérdezne - az rosszabb lenne, mint a korábbi egyetlen nyilatkozat.
+ */
+export function pepDeclarantsOf(contract: PepContractInput): PepDeclarant[] {
+  const owners = contract.owners || [];
+  const kotelesek = pepOwnersOf(owners).numbers;
+  const declarants = kotelesek
+    .filter((number) => owners[number - 1]?.type !== "legal")
+    .map((ownerNumber): PepDeclarant => ({ kind: "owner", ownerNumber }));
+  if (declarants.length > 0) return declarants;
+  // Nincs természetes személy tényleges tulajdonos. A kettő OKA más, és a kettő nem ugyanaz:
+  // jogi személy tagnál a lánc mögötti embert kellene azonosítani, azt viszont nem követjük.
+  const jogiSzemelyTag = kotelesek.some((number) => owners[number - 1]?.type === "legal");
+  return [{ kind: "representative", reason: jogiSzemelyTag ? "jogi-szemely-tag" : "nincs-25-szazalekos" }];
+}
+
+/**
+ * Egy nyilatkozó válasza. Elsőként a sajátja; ha nincs, a beadvány-szintű
+ * (`contract.pepDeclaration`) a tartalék.
+ *
+ * A tartalékra a RÉGI beadványok miatt van szükség: azokban egyetlen nyilatkozat tartozott
+ * az egész beadványhoz, és azokból ma is kell iratot tudni készíteni. Új beadványban
+ * mindenki a sajátját kapja, mert a PEP-státusz személyenként más lehet - a ClientBoost
+ * agent-API is tulajdonosonként kéri (`beneficialOwners[].isPep`).
+ */
+export function pepDeclarationOf(contract: PepContractInput, declarant: PepDeclarant): PepDeclarationInput | undefined {
+  const sajat =
+    declarant.kind === "owner" ? contract.owners?.[declarant.ownerNumber - 1]?.pep : contract.representativePep;
+  return pepAnswered(sajat) ? sajat : contract.pepDeclaration;
+}
+
+/** Azok a nyilatkozók, akiknek még nincs megválaszolt nyilatkozatuk. */
+export function pepMissingDeclarants(contract: PepContractInput): PepDeclarant[] {
+  return pepDeclarantsOf(contract).filter((declarant) => !pepAnswered(pepDeclarationOf(contract, declarant)));
+}
+
+/** A nyilatkozó megnevezése hibaüzenethez: "a(z) 2. tulajdonosnál" vagy "a vezető tisztségviselőnél". */
+export function pepDeclarantLabel(declarant: PepDeclarant): string {
+  return declarant.kind === "owner" ? `a(z) ${declarant.ownerNumber}. tulajdonosnál` : "a vezető tisztségviselőnél";
+}
+
+export function pepFlagOf(declaration?: PepDeclarationInput): string {
+  if (!declaration) return "";
+  return declaration.isPep || declaration.isPepRelative || declaration.isPepAssociate ? "1" : "";
+}
+
 export function pepOwnersOf(owners: { type?: string; ownershipPercent?: unknown }[] | undefined): { numbers: number[]; notes: string[] } {
   const list = owners || [];
   const numbers: number[] = [];
@@ -306,6 +414,8 @@ export function buildDocxData(contract: DocxContractInput, helpers: DocxDataHelp
   // every owner, however many there are (the wizard does not limit them; the old builder of the page stops at three): at least three, so the first three are
   // always defined even when empty. The name, the address and the share are given here for every owner as the old builder gives them for the first three
   // (a legal owner has no person data), so a template with the role "kyc" or "pep" (ownerDataAliases) works for the fourth owner and the tenth.
+  // A beadvany ma EGY PEP-nyilatkozatot tarol (ContractData.pepDeclaration), a nyilatkozat viszont tulajdonosonkent keszul,
+  // ezert minden tulajdonos ugyanazt az erteket kapja. Ha a wizard egyszer tulajdonosonkent kerdez, csak ez a sor valtozik.
   for (let index = 0; index < Math.max(3, owners.length); index++) {
     const owner = owners[index];
     const prefix = `TULAJDONOS_${index + 1}`;
@@ -314,6 +424,7 @@ export function buildDocxData(contract: DocxContractInput, helpers: DocxDataHelp
     data[`${prefix}_NEV`] = (natural?.fullName || "").trim();
     data[`${prefix}_LAKCIM`] = (natural?.address || "").trim();
     data[`${prefix}_ARANY`] = owner ? String(owner.ownershipPercent || 0) : "";
+    data[`${prefix}_PEP`] = pepFlagOf(pepDeclarationOf(contract, { kind: "owner", ownerNumber: index + 1 }));
   }
   return data;
 }

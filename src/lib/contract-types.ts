@@ -58,6 +58,13 @@ export type LegalEntityData = {
 // Tulajdonos (természetes vagy jogi személy)
 export type OwnerData = {
   type: OwnerType;
+  /**
+   * A tulajdonos SAJÁT PEP-nyilatkozata. A státusz személyenként más lehet, és a
+   * ClientBoost agent-API is tulajdonosonként kéri (`beneficialOwners[].isPep`).
+   * Jogi személy tagnál nincs értelme: ott a mögötte álló természetes személy a
+   * tényleges tulajdonos. `undefined` = még nem válaszolt.
+   */
+  pep?: PepDeclaration;
   ownershipPercent: number;            // Tulajdonosi arány %
   natural?: NaturalPersonData;
   legal?: LegalEntityData;
@@ -74,10 +81,15 @@ export type ContactPersonData = {
 };
 
 // PEP (Politically Exposed Person) nyilatkozat
+// A három válasz azért NEM kötelező mező, mert a hiányzó választ meg kell tudni
+// különböztetni a kimondott "nem"-től: `undefined` = még nem válaszolt, `false` =
+// kijelentette, hogy nem. A nyilatkozat Pmt. szerinti kötelezettség, ezért az irat
+// és a ClientBoost-átadás is kimondott választ kíván - a csendes alapértelmezés
+// olyan állítást tenne az ügyfél nevében, amit ő nem tett meg.
 export type PepDeclaration = {
-  isPep: boolean;                      // Kiemelt közszereplő-e
-  isPepRelative: boolean;              // PEP közeli hozzátartozója-e
-  isPepAssociate: boolean;             // PEP-pel üzleti kapcsolatban áll-e
+  isPep?: boolean;                     // Kiemelt közszereplő-e (undefined: nem válaszolt)
+  isPepRelative?: boolean;             // PEP közeli hozzátartozója-e (undefined: nem válaszolt)
+  isPepAssociate?: boolean;            // PEP-pel üzleti kapcsolatban áll-e (undefined: nem válaszolt)
   pepDetails?: string;                 // Ha igen, részletek
 };
 
@@ -186,7 +198,10 @@ export type ContractData = {
   contact: ContactPersonData;
 
   // PEP nyilatkozat
-  pepDeclaration: PepDeclaration;
+  /** A vezető tisztségviselő SAJÁT nyilatkozata - akkor kell, ha egyetlen tag sem éri el a 25%-ot (Pmt. 3. § 38. f)). */
+  representativePep?: PepDeclaration;
+  /** ÖRÖKSÉG: a régi beadványokban egyetlen nyilatkozat tartozott az egész beadványhoz. Új beadvány nem ezt tölti, csak olvasásnál tartalék. */
+  pepDeclaration?: PepDeclaration;
 
   // Dokumentumok (admin tölti fel)
   uploadedDocuments: ContractDocuments;

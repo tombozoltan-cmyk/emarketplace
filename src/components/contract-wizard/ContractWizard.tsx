@@ -12,9 +12,11 @@ import { Step3CompanyData } from "./steps/Step3CompanyData";
 import { Step4OwnerContact } from "./steps/Step4OwnerContact";
 import { Step5Representative } from "./steps/Step5Representative";
 import { Step6PepDeclaration } from "./steps/Step6PepDeclaration";
+import type { PepDeclarantView } from "./steps/Step6PepDeclaration";
 import { Step7Documents } from "./steps/Step7Documents";
 import { Step7Summary } from "./steps/Step7Summary";
 import type { ContractLanguage, WizardStep } from "@/lib/contract-types";
+import { pepDeclarantsOf } from "@/lib/docx-data";
 
 type ContractWizardProps = {
   language?: ContractLanguage;
@@ -24,6 +26,38 @@ export function ContractWizard({ language = "hu" }: ContractWizardProps) {
   const wizard = useContractWizard(language);
   const t = wizard.language === "hu";
   const [attemptedNext, setAttemptedNext] = useState(false);
+
+  // Kiről kell PEP-nyilatkozat: a tényleges tulajdonosokról, vagy - ha egyetlen tag sem éri el
+  // a 25%-ot - a vezető tisztségviselőről. A szabály a pepDeclarantsOf-ban van, egy helyen.
+  const pepDeclarantViews: PepDeclarantView[] = pepDeclarantsOf(wizard.data).map((declarant) => {
+    if (declarant.kind === "representative") {
+      return {
+        key: "representative",
+        declarant,
+        name: (wizard.data.representative?.fullName || "").trim(),
+        role: t ? "Vezető tisztségviselő" : "Managing director",
+        // A két ok nem ugyanaz, és nem is szabad összemosni: a jogi személyes esetben az
+        // ügyvezető NEM a tényleges tulajdonos, csak a legjobb elérhető közelítés.
+        note:
+          declarant.reason === "jogi-szemely-tag"
+            ? t
+              ? "A tulajdonos jogi személy. A tényleges tulajdonos a mögötte álló természetes személy (közvetett tulajdonlás), amit ez az űrlap nem követ - az átvilágításnál kézzel kell tisztázni. Addig a vezető tisztségviselő nyilatkozata kerül be."
+              : "The member is a legal entity. The beneficial owner is the natural person behind it (indirect ownership), which this form does not trace - it must be established manually during due diligence. Until then the managing director's declaration is recorded."
+            : t
+              ? "Egyetlen tag sem éri el a 25%-ot, ezért a Pmt. szerint a vezető tisztségviselő a tényleges tulajdonos - a nyilatkozatot rá kell megtenni."
+              : "No member reaches 25%, so under the AML act the managing director is the beneficial owner and the declaration is made for them.",
+        data: wizard.data.representativePep ?? {},
+      };
+    }
+    const owner = wizard.data.owners[declarant.ownerNumber - 1];
+    return {
+      key: `owner-${declarant.ownerNumber}`,
+      declarant,
+      name: (owner?.natural?.fullName || "").trim(),
+      role: t ? `${declarant.ownerNumber}. tulajdonos` : `Owner ${declarant.ownerNumber}`,
+      data: owner?.pep ?? {},
+    };
+  });
 
   const handleEditStep = (stepId: string) => {
     wizard.goToStep(stepId as WizardStep);
@@ -102,7 +136,7 @@ export function ContractWizard({ language = "hu" }: ContractWizardProps) {
       case "pep-declaration":
         return (
           <Step6PepDeclaration
-            data={wizard.data.pepDeclaration}
+            declarants={pepDeclarantViews}
             onChange={wizard.updatePepDeclaration}
             language={wizard.language}
           />

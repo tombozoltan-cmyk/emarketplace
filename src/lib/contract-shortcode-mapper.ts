@@ -168,10 +168,13 @@ export function mapContractToShortcodes(contract: ContractData, contractId?: str
   codes["KAPCSOLAT_TELEFON"] = contact.phone || ""
 
   // === PEP declaration ===
+  // ÖRÖKSÉG: ez a leképező EGYETLEN PEP-értéket ismer, a nyilatkozat viszont tulajdonosonként
+  // készül. Ezt a fájlt ma semmi nem hívja; ha újra használatba kerül, tulajdonosonként kell
+  // leképeznie (lásd pepDeclarantsOf / pepDeclarationOf a src/lib/docx-data.ts-ben).
   const pep = contract.pepDeclaration
-  const isPep = pep.isPep || pep.isPepRelative || pep.isPepAssociate
+  const isPep = Boolean(pep?.isPep || pep?.isPepRelative || pep?.isPepAssociate)
   codes["PEP_STATUS"] = isPep ? "Igen" : "Nem"
-  codes["PEP_RESZLETEK"] = pep.pepDetails || ""
+  codes["PEP_RESZLETEK"] = pep?.pepDetails || ""
   codes["PEP_NYILATKOZAT"] = isPep ? "minősül" : "nem minősül"
 
   // === Service data ===
