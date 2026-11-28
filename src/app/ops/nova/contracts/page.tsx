@@ -59,9 +59,9 @@ import {
 import { buildConditionalContext, replaceShortcodes } from "@/lib/contract-shortcodes";
 import { fillOfficialPostalAuthPDF, type OfficialPostalAuthData } from "@/lib/pdf-generators/postal-authorization";
 import { idTypeLabel, uploadedDocumentLabel } from "@/lib/id-documents";
-import { planDownloads, type DownloadItem, type DownloadKind } from "@/lib/docx-selection";
+import { CATEGORY_PEP, pickOwnerTemplate, planDownloads, type DownloadItem, type DownloadKind } from "@/lib/docx-selection";
 import { OwnerChainEditor, OwnerChainSummary } from "@/components/owner-chain/OwnerChainEditor";
-import { PROVIDER_NAME, buildDocxData, chainPepNotes, decisiveInfluenceNote, deliveryContractWarning, docxContractProblem, ownerDataAliases, packageDocuments, pepOwnersOf } from "@/lib/docx-data";
+import { PROVIDER_NAME, beneficialOwnersOf, buildDocxData, chainPepNotes, decisiveInfluenceNote, pepDeclarationOf, pepFlagOf, deliveryContractWarning, docxContractProblem, ownerDataAliases, packageDocuments, pepOwnersOf } from "@/lib/docx-data";
 
 const FUNCTIONS_BASE_URL = process.env.NEXT_PUBLIC_FUNCTIONS_URL || "https://us-central1-emarketplace-8aab1.cloudfunctions.net";
 
@@ -621,9 +621,19 @@ export default function ContractsPage() {
     try {
       // a declaration of public figure status is made for the beneficial owners (25 per cent or more), the data sheet for every member (legal review 2026-11-26, msg 3933)
       const pepRule = pepOwnersOf(owners);
-      const plan = planDownloads(docxTemplates, owners.length, packageDocuments(selectedContract.packageId, selectedContract.serviceType), { pepOwners: pepRule.numbers });
+      // A PEP-nyilatkozat a TÉNYLEGES tulajdonosoké. A közvetlen tagoké a sorszámukon megy; a
+      // jogi személy tag NEM kap sajátot (korábban üres névvel készült volna el róla irat), a
+      // mögötte álló emberé a lánc alapján külön tételként jön.
+      const ttLista = beneficialOwnersOf(owners);
+      const kozvetlenTT = ttLista.beneficialOwners.filter((b) => !b.indirect).map((b) => b.ownerNumber);
+      const plan = planDownloads(docxTemplates, owners.length, packageDocuments(selectedContract.packageId, selectedContract.serviceType), { pepOwners: kozvetlenTT });
       const items = plan.items.filter((item) => kinds.includes(item.kind));
+      // A láncon át azonosított tényleges tulajdonosok iratai. A PEP-sablon csak a nevet kéri,
+      // azt a láncból tudjuk - a válaszát pedig az ügyfél adta meg a nyilatkozat-lépésen.
+      const lancTT = kinds.includes("pep") ? ttLista.beneficialOwners.filter((b) => b.indirect) : [];
+      const pepSablon = lancTT.length > 0 ? pickOwnerTemplate(docxTemplates, CATEGORY_PEP, 1) : null;
       const problems = plan.problems.filter((problem) => kinds.includes(problem.kind)).map((problem) => problem.message);
+      if (lancTT.length > 0 && !pepSablon?.template) problems.push(pepSablon?.error || "A PEP-nyilatkozat sablonja nem található.");
       // what the admin should know about who gets a declaration and who does not: a warning, never a stop
       const befolyasNote = kinds.includes("pep") ? decisiveInfluenceNote(selectedContract.decisiveInfluence) : null;
       // a láncról szóló figyelmeztetések: a hiányzó nyilatkozat nem állítja meg a többi iratot
@@ -650,6 +660,18 @@ export default function ContractsPage() {
         if (downloaded > 0) await new Promise((r) => setTimeout(r, 500));
         // the data sheet and the declaration are filled once per owner, with that owner's data under the tags without a number ({TULAJDONOS_NEV})
         await downloadDocxItem(item, selectedContract, item.kind === "kyc" || item.kind === "pep" ? ownerDataAliases(data, item.ownerNumber ?? 1) : data);
+        downloaded++;
+      }
+      // A láncon át azonosított tényleges tulajdonosok nyilatkozatai. Nincs sorszámuk a
+      // beadványban, ezért a sablon két mezőjét (név, PEP-jelző) közvetlenül adjuk meg.
+      for (const tt of lancTT) {
+        if (!pepSablon?.template) break;
+        const valasz = pepDeclarationOf(selectedContract, { kind: "chain", ownerNumber: tt.ownerNumber, indexPath: tt.indexPath, name: tt.name });
+        if (!valasz) continue; // válasz nélkül nem készítünk nyilatkozatot - a figyelmeztetés már szólt róla
+        if (downloaded > 0) await new Promise((r) => setTimeout(r, 500));
+        const lancAdat = { ...ownerDataAliases(data, tt.ownerNumber), TULAJDONOS_NEV: tt.name, TULAJDONOS_PEP: pepFlagOf(valasz) };
+        const nevResz = (tt.name || "tenyleges_tulajdonos").replace(/\s+/g, "_").replace(/[^a-zA-Z0-9_áéíóöőúüűÁÉÍÓÖŐÚÜŰ]/g, "");
+        await generateSingleDocx(pepSablon.template, lancAdat, `pep_nyilatkozat_${nevResz}_${new Date().toISOString().slice(0, 10)}.docx`);
         downloaded++;
       }
       if (problems.length > 0) {

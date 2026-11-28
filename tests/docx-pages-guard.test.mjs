@@ -43,7 +43,13 @@ describe("the contracts page", () => {
 
   it("makes the declaration for the beneficial owners only, tells the rest in a note, and never stops for it", () => {
     const run = page.slice(page.indexOf("const runDocxDownloads"));
-    assert.ok(run.includes("const pepRule = pepOwnersOf(owners);") && run.includes("{ pepOwners: pepRule.numbers }"));
+    // A nyilatkozat a TÉNYLEGES tulajdonosoké. A tervbe csak a KÖZVETLEN tényleges tulajdonosok
+    // sorszáma megy (a jogi személy tag így nem kap üres nevű iratot), a láncon át azonosított
+    // emberek pedig külön tételként kapják a sajátjukat.
+    assert.ok(run.includes("beneficialOwnersOf(owners)"), "a tényleges tulajdonosok listájából dolgozik");
+    assert.ok(run.includes("{ pepOwners: kozvetlenTT }"), "a tervbe csak a közvetlen tényleges tulajdonosok mennek");
+    assert.ok(/filter\(\(b\) => !b\.indirect\)/.test(run), "a közvetett tulajdonos nem a sorszámán megy");
+    assert.ok(run.includes("if (!valasz) continue;"), "válasz nélkül nem készül nyilatkozat a lánc emberéről");
     // the notes are an alert, and the downloads go on: no `return` between building them and the alert
     assert.ok(/const pepNotes = \[[^\]]*pepRule\.notes/.test(run), "the notes of pepOwnersOf are shown");
     assert.ok(run.includes("decisiveInfluenceNote(selectedContract.decisiveInfluence)"), "the decisive influence (under 25 per cent) is told too");

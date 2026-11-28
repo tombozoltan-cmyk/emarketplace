@@ -15,7 +15,7 @@ import { Step6PepDeclaration } from "./steps/Step6PepDeclaration";
 import type { PepDeclarantView } from "./steps/Step6PepDeclaration";
 import { Step7Documents } from "./steps/Step7Documents";
 import { Step7Summary } from "./steps/Step7Summary";
-import type { ContractLanguage, WizardStep } from "@/lib/contract-types";
+import type { ContractLanguage, OwnerChainNode, WizardStep } from "@/lib/contract-types";
 import { pepDeclarantsOf } from "@/lib/docx-data";
 
 type ContractWizardProps = {
@@ -47,6 +47,30 @@ export function ContractWizard({ language = "hu" }: ContractWizardProps) {
               ? "Egyik tulajdonos sem éri el a 25%-ot. Ilyenkor a törvény szerint az ügyvezetőről kell nyilatkozni."
               : "No owner reaches 25%. In that case the law requires the declaration to be made about the managing director.",
         data: wizard.data.representativePep ?? {},
+      };
+    }
+    if (declarant.kind === "chain") {
+      // A láncon át azonosított ember. A cégnév kedvéért megkeressük, melyik tag alatt áll.
+      const alatta = wizard.data.owners[declarant.ownerNumber - 1]?.legal?.companyName || "";
+      const csomopont = declarant.indexPath.reduce<OwnerChainNode | undefined>(
+        (elem, i) => (elem ? elem.owners?.[i] : wizard.data.owners[declarant.ownerNumber - 1]?.legal?.owners?.[i]),
+        undefined,
+      );
+      return {
+        key: `chain-${declarant.ownerNumber}-${declarant.indexPath.join("-")}`,
+        declarant,
+        name: declarant.name,
+        role: t
+          ? alatta
+            ? `A(z) ${alatta} tulajdonosa`
+            : "A cég mögött álló tulajdonos"
+          : alatta
+            ? `Owner of ${alatta}`
+            : "Owner behind the company",
+        note: t
+          ? "Őt Ön adta meg a cég tulajdonosaként. A törvény szerint róla is nyilatkozni kell, mert végső soron övé a cég legalább negyede."
+          : "You named this person as an owner of the company. The law requires a declaration about them too, as they ultimately hold at least a quarter of the company.",
+        data: csomopont?.pep ?? {},
       };
     }
     const owner = wizard.data.owners[declarant.ownerNumber - 1];

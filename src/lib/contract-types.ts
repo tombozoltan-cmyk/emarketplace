@@ -77,6 +77,12 @@ export type OwnerChainNode = {
   name: string;
   listed?: boolean;
   owners?: OwnerChainNode[];
+  /**
+   * Ennek a személynek a SAJÁT PEP-nyilatkozata, ha a láncon át ő lett tényleges tulajdonos.
+   * A nyilatkozat személyenként szól, és a lánc végén álló embert is meg kell kérdezni -
+   * enélkül az ő irata kézi munka maradna.
+   */
+  pep?: PepDeclaration;
 };
 
 // Tulajdonos (természetes vagy jogi személy)
