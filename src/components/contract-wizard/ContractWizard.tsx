@@ -233,7 +233,8 @@ export function ContractWizard({ language = "hu" }: ContractWizardProps) {
 
       {/* Lépés tartalma */}
       <Card className="mb-8 border-2 border-[color:var(--border)] shadow-lg">
-        <CardContent className="p-6 md:p-8">{renderStep()}</CardContent>
+        {/* pb nagyobb, mint a tobbi oldal: a lepes utolso eleme gyakran gomb, annak tobb levego kell */}
+        <CardContent className="p-6 pb-8 md:p-8 md:pb-10">{renderStep()}</CardContent>
       </Card>
 
       {/* Validációs hibák - csak ha már megpróbált továbblépni */}

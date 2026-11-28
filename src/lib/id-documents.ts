@@ -153,3 +153,31 @@ export function uploadedDocumentLabel(key: string, idType?: string): string {
       return key;
   }
 }
+
+/**
+ * Figyelmeztetés, ha a feltöltött kép valószínűleg NEM okmányfotó.
+ *
+ * A típus- és méretszűrés (JPG/PNG/WEBP/HEIC/PDF, max 10 MB) már korábban lefut, de az nem veszi
+ * észre, ha valaki logót vagy képernyőképet tölt fel okmány helyett - 2026-11-28-án éppen ez
+ * történt egy próba-beadványnál. Ez a függvény két olcsó jelet néz:
+ *
+ * - **Kicsi felbontás**: 700 képpont alatt a hosszabbik oldalon egy okmány szövege olvashatatlan.
+ * - **Kis PNG**: a fényképek JPEG-ek és nagyobbak; a 80 KB alatti PNG szinte mindig logó, ikon
+ *   vagy képernyőkép.
+ *
+ * ⚠ Szándékosan FIGYELMEZTETÉS, nem tiltás: egy valódi, kis méretű szkennt nem szabad
+ * visszadobni. A döntés az ügyfélé és az ügyintézőé marad.
+ */
+export function documentImageWarning(
+  file: { type: string; size: number },
+  kep?: { width: number; height: number }
+): string | null {
+  if (file.type === "application/pdf") return null;
+  if (kep && Math.max(kep.width, kep.height) < 700) {
+    return "Ez a kép kicsi (a szövege valószínűleg olvashatatlan lesz). Biztosan az okmány fényképe?";
+  }
+  if (file.type === "image/png" && file.size < 80 * 1024) {
+    return "Ez a fájl inkább logónak vagy képernyőképnek tűnik, mint okmányfotónak. Biztosan a megfelelő képet töltötte fel?";
+  }
+  return null;
+}
