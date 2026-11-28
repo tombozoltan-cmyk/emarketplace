@@ -41,11 +41,11 @@ export function ContractWizard({ language = "hu" }: ContractWizardProps) {
         note:
           declarant.reason === "jogi-szemely-tag"
             ? t
-              ? "A tulajdonos jogi személy. A tényleges tulajdonos a mögötte álló természetes személy (közvetett tulajdonlás), amit ez az űrlap nem követ - az átvilágításnál kézzel kell tisztázni. Addig a vezető tisztségviselő nyilatkozata kerül be."
-              : "The member is a legal entity. The beneficial owner is the natural person behind it (indirect ownership), which this form does not trace - it must be established manually during due diligence. Until then the managing director's declaration is recorded."
+              ? "A tulajdonos egy cég. A törvény szerint azt kell tudnunk, melyik ember áll a cég mögött — ezt az ügyintézés során tisztázzuk Önnel. Addig az ügyvezetőről kérjük a nyilatkozatot."
+              : "The owner is a company. The law requires us to know which person is behind it — we will clarify this with you during the process. Until then we ask for the declaration about the managing director."
             : t
-              ? "Egyetlen tag sem éri el a 25%-ot, ezért a Pmt. szerint a vezető tisztségviselő a tényleges tulajdonos - a nyilatkozatot rá kell megtenni."
-              : "No member reaches 25%, so under the AML act the managing director is the beneficial owner and the declaration is made for them.",
+              ? "Egyik tulajdonos sem éri el a 25%-ot. Ilyenkor a törvény szerint az ügyvezetőről kell nyilatkozni."
+              : "No owner reaches 25%. In that case the law requires the declaration to be made about the managing director.",
         data: wizard.data.representativePep ?? {},
       };
     }

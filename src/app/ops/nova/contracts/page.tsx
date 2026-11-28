@@ -1461,6 +1461,7 @@ export default function ContractsPage() {
                                   <OwnerChainEditor
                                     owners={owner.legal?.owners || []}
                                     companyDepth={1}
+                                    audience="iroda"
                                     onChange={(lanc) => {
                                       const next = [...(editedOwners || [])];
                                       next[idx] = { ...next[idx], legal: { ...next[idx].legal!, owners: lanc } };

@@ -226,13 +226,13 @@ export function Step6PepDeclaration({
           <CardContent className="space-y-4 p-6">
             <Label className="text-base font-semibold">
               {t
-                ? "Van-e olyan természetes személy, aki a tulajdoni arányától függetlenül meghatározó befolyást gyakorol a cégben?"
-                : "Is there a natural person who exercises decisive influence in the company, regardless of their ownership share?"}
+                ? "Van-e olyan személy, aki a tulajdonrészétől függetlenül irányítja a céget?"
+                : "Is there a person who controls the company regardless of their ownership share?"}
             </Label>
             <p className="text-sm text-[color:var(--muted-foreground)]">
               {t
-                ? "Például: megválaszthatja vagy visszahívhatja a vezető tisztségviselők többségét; megállapodás alapján a szavazatok több mint felét irányítja; vagy más módon tényleges irányítást gyakorol. Az ilyen személy a törvény szerint akkor is tényleges tulajdonos, ha 25%-nál kevesebbel rendelkezik."
-                : "For example: may appoint or remove the majority of the executive officers; controls more than half of the votes by agreement; or otherwise exercises actual control. Such a person is a beneficial owner by law even below 25%."}
+                ? "Például kinevezheti vagy leválthatja az ügyvezetők többségét; megállapodás alapján ő dönti el a szavazások többségét; vagy más módon ő mondja meg, mi történjen a cégben. A törvény az ilyen személyt akkor is tulajdonosnak tekinti, ha kevés tulajdonrésze van, vagy egyáltalán nincs."
+                : "For example, they may appoint or remove most of the executives; by agreement they decide the majority of votes; or they otherwise determine what the company does. The law treats such a person as an owner even with a small share, or none at all."}
             </p>
             <RadioGroup
               value={befolyasErtek}
@@ -255,7 +255,7 @@ export function Step6PepDeclaration({
             {decisiveInfluence.exists === true && (
               <div className="space-y-2">
                 <Label htmlFor="meghatarozo-befolyas-reszletek" className="text-base font-semibold">
-                  {t ? "Ki, és milyen módon? *" : "Who, and in what way? *"}
+                  {t ? "Kiről van szó, és miből fakad az irányítása? *" : "Who is it, and what is their control based on? *"}
                 </Label>
                 <Textarea
                   id="meghatarozo-befolyas-reszletek"
@@ -263,8 +263,8 @@ export function Step6PepDeclaration({
                   onChange={(e) => onDecisiveInfluenceChange({ details: e.target.value })}
                   placeholder={
                     t
-                      ? "A személy neve, és hogy min alapul a befolyása (pl. szavazategyezségi megállapodás, kinevezési jog)."
-                      : "The person's name and the basis of their influence (e.g. voting agreement, right of appointment)."
+                      ? "A személy neve, és hogy miből ered az irányítása — például megállapodás a szavazatokról, vagy joga kinevezni az ügyvezetőt."
+                      : "The person's name and where their control comes from — for example an agreement on votes, or the right to appoint the managing director."
                   }
                   rows={3}
                   className="w-full"

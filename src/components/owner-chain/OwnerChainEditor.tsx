@@ -6,27 +6,61 @@ import type { OwnerChainNode, OwnerType } from "@/lib/contract-types";
 import { MAX_OWNER_CHAIN_DEPTH, beneficialOwnersOf } from "@/lib/docx-data";
 
 /**
- * A jogi személy tag MÖGÖTTI tulajdonosi lánc rögzítése, az átvilágításhoz.
+ * A cég mögötti tulajdonosi lánc rögzítése.
  *
- * A köztes szintekhez szándékosan kevés adat kell: név, arány, típus. Teljes személyes adat csak
- * attól kell, akiből végül tényleges tulajdonos lesz - azt az ügyfél-átvilágítási adatlapnál
- * veszik fel. Ez a szerkesztő a SZERKEZETET gyűjti, nem a személyek adatait.
+ * Két helyen fut: az ÜGYFÉL űrlapján és az IRODA admin felületén. A kettőnek más szöveg kell, és
+ * ezt nem lehet egy szöveggel megúszni: az ügyfélnek a §-hivatkozás és a belső eljárás semmit nem
+ * mond, az irodának viszont pont az a hasznos. Ezért minden magyarázatnak két változata van
+ * (`audience`), és a különbség szándékos, nem elfelejtett egységesítés.
  *
- * A mélység a `beneficialOwnersOf` szabályát követi: legfeljebb `MAX_OWNER_CHAIN_DEPTH` cég, utána
- * a tényleges tulajdonost meg kell nevezni. A jogi átnézés (2026-11-28, 3. pont) szerint a megállás
- * nem lezárás: az ág nyitott marad, és a vezető tisztségviselő NEM léphet a helyére.
+ * Amit gyűjt: csak NÉV, ARÁNY, TÍPUS. Teljes személyes adat csak attól kell, akiből végül
+ * tényleges tulajdonos lesz - azt az átvilágítási adatlapnál veszik fel.
  */
+
+export type ChainAudience = "ugyfel" | "iroda";
 
 type EditorProps = {
   owners: OwnerChainNode[];
   onChange: (owners: OwnerChainNode[]) => void;
   /** Hány cég áll e lista FELETT a láncban. A közvetlen jogi személy tag gyermekeinél 1. */
   companyDepth: number;
+  audience: ChainAudience;
 };
 
 const uresSor = (): OwnerChainNode => ({ type: "natural", name: "", ownershipPercent: "" });
 
-export function OwnerChainEditor({ owners, onChange, companyDepth }: EditorProps) {
+/** Minden magyarázat két hangnemben. Az ügyfélé köznyelvi, az irodáé pontos. */
+const SZOVEG = {
+  ures: {
+    ugyfel: "Még nincs megadva, ki a cég tulajdonosa. Ha tudja, írja be — ezzel gyorsul az ügyintézés.",
+    iroda:
+      "Nincs rögzítve, ki áll e mögött a cég mögött. Amíg üres, a tényleges tulajdonos ezen az ágon nem azonosított.",
+  },
+  jegyzettJelolo: {
+    ugyfel: "Ez a cég tőzsdén jegyzett",
+    iroda: "Szabályozott piacon jegyzett (tőzsdei) társaság",
+  },
+  jegyzettMagyarazat: {
+    ugyfel: "Tőzsdei cégnél nem kérjük a tulajdonosok felsorolását: azt nyilvános adatbázisból nézzük meg.",
+    iroda:
+      "A lánc itt megáll. A 25%-ot elérő részvényeseket a nyilvános részesedés-bejelentésekből kell ellenőrizni. Az azonosítás ezen az ágon hiányos marad, és a vezető tisztségviselő nem léphet a tényleges tulajdonos helyére (Pmt. 3. § 38. f) csak valódi hiányra szól).",
+  },
+  melyseg: {
+    ugyfel:
+      "Itt már nem kérdezünk tovább céget. Kérjük, írja be annak a személynek a nevét, akié végső soron a tulajdon. Ha nem tudja, hagyja üresen — kollégánk egyeztet Önnel.",
+    iroda: `Ez a ${MAX_OWNER_CHAIN_DEPTH}. cég a láncban, mélyebbre nem megyünk. Itt a tényleges tulajdonost névvel kell megadni. Ha nem ismert, az azonosítás hiányos marad, és a vezető tisztségviselő nem léphet a helyére.`,
+  },
+  hozzaad: { ugyfel: "Tulajdonos hozzáadása", iroda: "Tulajdonos hozzáadása" },
+  nevCeg: { ugyfel: "A cég neve", iroda: "Cég neve" },
+  nevSzemely: { ugyfel: "Név", iroda: "Név" },
+  arany: { ugyfel: "Tulajdonrész (%)", iroda: "Arány (%)" },
+  tipus: { ugyfel: "Ki ez?", iroda: "Típus" },
+  szemely: { ugyfel: "Magánszemély", iroda: "Természetes személy" },
+  ceg: { ugyfel: "Egy másik cég", iroda: "Jogi személy" },
+} as const;
+
+export function OwnerChainEditor({ owners, onChange, companyDepth, audience }: EditorProps) {
+  const sz = <K extends keyof typeof SZOVEG>(kulcs: K) => SZOVEG[kulcs][audience];
   // Tovább csak akkor ágazhatunk, ha a következő cég még belefér a követett mélységbe.
   const lehetCeg = companyDepth < MAX_OWNER_CHAIN_DEPTH;
 
@@ -36,21 +70,19 @@ export function OwnerChainEditor({ owners, onChange, companyDepth }: EditorProps
 
   return (
     <div className="space-y-3">
-      {owners.length === 0 && (
-        <p className="text-xs text-[color:var(--muted-foreground)]">
-          Nincs megadva, ki áll e mögött a cég mögött. Amíg üres, a tényleges tulajdonos ezen az ágon
-          ismeretlen marad.
-        </p>
-      )}
+      {owners.length === 0 && <p className="text-xs text-[color:var(--muted-foreground)]">{sz("ures")}</p>}
 
       {owners.map((sor, index) => {
         const jogi = sor.type === "legal";
         return (
           <div key={index} className="rounded-md border border-[color:var(--border)] p-3 space-y-2">
-            <div className="flex items-start gap-2">
-              <div className="flex-1">
+            {/* flex-wrap: beágyazva a konténer keskeny, ilyenkor a mezők TÖRDELŐDNEK, nem
+                préselődnek össze. Képernyő-törésponttal ez nem oldható meg, mert nem a
+                képernyő szűk, hanem a befoglaló doboz. */}
+            <div className="flex flex-wrap items-start gap-2">
+              <div className="min-w-[11rem] flex-1">
                 <label className="text-[color:var(--muted-foreground)] text-xs">
-                  {jogi ? "Cég neve" : "Név"}
+                  {jogi ? sz("nevCeg") : sz("nevSzemely")}
                 </label>
                 <Input
                   value={sor.name || ""}
@@ -59,8 +91,8 @@ export function OwnerChainEditor({ owners, onChange, companyDepth }: EditorProps
                   placeholder={jogi ? "Pl.: Anya Holding Kft." : "Pl.: Kovács János"}
                 />
               </div>
-              <div className="w-24">
-                <label className="text-[color:var(--muted-foreground)] text-xs">Arány (%)</label>
+              <div className="w-28">
+                <label className="text-[color:var(--muted-foreground)] text-xs">{sz("arany")}</label>
                 <Input
                   value={String(sor.ownershipPercent ?? "")}
                   onChange={(e) => modosit(index, { ownershipPercent: e.target.value })}
@@ -68,8 +100,8 @@ export function OwnerChainEditor({ owners, onChange, companyDepth }: EditorProps
                   placeholder="100"
                 />
               </div>
-              <div className="w-36">
-                <label className="text-[color:var(--muted-foreground)] text-xs">Típus</label>
+              <div className="w-40">
+                <label className="text-[color:var(--muted-foreground)] text-xs">{sz("tipus")}</label>
                 <select
                   value={jogi ? "legal" : "natural"}
                   onChange={(e) =>
@@ -81,8 +113,8 @@ export function OwnerChainEditor({ owners, onChange, companyDepth }: EditorProps
                   }
                   className="h-8 w-full rounded-md border border-[color:var(--border)] bg-[color:var(--background)] px-2 text-sm"
                 >
-                  <option value="natural">Természetes személy</option>
-                  {lehetCeg && <option value="legal">Jogi személy</option>}
+                  <option value="natural">{sz("szemely")}</option>
+                  {lehetCeg && <option value="legal">{sz("ceg")}</option>}
                 </select>
               </div>
               <button
@@ -90,6 +122,7 @@ export function OwnerChainEditor({ owners, onChange, companyDepth }: EditorProps
                 onClick={() => onChange(owners.filter((_, i) => i !== index))}
                 className="mt-5 p-1 text-[color:var(--muted-foreground)] hover:text-red-600 rounded"
                 title="Sor törlése"
+                aria-label="Sor törlése"
               >
                 <Trash2 className="w-4 h-4" />
               </button>
@@ -103,22 +136,22 @@ export function OwnerChainEditor({ owners, onChange, companyDepth }: EditorProps
                     checked={Boolean(sor.listed)}
                     onChange={(e) => modosit(index, { listed: e.target.checked })}
                   />
-                  Szabályozott piacon jegyzett (tőzsdei) társaság
+                  {sz("jegyzettJelolo")}
                 </label>
                 {sor.listed ? (
-                  <p className="text-xs text-amber-700 dark:text-amber-300">
-                    A lánc itt megáll. A 25%-ot elérő részvényeseket a nyilvános
-                    részesedés-bejelentésekből kell ellenőrizni — az ág nyitott marad.
-                  </p>
+                  <p className="text-xs text-amber-700 dark:text-amber-300">{sz("jegyzettMagyarazat")}</p>
                 ) : (
-                  <div className="pl-3 border-l-2 border-[color:var(--border)]">
+                  <div className="pl-2 border-l-2 border-[color:var(--border)]">
                     <p className="text-xs text-[color:var(--muted-foreground)] mb-2">
-                      Ki áll a(z) {sor.name || "cég"} mögött?
+                      {audience === "ugyfel"
+                        ? `És ki a tulajdonosa a(z) ${sor.name || "ennek a cégnek"}?`
+                        : `Ki áll a(z) ${sor.name || "cég"} mögött?`}
                     </p>
                     <OwnerChainEditor
                       owners={sor.owners || []}
                       onChange={(gyerekek) => modosit(index, { owners: gyerekek })}
                       companyDepth={companyDepth + 1}
+                      audience={audience}
                     />
                   </div>
                 )}
@@ -128,31 +161,24 @@ export function OwnerChainEditor({ owners, onChange, companyDepth }: EditorProps
         );
       })}
 
-      {!lehetCeg && (
-        <p className="text-xs text-amber-700 dark:text-amber-300">
-          Ez a {MAX_OWNER_CHAIN_DEPTH}. cég a láncban: mélyebbre már nem megyünk. Itt a tényleges
-          tulajdonost névvel kell megadni (természetes személyként). Ha nem ismert, az ág nyitva
-          marad — a vezető tisztségviselő nem léphet a helyére.
-        </p>
-      )}
+      {!lehetCeg && <p className="text-xs text-amber-700 dark:text-amber-300">{sz("melyseg")}</p>}
 
       <button
         type="button"
         onClick={() => onChange([...owners, uresSor()])}
         className="flex items-center gap-1 text-xs text-[color:var(--primary)] hover:underline"
       >
-        <Plus className="w-3 h-3" /> Tulajdonos hozzáadása
+        <Plus className="w-3 h-3" /> {sz("hozzaad")}
       </button>
     </div>
   );
 }
 
-/** Amit a megadott láncból a szabály kiolvas: kiket azonosítottunk, és hol maradt nyitott ág. */
-export function OwnerChainSummary({
-  owners,
-}: {
-  owners: Parameters<typeof beneficialOwnersOf>[0];
-}) {
+/**
+ * Amit a megadott láncból a szabály kiolvas. Ez IRODAI nézet: az ügyfélnek nem mutatjuk, mert a
+ * százalékok és az útvonalak az ügyintézés eszközei, nem az ügyfél döntéséhez kellenek.
+ */
+export function OwnerChainSummary({ owners }: { owners: Parameters<typeof beneficialOwnersOf>[0] }) {
   const { beneficialOwners, notes, unresolved } = beneficialOwnersOf(owners);
 
   return (
@@ -170,13 +196,15 @@ export function OwnerChainSummary({
             {beneficialOwners.map((b, i) => (
               <li key={i} className="flex items-baseline justify-between gap-2">
                 <span>
-                  {b.name || "(névtelen)"}{" "}
+                  {b.name || "(nincs megadva a neve)"}{" "}
                   <span className="text-[color:var(--muted-foreground)]">
-                    {b.indirect ? "közvetett" : "közvetlen"} · {b.path}
+                    {b.indirect ? "a cégen keresztül" : "közvetlen tag"} · {b.path}
                   </span>
                 </span>
                 <span className="font-semibold text-[color:var(--primary)] whitespace-nowrap">
-                  {b.effectiveShare === null ? "? %" : `${String(b.effectiveShare).replace(".", ",")}%`}
+                  {b.effectiveShare === null
+                    ? "arány ismeretlen"
+                    : `${String(b.effectiveShare).replace(".", ",")}%`}
                 </span>
               </li>
             ))}
@@ -187,11 +215,12 @@ export function OwnerChainSummary({
       {unresolved.length > 0 && (
         <div className="rounded-md border border-amber-300 bg-amber-50 p-2 dark:border-amber-800 dark:bg-amber-950">
           <p className="font-semibold text-amber-800 dark:text-amber-200">
-            Nyitott ág ({unresolved.length}) — a tényleges tulajdonos itt nem azonosított
+            Hiányzó azonosítás {unresolved.length} ágon — itt nem derült ki, ki a tényleges tulajdonos
           </p>
           <p className="mt-1 text-amber-800 dark:text-amber-200">
-            Amíg nyitott ág van, a vezető tisztségviselő nem léphet a tényleges tulajdonos helyére
-            (Pmt. 3. § 38. f) csak valódi hiányra szól).
+            Ezeken az ágakon hiányozni fog egy-egy PEP-nyilatkozat, és a vezető tisztségviselő nem
+            léphet a tényleges tulajdonos helyére (Pmt. 3. § 38. f) csak valódi hiányra szól). A többi
+            irat ettől függetlenül elkészül.
           </p>
         </div>
       )}

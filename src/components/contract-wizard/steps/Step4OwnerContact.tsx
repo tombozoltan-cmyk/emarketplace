@@ -583,12 +583,17 @@ export function Step4OwnerContact({
                     nyitott ág, amit az átvilágításnál kell tisztázni. */}
                 <div className="space-y-3 rounded-lg border border-[color:var(--border)] bg-[color:var(--muted)]/20 p-4">
                   <Label className="text-sm font-medium">
-                    {t ? "Ki áll a cég mögött? (tényleges tulajdonos)" : "Who is behind the company? (beneficial owner)"}
+                    {t ? "Ki a tulajdonosa ennek a cégnek?" : "Who owns this company?"}
                   </Label>
                   <p className="text-xs text-[color:var(--muted-foreground)]">
                     {t
-                      ? "A pénzmosás elleni törvény szerint a tényleges tulajdonos az a természetes személy, aki a tulajdonosi láncon keresztül végül a cég legalább 25%-ával rendelkezik. Ha most megadja, az átvilágítás egy lépéssel előrébb tart; ha nem tudja, üresen hagyhatja, és később pótoljuk."
-                      : "Under the AML act, the beneficial owner is the natural person who ultimately holds at least 25% through the ownership chain. Providing it now moves the due diligence a step ahead; if you do not know, you may leave it empty and we will complete it later."}
+                      ? "A törvény azt kéri, hogy tudjuk, melyik ember áll végső soron a cég mögött. Ha a tulajdonos is egy cég, akkor annak a tulajdonosát is megkérdezzük — legfeljebb három cégen keresztül."
+                      : "The law requires us to know which person is ultimately behind the company. If the owner is also a company, we ask about its owner too — through at most three companies."}
+                  </p>
+                  <p className="text-xs text-[color:var(--muted-foreground)]">
+                    {t
+                      ? "Nem kötelező most kitölteni. Ha megadja, gyorsabban megy az ügyintézés; ha nem tudja fejből, hagyja üresen, és kollégánk egyeztet Önnel."
+                      : "This is not mandatory now. Filling it in speeds up the process; if you do not know it offhand, leave it empty and a colleague will contact you."}
                   </p>
                   <label className="flex items-center gap-2 text-xs text-[color:var(--muted-foreground)]">
                     <input
@@ -596,20 +601,19 @@ export function Step4OwnerContact({
                       checked={Boolean(legal.listed)}
                       onChange={(e) => updateLegal({ listed: e.target.checked })}
                     />
-                    {t
-                      ? "Szabályozott piacon jegyzett (tőzsdei) társaság"
-                      : "Company listed on a regulated market"}
+                    {t ? "Ez a cég tőzsdén jegyzett" : "This company is listed on a stock exchange"}
                   </label>
                   {legal.listed ? (
                     <p className="text-xs text-amber-700 dark:text-amber-300">
                       {t
-                        ? "Jegyzett társaságnál a láncot nem kérjük: a részvényeseket a nyilvános bejelentésekből ellenőrizzük."
-                        : "For a listed company we do not ask for the chain: shareholders are checked from public disclosures."}
+                        ? "Tőzsdei cégnél nem kérjük a tulajdonosok felsorolását: azt nyilvános adatbázisból nézzük meg."
+                        : "For a listed company we do not ask you to list the owners: we check them in a public database."}
                     </p>
                   ) : (
                     <OwnerChainEditor
                       owners={legal.owners || []}
                       companyDepth={1}
+                      audience="ugyfel"
                       onChange={(lanc) => updateLegal({ owners: lanc })}
                     />
                   )}
