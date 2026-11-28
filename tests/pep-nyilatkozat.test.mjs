@@ -118,14 +118,23 @@ describe("ki köteles nyilatkozni", () => {
 
   it("ha senki nem éri el a 25%-ot, a vezető tisztségviselő nyilatkozik (Pmt. 3. § 38. f))", () => {
     const ot = [tulajdonos(20, NEM), tulajdonos(20, NEM), tulajdonos(20, NEM), tulajdonos(20, NEM), tulajdonos(20, NEM)];
-    assert.deepEqual(pepDeclarantsOf(beadvany({ owners: ot })), [{ kind: "representative" }]);
+    assert.deepEqual(pepDeclarantsOf(beadvany({ owners: ot })), [
+      { kind: "representative", reason: "nincs-25-szazalekos" },
+    ]);
   });
 
-  it("jogi személy tag nem tud nyilatkozni: helyette a vezető tisztségviselőt kérdezzük", () => {
-    // A tényleges tulajdonos a mögötte álló természetes személy; azt a generátor nem kezeli
-    // (pepOwnersOf megjegyzést ad róla). Az ügyvezetőt kérdezni több, mint senkit.
+  it("jogi személy tagnál MÁS az ok, és ezt a nyilatkozó is hordozza", () => {
+    // A tényleges tulajdonos a mögötte álló természetes személy (KÖZVETETT tulajdonlás), nem a
+    // mi ügyvezetőnk. Ezt a láncot nem követjük, ezért az ügyvezető csak a legjobb elérhető
+    // közelítés - az űrlap ezt ki is írja. A két okot nem szabad összemosni: ha összemosódna,
+    // az ügyfél azt olvasná, hogy "egyetlen tag sem éri el a 25%-ot", holott a tag 100%-os.
     const kik = pepDeclarantsOf(beadvany({ owners: [{ type: "legal", ownershipPercent: 100 }] }));
-    assert.deepEqual(kik, [{ kind: "representative" }]);
+    assert.deepEqual(kik, [{ kind: "representative", reason: "jogi-szemely-tag" }]);
+  });
+
+  it("a 25% alatti tagokból álló cégnél viszont tényleg az ügyvezető a tényleges tulajdonos", () => {
+    const ot = [tulajdonos(20, NEM), tulajdonos(20, NEM), tulajdonos(20, NEM), tulajdonos(20, NEM), tulajdonos(20, NEM)];
+    assert.equal(pepDeclarantsOf(beadvany({ owners: ot }))[0].reason, "nincs-25-szazalekos");
   });
 
   it("SOHA nem ad üres listát - különben az űrlap senkitől nem kérdezne", () => {
@@ -136,7 +145,7 @@ describe("ki köteles nyilatkozni", () => {
 
   it("a megnevezés emberi szóval megy a hibaüzenetbe", () => {
     assert.match(pepDeclarantLabel({ kind: "owner", ownerNumber: 2 }), /2\. tulajdonos/);
-    assert.match(pepDeclarantLabel({ kind: "representative" }), /vezető tisztségviselő/);
+    assert.match(pepDeclarantLabel({ kind: "representative", reason: "nincs-25-szazalekos" }), /vezető tisztségviselő/);
   });
 });
 
@@ -165,7 +174,7 @@ describe("melyik választ kapja a nyilatkozó", () => {
   it("a vezető tisztségviselő a saját mezőjéből kapja", () => {
     const ot = [tulajdonos(20, NEM), tulajdonos(20, NEM), tulajdonos(20, NEM), tulajdonos(20, NEM), tulajdonos(20, NEM)];
     const b = beadvany({ owners: ot, representativePep: IGEN });
-    assert.equal(pepFlagOf(pepDeclarationOf(b, { kind: "representative" })), "1");
+    assert.equal(pepFlagOf(pepDeclarationOf(b, { kind: "representative", reason: "nincs-25-szazalekos" })), "1");
   });
 });
 
@@ -254,6 +263,12 @@ describe("a wizard nem válaszol az ügyfél helyett", () => {
 
   it("a rádiógomb üres, amíg nincs válasz", () => {
     assert.match(LEPES, /valasz === undefined \? ""/, "a gomb előre kiválasztott állapotban jelenne meg");
+  });
+
+  it("a jogi személyes ág nem állítja, hogy az ügyvezető a tényleges tulajdonos", () => {
+    const WIZARD_TSX = readFileSync(new URL("../src/components/contract-wizard/ContractWizard.tsx", import.meta.url), "utf8");
+    assert.match(WIZARD_TSX, /reason === "jogi-szemely-tag"/, "a két ok nincs megkülönböztetve az űrlapon");
+    assert.match(WIZARD_TSX, /közvetett tulajdonlás/, "nem mondja ki, hogy a lánc mögötti ember a tényleges tulajdonos");
   });
 
   it("minden nyilatkozó külön azonosítót kap - különben a gombok összeakadnának", () => {

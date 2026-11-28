@@ -179,8 +179,24 @@ export function pepAnswered(declaration?: PepDeclarationInput): boolean {
   );
 }
 
+/**
+ * MIÉRT a vezető tisztségviselő nyilatkozik. A kettő nem ugyanaz, és nem szabad összemosni:
+ *
+ * - "nincs-25-szazalekos": egyetlen tag sem éri el a 25%-ot, ezért a Pmt. 3. § 38. f) szerint
+ *   TÉNYLEG a vezető tisztségviselő a tényleges tulajdonos.
+ * - "jogi-szemely-tag": a tag jogi személy. Ilyenkor a tényleges tulajdonos a mögötte álló
+ *   természetes személy (KÖZVETETT tulajdonlás), nem a mi ügyvezetőnk. Ezt a láncot sem ez az
+ *   űrlap, sem a generátor nem követi (lásd pepOwnersOf megjegyzését), ezért az átvilágításnál
+ *   kézzel kell tisztázni. Az ügyvezető nyilatkozata itt a legjobb elérhető közelítés, NEM a
+ *   jogilag helyes válasz - ezt az űrlapon is ki kell írni, különben az ügyfél és az ügyintéző
+ *   azt hiszi, hogy a kérdés el van intézve.
+ */
+export type PepRepresentativeReason = "nincs-25-szazalekos" | "jogi-szemely-tag";
+
 /** Ki teszi a PEP-nyilatkozatot: egy tulajdonos (sorszámmal), vagy a vezető tisztségviselő. */
-export type PepDeclarant = { kind: "owner"; ownerNumber: number } | { kind: "representative" };
+export type PepDeclarant =
+  | { kind: "owner"; ownerNumber: number }
+  | { kind: "representative"; reason: PepRepresentativeReason };
 
 type PepContractInput = {
   owners?: { type?: string; ownershipPercent?: unknown; pep?: PepDeclarationInput }[];
@@ -202,10 +218,15 @@ type PepContractInput = {
  */
 export function pepDeclarantsOf(contract: PepContractInput): PepDeclarant[] {
   const owners = contract.owners || [];
-  const declarants = pepOwnersOf(owners)
-    .numbers.filter((number) => owners[number - 1]?.type !== "legal")
+  const kotelesek = pepOwnersOf(owners).numbers;
+  const declarants = kotelesek
+    .filter((number) => owners[number - 1]?.type !== "legal")
     .map((ownerNumber): PepDeclarant => ({ kind: "owner", ownerNumber }));
-  return declarants.length > 0 ? declarants : [{ kind: "representative" }];
+  if (declarants.length > 0) return declarants;
+  // Nincs természetes személy tényleges tulajdonos. A kettő OKA más, és a kettő nem ugyanaz:
+  // jogi személy tagnál a lánc mögötti embert kellene azonosítani, azt viszont nem követjük.
+  const jogiSzemelyTag = kotelesek.some((number) => owners[number - 1]?.type === "legal");
+  return [{ kind: "representative", reason: jogiSzemelyTag ? "jogi-szemely-tag" : "nincs-25-szazalekos" }];
 }
 
 /**
