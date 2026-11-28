@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   AlertCircle,
   Building2,
@@ -42,6 +42,14 @@ export function Step7Summary({
   const [contractId, setContractId] = useState<string | null>(null);
 
   const canSubmit = termsAccepted && privacyAccepted && !isSubmitting;
+
+  // A beküldés gombja az oldal alján van, a siker-képernyő viszont rövid: görgetés nélkül az
+  // ügyfél a láblécet látná, és azt hinné, nem történt semmi. Ezért felgörgetünk.
+  useEffect(() => {
+    if (submitSuccess && typeof window !== "undefined") {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  }, [submitSuccess]);
 
   const handleSubmit = async () => {
     // a két pipa a beküldéssel együtt kerül ki a szerződésre: a nyom nélkül nem derül ki, mit fogadott el az ügyfél
@@ -389,7 +397,7 @@ export function Step7Summary({
         )}
 
         {/* Beküldés gomb */}
-        <div className="flex justify-center pt-4">
+        <div className="flex justify-center pt-8 pb-4">
           <Button
             onClick={handleSubmit}
             disabled={!canSubmit}

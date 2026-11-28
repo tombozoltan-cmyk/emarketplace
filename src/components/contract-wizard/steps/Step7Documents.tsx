@@ -18,7 +18,7 @@ import { firebaseStorage } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import type { ContractLanguage, ContractDocumentPaths, ContractDocuments, IdDocumentType } from "@/lib/contract-types";
-import { idImagesFor } from "@/lib/id-documents";
+import { documentImageWarning, idImagesFor } from "@/lib/id-documents";
 import { missingRequiredDocuments } from "@/lib/contract-submission";
 
 type Step7DocumentsProps = {
@@ -82,6 +82,9 @@ export function Step7Documents({
   const missing = missingRequiredDocuments(data, documentTypes, language);
   const [uploading, setUploading] = useState<DocumentType | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  // Dokumentumonkénti figyelmeztetés: a fájl átment a típus- és méretszűrésen, de nem úgy néz
+  // ki, mint egy okmányfotó. NEM tiltás - a döntés az ügyfélé.
+  const [imageWarnings, setImageWarnings] = useState<Partial<Record<DocumentType, string>>>({});
 
   const handleFileUpload = useCallback(
     async (docType: DocumentType, file: File) => {
@@ -115,6 +118,25 @@ export function Step7Documents({
 
       setUploading(docType);
       setUploadError(null);
+
+      // A kép méretét a feltöltés előtt nézzük meg. Ha nem sikerül beolvasni (HEIC-et a böngésző
+      // nem mindig rajzol ki), a figyelmeztetés a felbontás nélkül is eldől.
+      const meret = await new Promise<{ width: number; height: number } | undefined>((kesz) => {
+        if (!file.type.startsWith("image/")) return kesz(undefined);
+        const url = URL.createObjectURL(file);
+        const kep = new Image();
+        kep.onload = () => {
+          URL.revokeObjectURL(url);
+          kesz({ width: kep.naturalWidth, height: kep.naturalHeight });
+        };
+        kep.onerror = () => {
+          URL.revokeObjectURL(url);
+          kesz(undefined);
+        };
+        kep.src = url;
+      });
+      const figyelmeztetes = documentImageWarning(file, meret);
+      setImageWarnings((elozo) => ({ ...elozo, [docType]: figyelmeztetes ?? undefined }));
 
       try {
         const safeCompanyName = companyName.replace(/[^a-zA-Z0-9]/g, "_") || "company";
@@ -229,6 +251,24 @@ export function Step7Documents({
               <p className="text-sm font-medium text-red-800 dark:text-red-200">
                 {uploadError}
               </p>
+            </div>
+          </div>
+        )}
+
+        {/* Figyelmeztetés a gyanús képekre: nem hiba, de érdemes megnézni */}
+        {Object.entries(imageWarnings).filter(([, uzenet]) => uzenet).length > 0 && (
+          <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 dark:border-amber-800 dark:bg-amber-950">
+            <div className="flex items-start gap-2">
+              <AlertCircle className="mt-0.5 h-5 w-5 flex-shrink-0 text-amber-600 dark:text-amber-400" />
+              <ul className="space-y-1">
+                {Object.entries(imageWarnings)
+                  .filter(([, uzenet]) => uzenet)
+                  .map(([kulcs, uzenet]) => (
+                    <li key={kulcs} className="text-sm text-amber-800 dark:text-amber-200">
+                      {uzenet}
+                    </li>
+                  ))}
+              </ul>
             </div>
           </div>
         )}
